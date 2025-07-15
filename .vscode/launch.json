@@ -1,0 +1,93 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Client",
+      "presentation": {
+        "group": "Mod Development - Arffornia_Mods",
+        "order": 0
+      },
+      "projectName": "Arffornia_Mods",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Data",
+      "presentation": {
+        "group": "Mod Development - Arffornia_Mods",
+        "order": 1
+      },
+      "projectName": "Arffornia_Mods",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/dataRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "GameTestServer",
+      "presentation": {
+        "group": "Mod Development - Arffornia_Mods",
+        "order": 2
+      },
+      "projectName": "Arffornia_Mods",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/gameTestServerRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Server",
+      "presentation": {
+        "group": "Mod Development - Arffornia_Mods",
+        "order": 3
+      },
+      "projectName": "Arffornia_Mods",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
+}

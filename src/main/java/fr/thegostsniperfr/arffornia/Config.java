@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import fr.thegostsniperfr.arffornia.shop.ShopConfig;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -33,6 +34,10 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
             .comment("A list of items to log on common setup.")
             .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), () -> "", Config::validateItemName);
+
+    static {
+        ShopConfig.register(BUILDER);
+    }
 
     static final ModConfigSpec SPEC = BUILDER.build();
 

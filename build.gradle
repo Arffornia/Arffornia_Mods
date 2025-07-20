@@ -5,6 +5,7 @@ plugins {
     id 'idea'
 }
 
+
 tasks.named('wrapper', Wrapper).configure {
     // Define wrapper values here so as to not have to always do so when updating gradlew.properties.
     // Switching this to Wrapper.DistributionType.ALL will download the full gradle sources that comes with
@@ -48,6 +49,8 @@ neoForge {
 
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument('--username=The_Gost_sniper')
+            programArgument('--uuid=8267fbb3-021b-40ce-93ea-2a3c92feaa4c')
         }
 
         server {
@@ -129,6 +132,27 @@ dependencies {
 
     // Example project dependency using a sister or child project:
     // implementation project(":myproject")
+
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.postgresql:postgresql:42.7.3'
+    implementation 'com.zaxxer:HikariCP:5.1.0'
+
+    jarJar(implementation("org.postgresql:postgresql:42.7.3")) {
+        version {
+            strictly '[42.0,43.0)'
+            prefer '42.7.3'
+        }
+    }
+
+    jarJar(implementation("com.zaxxer:HikariCP:5.1.0")) {
+        version {
+            strictly '[5.0,6.0)'
+            prefer '5.1.0'
+        }
+    }
+
+    additionalRuntimeClasspath "org.postgresql:postgresql:42.7.3"
+    additionalRuntimeClasspath "com.zaxxer:HikariCP:5.1.0"
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

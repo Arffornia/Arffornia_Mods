@@ -1,5 +1,13 @@
 package fr.thegostsniperfr.arffornia;
 
+import fr.thegostsniperfr.arffornia.shop.RewardHandler;
+import fr.thegostsniperfr.arffornia.shop.ShopConfig;
+import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -16,7 +24,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
@@ -63,6 +70,10 @@ public class Arffornia {
                 output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
             }).build());
 
+    private DatabaseManager databaseManager;
+    private RewardHandler rewardHandler;
+    private int tickCounter = 0;
+
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
     public Arffornia(IEventBus modEventBus, ModContainer modContainer) {
@@ -85,7 +96,7 @@ public class Arffornia {
         modEventBus.addListener(this::addCreative);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -108,10 +119,67 @@ public class Arffornia {
         }
     }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-        // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+
+        LOGGER.info("Initializing Arffornia Shop Module...");
+        try {
+            this.databaseManager = new DatabaseManager();
+            this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
+            LOGGER.info("Shop Module initialized successfully.");
+        } catch (Exception e) {
+            LOGGER.error("CRITICAL ERROR: Could not initialize Shop Module. Please check database configuration.", e);
+            this.databaseManager = null;
+            this.rewardHandler = null;
+        }
     }
+
+    /**
+     * Cleanly shuts down resources when the server stops.
+     */
+    @SubscribeEvent
+    public void onServerStopping(ServerStoppingEvent event) {
+        if (this.databaseManager != null) {
+            LOGGER.info("Closing shop database connection pool.");
+            this.databaseManager.close();
+        }
+
+        if (this.rewardHandler != null) {
+            this.rewardHandler.shutdown();
+        }
+    }
+
+    /**
+     * Fired on every server tick. Used as a scheduler for periodic reward checks.
+     */
+    @SubscribeEvent
+    public void onServerTickPost(ServerTickEvent.Post event) {
+        if (this.rewardHandler == null) {
+            return;
+        }
+
+        tickCounter++;
+
+        final int checkIntervalInTicks = ShopConfig.REWARD_CHECK_INTERVAL.get() * 20;
+
+        if (tickCounter >= checkIntervalInTicks) {
+            tickCounter = 0;
+
+            MinecraftServer server = event.getServer();
+            server.getPlayerList().getPlayers().forEach(this.rewardHandler::processRewardsForPlayer);
+        }
+    }
+
+
+    /**
+     * Fired when a player joins the server. Triggers reward check.
+     */
+    @SubscribeEvent
+    public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer) {
+            this.rewardHandler.processRewardsForPlayer((ServerPlayer) event.getEntity());
+        }
+    }
+
 }

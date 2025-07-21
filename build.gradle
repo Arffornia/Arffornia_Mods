@@ -3,7 +3,7 @@ import java.nio.file.Files
 
 plugins {
     id 'java-library'
-    id 'maven-publish'
+    id 'com.github.breadmoirai.github-release' version '2.4.1'
     id 'net.neoforged.moddev' version '2.0.99'
     id 'idea'
 }
@@ -25,31 +25,45 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-publishing {
-    publications {
-        create("mavenJava", MavenPublication) {
-            // "from components.java" dit à Gradle de publier le résultat de la compilation Java,
-            // c'est-à-dire votre .jar principal.
-            from components.java
+tasks.register('createChecksum', Task) {
+    description = 'Creates a SHA1 checksum file for the mod JAR.'
+    group = 'build'
 
-            // Il est important de redéfinir ces coordonnées ici pour s'assurer
-            // qu'elles sont correctes dans le fichier .pom qui sera généré.
-            groupId = mod_group_id
-            artifactId = mod_id
-            version = mod_version
-        }
+    dependsOn tasks.named('jar')
+
+    inputs.file(tasks.jar.outputs.files.singleFile)
+    outputs.file(project.layout.buildDirectory.file("${base.archivesName}-${project.version}.jar.sha1"))
+
+    doLast {
+        def jarFile = tasks.jar.outputs.files.singleFile
+        def checksumFile = project.layout.buildDirectory.file("${base.archivesName}-${project.version}.jar.sha1").get().asFile
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-1")
+        jarFile.eachByte { b -> digest.update(b) }
+        String sha1 = digest.digest().encodeHex().toString()
+
+        checksumFile.text = sha1
+        println "Generated SHA1 checksum for ${jarFile.name}: ${sha1}"
+    }
+}
+
+githubRelease {
+    def githubToken = System.getenv("GITHUB_TOKEN")
+    if (githubToken) {
+        token = githubToken
     }
 
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${System.getenv("GITHUB_REPOSITORY")}")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
+    def repoOwner = System.getenv("GITHUB_REPOSITORY_OWNER")
+    if (repoOwner) {
+        owner = repoOwner
     }
+
+    repo = project.name
+    tagName = "v${project.version}"
+    releaseName = "Release ${project.version}"
+
+    releaseAssets.from(tasks.createChecksum.outputs.files)
+    releaseAssets.from(tasks.jar.outputs.files)
 }
 
 neoForge {

@@ -1,6 +1,5 @@
 package fr.thegostsniperfr.arffornia.client;
 
-
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.client.gui.ProgressionGraphScreen;
 import net.minecraft.client.Minecraft;

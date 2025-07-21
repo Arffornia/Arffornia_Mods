@@ -26,9 +26,9 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- DESIGN & THEME CONSTANTS ---
 
-    private static final int BASE_GRID_CELL_SPACING = 48;
-    private static final int BASE_NODE_DIAMETER = 48;
-    private static final int BASE_ICON_DIAMETER = 32;
+    private static final int BASE_GRID_CELL_SPACING = 64;
+    private static final int BASE_NODE_DIAMETER = 64;
+    private static final int BASE_ICON_DIAMETER = 20;
     private static final int BASE_LINE_THICKNESS = 3;
 
     // --- WEB THEME COLORS ---

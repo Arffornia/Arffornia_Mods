@@ -1,8 +1,10 @@
 package fr.thegostsniperfr.arffornia;
 
+import fr.thegostsniperfr.arffornia.command.CommandRegistration;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.ShopConfig;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
+import fr.thegostsniperfr.arffornia.util.Permissions;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -72,7 +74,7 @@ public class Arffornia {
 
     private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
-    private int tickCounter = 0;
+    private CommandRegistration commandRegistration;
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -94,6 +96,8 @@ public class Arffornia {
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
+
+        NeoForge.EVENT_BUS.register(Permissions.class);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
@@ -127,7 +131,11 @@ public class Arffornia {
         try {
             this.databaseManager = new DatabaseManager();
             this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
-            LOGGER.info("Shop Module initialized successfully.");
+
+            this.commandRegistration = new CommandRegistration(this.rewardHandler);
+            this.commandRegistration.register(event.getServer().getCommands().getDispatcher());
+
+            LOGGER.info("Shop Module and commands initialized successfully.");
         } catch (Exception e) {
             LOGGER.error("CRITICAL ERROR: Could not initialize Shop Module. Please check database configuration.", e);
             this.databaseManager = null;
@@ -151,35 +159,29 @@ public class Arffornia {
     }
 
     /**
-     * Fired on every server tick. Used as a scheduler for periodic reward checks.
-     */
-    @SubscribeEvent
-    public void onServerTickPost(ServerTickEvent.Post event) {
-        if (this.rewardHandler == null) {
-            return;
-        }
-
-        tickCounter++;
-
-        final int checkIntervalInTicks = ShopConfig.REWARD_CHECK_INTERVAL.get() * 20;
-
-        if (tickCounter >= checkIntervalInTicks) {
-            tickCounter = 0;
-
-            MinecraftServer server = event.getServer();
-            server.getPlayerList().getPlayers().forEach(this.rewardHandler::processRewardsForPlayer);
-        }
-    }
-
-
-    /**
      * Fired when a player joins the server. Triggers reward check.
      */
+
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer) {
-            this.rewardHandler.processRewardsForPlayer((ServerPlayer) event.getEntity());
+        if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer player) {
+            this.rewardHandler.addPlayerToCache(player);
+
+            this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
+                if (hasRewards) {
+                    player.getServer().execute(() -> {
+                        player.sendSystemMessage(Component.literal("§aYou have pending rewards from the shop!"));
+                        player.sendSystemMessage(Component.literal("§eType §b/claim_reward §eto receive them."));
+                    });
+                }
+            });
         }
     }
 
+    @SubscribeEvent
+    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer) {
+            this.rewardHandler.removePlayerFromCache((ServerPlayer) event.getEntity());
+        }
+    }
 }

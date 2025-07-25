@@ -13,16 +13,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static fr.thegostsniperfr.arffornia.Arffornia.LOGGER;
 
-/**
- * Manages all database interactions for the shop reward system.
- * Uses a HikariCP connection pool for efficiency and reliability.
- */
 public class DatabaseManager {
     private final HikariDataSource dataSource;
     private final Gson gson = new Gson();
@@ -72,34 +66,78 @@ public class DatabaseManager {
         return -1;
     }
 
+
     /**
-     * Fetches and locks the next pending reward for a user within a transaction.
-     * The `FOR UPDATE SKIP LOCKED` clause prevent race conditions in a multi-server setup.
-     * It makes other servers skip this row if it's already being processed.
+     * Checks if a user has any pending rewards without fetching them.
+     * @param userId The user's ID.
+     * @return true if there is at least one pending reward, false otherwise.
+     */
+    public boolean hasPendingRewards(int userId) {
+        final String sql = "SELECT 1 FROM pending_rewards WHERE user_id = ? AND status = 'pending' LIMIT 1;";
+
+        try (Connection conn = getConnection(); PreparedStatement req = conn.prepareStatement(sql)) {
+            req.setInt(1, userId);
+            try (ResultSet res = req.executeQuery()) {
+                return res.next();
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Could not check for pending rewards for user ID {}", userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * Fetches and locks all pending rewards for a single user within a transaction.
      * @param userId The user's ID.
      * @param connection The transactional connection to use.
-     * @return A PendingReward object, or null if none are available.
+     * @return A List of all PendingReward objects for that user.
      * @throws SQLException if a database error occurs.
      */
-    public PendingReward fetchAndLockNextReward(int userId, Connection connection) throws SQLException {
-        final String sql = "SELECT id, commands FROM pending_rewards WHERE user_id = ? AND status = 'pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED;";
+    public List<PendingReward> fetchAndLockAllRewardsForUser(int userId, Connection connection) throws SQLException {
+        final String sql = "SELECT id, user_id, commands FROM pending_rewards WHERE user_id = ? AND status = 'pending' ORDER BY created_at ASC FOR UPDATE SKIP LOCKED;";
+        List<PendingReward> rewards = new ArrayList<>();
 
         try (PreparedStatement req = connection.prepareStatement(sql)) {
             req.setInt(1, userId);
             ResultSet res = req.executeQuery();
 
-            if (res.next()) {
+            while (res.next()) {
                 int rewardId = res.getInt("id");
                 String commandsJson = res.getString("commands");
-
                 Type listType = new TypeToken<ArrayList<String>>() {}.getType();
                 List<String> commands = gson.fromJson(commandsJson, listType);
 
-                return new PendingReward(rewardId, commands);
+                rewards.add(new PendingReward(rewardId, userId, commands));
             }
         }
 
-        return null;
+        return rewards;
+    }
+
+    /**
+     * Updates the status of multiple rewards in a single, efficient query.
+     * @param rewardIds A list of reward IDs to update.
+     * @param status The new status (e.g., "claimed").
+     * @param connection The transactional connection to use.
+     * @throws SQLException if a database error occurs.
+     */
+    public void updateMultipleRewardStatuses(List<Integer> rewardIds, String status, Connection connection) throws SQLException {
+        if (rewardIds.isEmpty()) {
+            return;
+        }
+
+        String inSql = String.join(",", Collections.nCopies(rewardIds.size(), "?"));
+        final String sql = String.format("UPDATE pending_rewards SET status = ? WHERE id IN (%s);", inSql);
+
+        try (PreparedStatement req = connection.prepareStatement(sql)) {
+            req.setString(1, status);
+            int i = 2;
+            for (Integer rewardId : rewardIds) {
+                req.setInt(i++, rewardId);
+            }
+
+            req.executeUpdate();
+        }
     }
 
     /**

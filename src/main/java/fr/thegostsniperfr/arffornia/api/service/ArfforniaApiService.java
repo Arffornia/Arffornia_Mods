@@ -50,4 +50,21 @@ public class ArfforniaApiService {
                 .thenApply(HttpResponse::body)
                 .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.MilestoneDetails.class));
     }
+
+    /**
+     * Fetches the server's progression configuration, including the list of banned recipes.
+     * This should be called once on server start or /reload.
+     *
+     * @return A CompletableFuture containing the parsed progression config.
+     */
+    public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL + "/progression/config"))
+                .header("Accept", "application/json")
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionConfig.class));
+    }
 }

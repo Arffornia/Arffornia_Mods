@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia;
 
 import fr.thegostsniperfr.arffornia.command.CommandRegistration;
+import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.ShopConfig;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
@@ -98,6 +99,8 @@ public class Arffornia {
         modEventBus.addListener(this::addCreative);
 
         NeoForge.EVENT_BUS.register(Permissions.class);
+
+        NeoForge.EVENT_BUS.register(RecipeBanManager.class);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");

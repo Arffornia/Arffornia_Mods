@@ -5,7 +5,6 @@ import com.google.gson.reflect.TypeToken;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.shop.ShopConfig;
 
 import java.lang.reflect.Type;

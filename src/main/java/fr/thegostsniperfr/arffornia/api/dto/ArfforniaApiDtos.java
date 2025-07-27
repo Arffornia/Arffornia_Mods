@@ -39,4 +39,14 @@ public class ArfforniaApiDtos {
             String name,
             String description
     ) {}
+
+
+    /**
+     * Maps to the JSON object from the /api/progression/config endpoint.
+     * This contains server-wide configuration data for the mod.
+     */
+    public record ProgressionConfig(
+            @SerializedName("banned_recipes")
+            List<String> bannedRecipes
+    ) {}
 }

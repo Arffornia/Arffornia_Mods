@@ -1,7 +1,6 @@
 package fr.thegostsniperfr.arffornia.api.service;
 
 import com.google.gson.Gson;
-import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 
 import java.net.URI;

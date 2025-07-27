@@ -1,15 +1,7 @@
 {
-  "itemGroup.arffornia": "Example Mod Tab",
-  "block.arffornia.example_block": "Example Block",
-  "item.arffornia.example_item": "Example Item",
-
   "arffornia.configuration.title": "Arffornia Configs",
   "arffornia.configuration.section.arffornia.common.toml": "Arffornia Configs",
   "arffornia.configuration.section.arffornia.common.toml.title": "Arffornia Configs",
-  "arffornia.configuration.items": "Item List",
-  "arffornia.configuration.logDirtBlock": "Log Dirt Block",
-  "arffornia.configuration.magicNumberIntroduction": "Magic Number Text",
-  "arffornia.configuration.magicNumber": "Magic Number",
 
   "key.arffornia.open_graph": "Open Progression Graph",
   "key.category.arffornia": "Arffornia Mod"

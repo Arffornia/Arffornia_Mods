@@ -1,13 +1,11 @@
 package fr.thegostsniperfr.arffornia;
 
-import net.minecraft.client.Minecraft;
+import fr.thegostsniperfr.arffornia.client.Keybindings;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import fr.thegostsniperfr.arffornia.client.Keybindings;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
@@ -17,13 +15,8 @@ public class ArfforniaClient {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
     }
 
-    @SubscribeEvent
-    public static void onClientSetup(FMLClientSetupEvent event) {
-        Arffornia.LOGGER.info("HELLO FROM CLIENT SETUP");
-        Arffornia.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
-    }
 
-        @SubscribeEvent
+    @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(Keybindings.OPEN_GRAPH_KEY);
     }

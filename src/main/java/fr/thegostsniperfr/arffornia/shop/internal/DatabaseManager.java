@@ -2,7 +2,6 @@ package fr.thegostsniperfr.arffornia.shop.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import fr.thegostsniperfr.arffornia.shop.ShopConfig;
@@ -12,7 +11,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 import static fr.thegostsniperfr.arffornia.Arffornia.LOGGER;
 

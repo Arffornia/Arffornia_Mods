@@ -12,8 +12,6 @@ public class ShopConfig {
     public static ModConfigSpec.ConfigValue<String> DB_USERNAME;
     public static ModConfigSpec.ConfigValue<String> DB_PASSWORD;
 
-    public static ModConfigSpec.IntValue REWARD_CHECK_INTERVAL;
-
     public static void register(ModConfigSpec.Builder builder) {
         builder.comment("Database configuration for the Arffornia web shop integration").push("database");
 
@@ -22,14 +20,6 @@ public class ShopConfig {
         DB_DATABASE = builder.define("database", "arffornia");
         DB_USERNAME = builder.define("username", "laravel");
         DB_PASSWORD = builder.define("password", "laravel");
-
-        builder.pop();
-
-        builder.comment("Configuration du système de récompenses").push("rewards");
-
-        REWARD_CHECK_INTERVAL = builder
-                .comment("Interval (in seconds) at which the server checks for pending rewards for online players.")
-                .defineInRange("checkIntervalSeconds", 30, 5, 300); // Default: 30s, Min: 5s, Max: 5min
 
         builder.pop();
     }

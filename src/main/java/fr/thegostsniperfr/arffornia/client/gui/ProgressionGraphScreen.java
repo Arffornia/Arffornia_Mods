@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.client.gui;
 
 
+import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
@@ -47,7 +48,16 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- TEXTURES ---
 
-    private static final ResourceLocation NODE_BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath("arffornia", "textures/gui/node_background.png");
+    private static final ResourceLocation TEX_NODE_COMPLETED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
+    private static final ResourceLocation TEX_NODE_AVAILABLE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
+    private static final ResourceLocation TEX_NODE_LOCKED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
+    private static final ResourceLocation TEX_NODE_TARGET = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
+
+    private static final int COLOR_LINK_COMPLETED = 0xFF4CAF50;
+    private static final int COLOR_LINK_AVAILABLE = 0xFFFF9800;
+    private static final int COLOR_LINK_LOCKED = 0xFF9E9E9E;
+
+    private static final float ROTATION_SPEED = 2.5f;
 
     // --- DATA STRUCTURES ---
 
@@ -76,6 +86,8 @@ public class ProgressionGraphScreen extends Screen {
     private enum LoadingStatus { IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED }
     private Set<Integer> completedMilestones = new HashSet<>();
     private @Nullable Integer currentTargetId = null;
+    private Set<Integer> availableMilestones = new HashSet<>();
+    private float rotationAngle = 0.0f;
 
     // --- UI ELEMENTS ---
 
@@ -135,6 +147,8 @@ public class ProgressionGraphScreen extends Screen {
                         .map(l -> new NodeLink(l.milestoneId(), l.descendantId()))
                         .collect(Collectors.toList());
 
+                calculateAvailableMilestones();
+
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
 
                 this.completedMilestones = new HashSet<>(playerData.playerProgress().completedMilestones());
@@ -147,12 +161,32 @@ public class ProgressionGraphScreen extends Screen {
         });
     }
 
+    /**
+     * Calculates which milestones are available but not yet completed.
+     * A milestone is available if at least one of its direct parents is completed.
+     */
+    private void calculateAvailableMilestones() {
+        this.availableMilestones.clear();
+        for (NodeLink link : this.links) {
+            // If the parent is completed but the child is not, the child becomes available.
+            if (this.completedMilestones.contains(link.sourceId()) && !this.completedMilestones.contains(link.targetId())) {
+                this.availableMilestones.add(link.targetId());
+            }
+        }
+    }
+
 
     /**
      * The main render loop, called every frame.
      */
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.rotationAngle += partialTick * ROTATION_SPEED;
+        if (this.rotationAngle >= 360.0f) {
+            this.rotationAngle -= 360.0f;
+        }
+
+
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         if (this.status == LoadingStatus.LOADING_GRAPH) {
@@ -233,10 +267,19 @@ public class ProgressionGraphScreen extends Screen {
             ProgressionNode target = nodeMap.get(link.targetId());
             if (source == null || target == null) continue;
 
-            if (source.gridX() == target.gridX() || source.gridY() == target.gridY()) {
-                drawStraightLine(guiGraphics, source, target);
+            int lineColor;
+            if (completedMilestones.contains(source.id()) && completedMilestones.contains(target.id())) {
+                lineColor = COLOR_LINK_COMPLETED;
+            } else if (completedMilestones.contains(source.id())) {
+                lineColor = COLOR_LINK_AVAILABLE;
             } else {
-                drawElbowConnection(guiGraphics, source, target);
+                lineColor = COLOR_LINK_LOCKED;
+            }
+
+            if (source.gridX() == target.gridX() || source.gridY() == target.gridY()) {
+                drawStraightLine(guiGraphics, source, target, lineColor);
+            } else {
+                drawElbowConnection(guiGraphics, source, target, lineColor);
             }
         }
     }
@@ -254,14 +297,40 @@ public class ProgressionGraphScreen extends Screen {
 
             int nodeScreenX = nodePos.x - nodeDiameter / 2;
             int nodeScreenY = nodePos.y - nodeDiameter / 2;
-            guiGraphics.blit(NODE_BACKGROUND_TEXTURE, nodeScreenX, nodeScreenY, 0, 0, nodeDiameter, nodeDiameter, nodeDiameter, nodeDiameter);
 
             ResourceLocation iconTexture = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/icons/" + node.iconType() + ".png");
-            guiGraphics.blit(iconTexture, nodeScreenX + (nodeDiameter - iconDiameter) / 2, nodeScreenY + (nodeDiameter - iconDiameter) / 2, 0, 0, iconDiameter, iconDiameter, iconDiameter, iconDiameter);
+            ResourceLocation backgroundTexture;
+            boolean shouldAnimate = false;
+
+            if (currentTargetId != null && currentTargetId.equals(node.id())) {
+                backgroundTexture = TEX_NODE_TARGET;
+                shouldAnimate = true;
+            } else if (completedMilestones.contains(node.id())) {
+                backgroundTexture = TEX_NODE_COMPLETED;
+            } else if (availableMilestones.contains(node.id())) {
+                backgroundTexture = TEX_NODE_AVAILABLE;
+            } else {
+                backgroundTexture = TEX_NODE_LOCKED;
+            }
+
+            if (shouldAnimate) {
+                guiGraphics.pose().pushPose();
+                guiGraphics.pose().translate(nodePos.x(), nodePos.y(), 0);
+                guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(this.rotationAngle));
+                guiGraphics.pose().translate(-nodeDiameter / 2.0, -nodeDiameter / 2.0, 0);
+
+                guiGraphics.blit(backgroundTexture, 0, 0, 0, 0, nodeDiameter, nodeDiameter, nodeDiameter, nodeDiameter);
+                guiGraphics.blit(iconTexture, (nodeDiameter - iconDiameter) / 2, (nodeDiameter - iconDiameter) / 2, 0, 0, iconDiameter, iconDiameter, iconDiameter, iconDiameter);
+
+                guiGraphics.pose().popPose();
+            } else {
+                guiGraphics.blit(backgroundTexture, nodeScreenX, nodeScreenY, 0, 0, nodeDiameter, nodeDiameter, nodeDiameter, nodeDiameter);
+                guiGraphics.blit(iconTexture, nodeScreenX + (nodeDiameter - iconDiameter) / 2, nodeScreenY + (nodeDiameter - iconDiameter) / 2, 0, 0, iconDiameter, iconDiameter, iconDiameter, iconDiameter);
+            }
         }
     }
 
-    private void drawElbowConnection(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target) {
+    private void drawElbowConnection(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target, int color) {
         Vector2i start = getScreenPosForNode(source);
         Vector2i end = getScreenPosForNode(target);
         int lineThickness = (int)Math.max(1, BASE_LINE_THICKNESS * this.zoom);
@@ -270,16 +339,16 @@ public class ProgressionGraphScreen extends Screen {
         Vector2i elbow1 = new Vector2i(midX, start.y);
         Vector2i elbow2 = new Vector2i(midX, end.y);
 
-        drawThickLine(guiGraphics, start, elbow1, lineThickness, LINE_COLOR);
-        drawThickLine(guiGraphics, elbow1, elbow2, lineThickness, LINE_COLOR);
-        drawThickLine(guiGraphics, elbow2, end, lineThickness, LINE_COLOR);
+        drawThickLine(guiGraphics, start, elbow1, lineThickness, color);
+        drawThickLine(guiGraphics, elbow1, elbow2, lineThickness, color);
+        drawThickLine(guiGraphics, elbow2, end, lineThickness, color);
     }
 
-    private void drawStraightLine(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target) {
+    private void drawStraightLine(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target, int color) {
         Vector2i start = getScreenPosForNode(source);
         Vector2i end = getScreenPosForNode(target);
         int lineThickness = (int)Math.max(1, BASE_LINE_THICKNESS * this.zoom);
-        drawThickLine(guiGraphics, start, end, lineThickness, LINE_COLOR);
+        drawThickLine(guiGraphics, start, end, lineThickness, color);
     }
 
     private void drawThickLine(GuiGraphics guiGraphics, Vector2i p1, Vector2i p2, int thickness, int color) {
@@ -493,7 +562,11 @@ public class ProgressionGraphScreen extends Screen {
 
         PacketDistributor.sendToServer(new ServerboundSetTargetMilestonePacket(newTargetId));
 
+
         this.currentTargetId = newTargetId;
+
+        calculateAvailableMilestones();
+
         updateClientData();
         updateTargetButtonState();
     }

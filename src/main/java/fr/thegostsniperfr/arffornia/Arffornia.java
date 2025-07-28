@@ -88,22 +88,32 @@ public class Arffornia {
     }
 
     /**
-     * Fired when a player joins the server. Triggers reward check.
+     * Fired when a player joins the server.
+     * 1. Ensure the player exists in the backend database.
+     * 2. Once confirmed, proceed with caching their ID and checking for shop rewards.
      */
-
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer player) {
-            this.rewardHandler.addPlayerToCache(player);
-
-            this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
-                if (hasRewards) {
-                    player.getServer().execute(() -> {
-                        player.sendSystemMessage(Component.literal("§aYou have pending rewards from the shop!"));
-                        player.sendSystemMessage(Component.literal("§eType §b/claim_reward §eto receive them."));
+            ARFFORNA_API_SERVICE.ensurePlayerExists(player.getUUID(), player.getName().getString())
+                    .thenAccept(success -> {
+                        if (success) {
+                            this.rewardHandler.addPlayerToCache(player);
+                            this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
+                                if (hasRewards) {
+                                    player.getServer().execute(() -> {
+                                        player.sendSystemMessage(Component.literal("§aYou have pending rewards from the shop!"));
+                                        player.sendSystemMessage(Component.literal("§eType §b/arffornia shop claim_reward §eto receive them."));
+                                    });
+                                }
+                            });
+                        } else {
+                            player.getServer().execute(() -> {
+                                player.sendSystemMessage(Component.literal("§cWarning: Could not synchronize your progression data. Shop and progression features may be unavailable."));
+                                LOGGER.error("Failed to ensure player {} exists in the database.", player.getName().getString());
+                            });
+                        }
                     });
-                }
-            });
         }
     }
 

@@ -243,12 +243,37 @@ public class ArfforniaApiService {
     private CompletableFuture<Boolean> sendRequestAndCheckSuccess(HttpRequest request, String actionName, UUID playerUuid) {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    if (response.statusCode() == 200) {
+                    if (response.statusCode() >= 200 && response.statusCode() <= 299) {
                         return true;
                     } else {
                         Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
                         return false;
                     }
                 });
+    }
+
+    /**
+     * Calls the backend to ensure a player exists in the database.
+     * Creates the player if they don't. This should be called on player login.
+     *
+     * @param playerUuid The player's UUID.
+     * @param playerName The player's current username.
+     * @return A CompletableFuture that resolves to true if the player exists or was created successfully.
+     */
+    public CompletableFuture<Boolean> ensurePlayerExists(UUID playerUuid, String playerName) {
+        return getServiceAuthToken().thenCompose(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("uuid", playerUuid.toString().replace("-", ""));
+            body.addProperty("username", playerName);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/player/ensure-exists"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            return sendRequestAndCheckSuccess(request, "ensurePlayerExists", playerUuid);
+        });
     }
 }

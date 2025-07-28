@@ -65,7 +65,7 @@ neoForge {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             programArgument('--username=The_Gost_sniper')
-            programArgument('--uuid=8267fbb3-021b-40ce-93ea-2a3c92feaa4c')
+            programArgument('--uuid=2e37710b-badc-3da5-9394-c457da548c14')
         }
 
         server {

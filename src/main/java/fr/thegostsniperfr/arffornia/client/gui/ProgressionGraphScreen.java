@@ -2,19 +2,20 @@ package fr.thegostsniperfr.arffornia.client.gui;
 
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2i;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static fr.thegostsniperfr.arffornia.Arffornia.ARFFORNA_API_SERVICE;
@@ -71,6 +72,12 @@ public class ProgressionGraphScreen extends Screen {
     private ProgressionNode selectedNode = null;
     private boolean isDragging = false;
     private enum LoadingStatus { IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED }
+    private Set<Integer> completedMilestones = new HashSet<>();
+    private @Nullable Integer currentTargetId = null;
+
+    // --- UI ELEMENTS ---
+
+    private Button setTargetButton;
 
     // --- CONSTRUCTOR & LIFECYCLE METHODS ---
 
@@ -96,27 +103,48 @@ public class ProgressionGraphScreen extends Screen {
      */
     private void loadGraphData() {
         this.status = LoadingStatus.LOADING_GRAPH;
-        ARFFORNA_API_SERVICE.fetchGraphData().whenComplete((graphData, error) -> {
+        String playerUuid = Minecraft.getInstance().getUser().getProfileId().toString().replace("-", "");
+
+        ARFFORNA_API_SERVICE.fetchPlayerGraphData(playerUuid).whenComplete((playerData, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;
-                    error.printStackTrace();
+                    Arffornia.LOGGER.error("Failed to fetch graph data from API", error);
                     return;
                 }
 
-                this.nodes = graphData.milestones().stream()
+                if (playerData == null) {
+                    this.status = LoadingStatus.FAILED;
+                    Arffornia.LOGGER.error("Received null GraphData from API.");
+                    return;
+                }
+
+                if (playerData.milestones() == null || playerData.milestoneClosure() == null || playerData.playerProgress() == null) {
+                    this.status = LoadingStatus.FAILED;
+                    Arffornia.LOGGER.error("API response is missing one or more required fields (milestones, milestone_closure, playerProgress).");
+                    return;
+                }
+
+                this.nodes = playerData.milestones().stream()
                         .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType()))
                         .collect(Collectors.toList());
 
-                this.links = graphData.milestoneClosure().stream()
+                this.links = playerData.milestoneClosure().stream()
                         .map(l -> new NodeLink(l.milestoneId(), l.descendantId()))
                         .collect(Collectors.toList());
 
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
+
+                this.completedMilestones = new HashSet<>(playerData.playerProgress().completedMilestones());
+                this.currentTargetId = playerData.playerProgress().currentTargetId();
+
+                updateClientData();
+
                 this.status = LoadingStatus.IDLE;
             });
         });
     }
+
 
     /**
      * The main render loop, called every frame.
@@ -309,27 +337,45 @@ public class ProgressionGraphScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (super.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
+
         if (button == 0) {
+            boolean aNodeWasClicked = false;
+
             double nodeCheckRadius = (BASE_NODE_DIAMETER / 2.0);
+
+            double mouseWorldX = (mouseX + this.cameraX) / this.zoom;
+            double mouseWorldY = (mouseY + this.cameraY) / this.zoom;
+
             for (ProgressionNode node : nodes) {
                 double nodeWorldX = node.gridX() * BASE_GRID_CELL_SPACING;
                 double nodeWorldY = node.gridY() * BASE_GRID_CELL_SPACING;
-                double mouseWorldX = (mouseX + this.cameraX) / this.zoom;
-                double mouseWorldY = (mouseY + this.cameraY) / this.zoom;
+
                 double dist = Math.sqrt(Math.pow(nodeWorldX - mouseWorldX, 2) + Math.pow(nodeWorldY - mouseWorldY, 2));
 
                 if (dist <= nodeCheckRadius) {
                     this.selectedNode = node;
                     this.isDragging = false;
+                    aNodeWasClicked = true;
+
                     fetchAndApplyNodeDetails(node.id());
-                    return true;
+                    break;
                 }
             }
-            this.selectedNode = null;
-            this.isDragging = true;
+
+            if (!aNodeWasClicked) {
+                this.selectedNode = null;
+                this.isDragging = true;
+            }
+
+            updateDetailsPanel();
+
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+
+        return false;
     }
 
     private void fetchAndApplyNodeDetails(int nodeId) {
@@ -407,5 +453,61 @@ public class ProgressionGraphScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private void updateDetailsPanel() {
+        this.clearWidgets();
+
+        if (this.selectedNode != null) {
+            this.setTargetButton = Button.builder(
+                            Component.literal("Set as Target"),
+                            (button) -> this.handleSetTarget()
+                    )
+                    .bounds(this.width - 150, this.height - 40, 130, 20)
+                    .build();
+
+            updateTargetButtonState();
+
+            this.addRenderableWidget(this.setTargetButton);
+        }
+    }
+
+    private void updateTargetButtonState() {
+        if (this.setTargetButton == null || this.selectedNode == null) return;
+
+        if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
+            this.setTargetButton.setMessage(Component.literal("✔ Targeted"));
+            this.setTargetButton.active = false;
+        } else {
+            this.setTargetButton.setMessage(Component.literal("Set as Target"));
+            this.setTargetButton.active = true;
+        }
+    }
+
+    private void handleSetTarget() {
+        if (this.selectedNode == null) return;
+
+        int newTargetId = this.selectedNode.id();
+
+        // TODO: Get the real player auth token
+        String fakeAuthToken = "minecraft-server-svc";
+
+        String playerUuid = Minecraft.getInstance().getUser().getProfileId().toString().replace("-", "");
+
+        ARFFORNA_API_SERVICE.setTargetMilestone(newTargetId, fakeAuthToken, playerUuid).thenAccept(success -> {
+            if (success) {
+                this.currentTargetId = newTargetId;
+                updateClientData();
+                Minecraft.getInstance().execute(this::updateTargetButtonState);
+            }
+        });
+    }
+
+    private void updateClientData() {
+        if (this.currentTargetId != null && this.nodeMap.containsKey(this.currentTargetId)) {
+            ClientProgressionData.currentMilestoneTarget = this.nodeMap.get(this.currentTargetId).name();
+        } else {
+            ClientProgressionData.currentMilestoneTarget = "None";
+        }
     }
 }

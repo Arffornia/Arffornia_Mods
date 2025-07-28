@@ -28,12 +28,14 @@ public class ArfforniaApiService {
     private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
 
     /**
-     * Fetches the basic graph structure (nodes and links) asynchronously.
-     * @return A CompletableFuture containing the parsed graph data.
+     * Fetches the PROGRESSION DATA for a specific player (completed milestones, target).
+     *
+     * @param playerUuid The UUID of the player.
+     * @return A CompletableFuture containing the player's specific progress data.
      */
-    public CompletableFuture<ArfforniaApiDtos.GraphData> fetchGraphData() {
+    public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/stages"))
+                .uri(URI.create(API_BASE_URL + "/stages/player/get/" + playerUuid))
                 .header("Accept", "application/json")
                 .build();
 
@@ -118,7 +120,7 @@ public class ArfforniaApiService {
      * Notifies the backend that a player has joined a team.
      */
     public void sendPlayerJoinedTeam(UUID playerUuid, UUID teamUuid, String teamName) {
-        new ArfforniaApiService().getServiceAuthToken().thenAccept(token -> {
+        Arffornia.ARFFORNA_API_SERVICE.getServiceAuthToken().thenAccept(token -> {
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("team_uuid", teamUuid.toString());
@@ -148,7 +150,7 @@ public class ArfforniaApiService {
      * Notifies the backend that a player has left a team.
      */
     public void sendPlayerLeftTeam(UUID playerUuid) {
-        new ArfforniaApiService().getServiceAuthToken().thenAccept(token -> {
+        Arffornia.ARFFORNA_API_SERVICE.getServiceAuthToken().thenAccept(token -> {
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
@@ -275,5 +277,28 @@ public class ArfforniaApiService {
 
             return sendRequestAndCheckSuccess(request, "ensurePlayerExists", playerUuid);
         });
+    }
+
+    /**
+     * Sets the player's targeted milestone via the API.
+     *
+     * @param milestoneId The ID of the milestone to target.
+     * @param playerAuthToken The player's personal Sanctum token.
+     * @return A CompletableFuture that resolves to true on success.
+     */
+    public CompletableFuture<Boolean> setTargetMilestone(int milestoneId, String playerAuthToken, String playerUuid) {
+        JsonObject body = new JsonObject();
+        body.addProperty("milestone_id", milestoneId);
+        body.addProperty("player_uuid", playerUuid);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL + "/progression/set-target"))
+                .header("Authorization", "Bearer " + playerAuthToken)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> response.statusCode() >= 200 && response.statusCode() <= 299);
     }
 }

@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.api.dto;
 
 import com.google.gson.annotations.SerializedName;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -14,8 +15,13 @@ public class ArfforniaApiDtos {
     /** Maps to the root JSON object from the main graph endpoint. */
     public record GraphData(
             List<ApiMilestone> milestones,
-            @SerializedName("milestone_closure")
-            List<ApiMilestoneClosure> milestoneClosure
+            @SerializedName("milestone_closure") List<ApiMilestoneClosure> milestoneClosure,
+            @SerializedName("playerProgress") PlayerProgress playerProgress
+    ) {}
+
+    public record PlayerProgress(
+            @SerializedName("completed_milestones") List<Integer> completedMilestones,
+            @SerializedName("current_target_id") @Nullable Integer currentTargetId
     ) {}
 
     /** Maps to a single milestone object in the main graph list. */

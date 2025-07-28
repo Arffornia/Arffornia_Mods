@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 public class RecipeBanManager {
 
     private static final Set<ResourceLocation> BANNED_RECIPE_IDS = ConcurrentHashMap.newKeySet();
-    private static final ArfforniaApiService API_SERVICE = new ArfforniaApiService();
 
     /**
      * Checks if a given recipe ID is in the ban list.
@@ -51,7 +50,7 @@ public class RecipeBanManager {
                 try {
                     // .join() blocks the current thread until the Future is complete.
                     // This is safe here because we are on a worker thread, not the main server thread.
-                    return API_SERVICE.fetchProgressionConfig().join().bannedRecipes()
+                    return Arffornia.ARFFORNA_API_SERVICE.fetchProgressionConfig().join().bannedRecipes()
                             .stream()
                             .map(ResourceLocation::parse)
                             .collect(Collectors.toSet());

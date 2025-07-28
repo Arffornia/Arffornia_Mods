@@ -3,17 +3,22 @@ package fr.thegostsniperfr.arffornia.client.gui;
 
 import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
 import fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2i;
@@ -76,6 +81,8 @@ public class ProgressionGraphScreen extends Screen {
     private Map<Integer, ProgressionNode> nodeMap = Collections.emptyMap();
     /** The current loading state of the screen. */
     private LoadingStatus status = LoadingStatus.LOADING_GRAPH;
+    /** Current milestone selected details info **/
+    private @Nullable ArfforniaApiDtos.MilestoneDetails selectedNodeDetails = null;
 
     // --- UI STATE ---
 
@@ -367,26 +374,71 @@ public class ProgressionGraphScreen extends Screen {
 
     private void drawInfoPanel(GuiGraphics guiGraphics, ProgressionNode node) {
         int panelWidth = 170;
-        int panelHeight = this.height - 40;
         int panelX = this.width - panelWidth - 20;
         int panelY = 20;
         int padding = 8;
-        int textColor = 0xFF_FFFFFF;
-        int titleColor = 0xFF_FFAA00;
+        int textColor = 0xFF_D0D0D0;
+        int titleColor = 0xFF_FFFFFF;
+        int headerColor = 0xFF_FFAA00;
 
-        guiGraphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, 0xE0_101010);
+        guiGraphics.fill(panelX, panelY, panelX + panelWidth, this.height - 20, 0xE0_1A1A1A);
 
         int currentY = panelY + padding;
-        guiGraphics.drawString(this.font, node.name(), panelX + padding, currentY, titleColor);
-        currentY += font.lineHeight + 4;
 
-        guiGraphics.drawString(this.font, "Description:", panelX + padding, currentY, textColor);
-        currentY += font.lineHeight;
+        if (this.status == LoadingStatus.LOADING_DETAILS || this.selectedNodeDetails == null) {
+            guiGraphics.drawCenteredString(this.font, "Loading details...", panelX + panelWidth / 2, panelY + 20, 0xFF_FFFFFF);
+            return;
+        }
 
-        List<FormattedCharSequence> descLines = this.font.split(Component.literal(node.description()), panelWidth - 2 * padding);
-        for(FormattedCharSequence line : descLines) {
+        // --- Title ---
+        List<FormattedCharSequence> titleLines = this.font.split(Component.literal(this.selectedNodeDetails.name()).withStyle(ChatFormatting.BOLD), panelWidth - 2 * padding);
+        for (FormattedCharSequence line : titleLines) {
+            guiGraphics.drawString(this.font, line, panelX + padding, currentY, titleColor);
+            currentY += this.font.lineHeight;
+        }
+        currentY += 4;
+
+        // --- Description ---
+        List<FormattedCharSequence> descLines = this.font.split(Component.literal(this.selectedNodeDetails.description()), panelWidth - 2 * padding);
+        for (FormattedCharSequence line : descLines) {
             guiGraphics.drawString(this.font, line, panelX + padding, currentY, textColor);
-            currentY += font.lineHeight;
+            currentY += this.font.lineHeight;
+        }
+        currentY += 8;
+
+        // --- Basic Info (Stage & Points) ---
+        guiGraphics.drawString(this.font, Component.literal("Stage: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.stageId()).withStyle(ChatFormatting.YELLOW)), panelX + padding, currentY, 0xFF_FFFFFF);
+        currentY += this.font.lineHeight;
+        guiGraphics.drawString(this.font, Component.literal("Points: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.rewardProgressPoints()).withStyle(ChatFormatting.AQUA)), panelX + padding, currentY, 0xFF_FFFFFF);
+        currentY += 10;
+
+        // --- Unlocked Items Section ---
+        if (!this.selectedNodeDetails.unlocks().isEmpty()) {
+            guiGraphics.drawString(this.font, Component.literal("New Items:").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
+            currentY += this.font.lineHeight + 2;
+
+            for (ArfforniaApiDtos.MilestoneUnlock unlock : this.selectedNodeDetails.unlocks()) {
+                ItemStack itemStack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(unlock.itemId())));
+                guiGraphics.renderItem(itemStack, panelX + padding, currentY);
+                String price = unlock.shopPrice() != null ? " (Price: " + unlock.shopPrice() + ")" : "";
+                guiGraphics.drawString(this.font, unlock.displayName() + price, panelX + padding + 20, currentY + 4, textColor);
+                currentY += 18;
+            }
+            currentY += 8;
+        }
+
+        // --- Required Items Section ---
+        if (!this.selectedNodeDetails.requirements().isEmpty()) {
+            guiGraphics.drawString(this.font, Component.literal("Required Items:").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
+            currentY += this.font.lineHeight + 2;
+
+            for (ArfforniaApiDtos.MilestoneRequirement req : this.selectedNodeDetails.requirements()) {
+                ItemStack itemStack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(req.itemId())), req.amount());
+                guiGraphics.renderItem(itemStack, panelX + padding, currentY);
+                guiGraphics.renderItemDecorations(this.font, itemStack, panelX + padding, currentY);
+                guiGraphics.drawString(this.font, req.displayName(), panelX + padding + 20, currentY + 4, textColor);
+                currentY += 18;
+            }
         }
     }
 
@@ -459,6 +511,8 @@ public class ProgressionGraphScreen extends Screen {
                     return;
                 }
 
+                this.selectedNodeDetails = details;
+
                 this.nodes = this.nodes.stream()
                         .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType()) : n)
                         .collect(Collectors.toList());
@@ -468,6 +522,8 @@ public class ProgressionGraphScreen extends Screen {
                 if (this.selectedNode != null && this.selectedNode.id() == nodeId) {
                     this.selectedNode = this.nodeMap.get(nodeId);
                 }
+
+                updateClientData();
 
                 this.status = LoadingStatus.IDLE;
             });

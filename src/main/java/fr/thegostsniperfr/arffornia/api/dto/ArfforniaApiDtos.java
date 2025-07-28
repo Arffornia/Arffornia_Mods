@@ -41,10 +41,34 @@ public class ArfforniaApiDtos {
             int descendantId
     ) {}
 
+    /**
+     * Represents a single item unlocked by a milestone.
+     */
+    public record MilestoneUnlock(
+            @SerializedName("item_id") String itemId,
+            @SerializedName("display_name") String displayName,
+            @SerializedName("shop_price") @Nullable Integer shopPrice
+    ) {}
+
+    /**
+     * Represents a single item required to complete a milestone.
+     */
+    public record MilestoneRequirement(
+            @SerializedName("item_id") String itemId,
+            @SerializedName("display_name") String displayName,
+            int amount
+    ) {}
+
+
     /** Maps to the detailed JSON object for a single milestone. */
     public record MilestoneDetails(
+            int id,
             String name,
-            String description
+            String description,
+            @SerializedName("stage_id") int stageId,
+            @SerializedName("reward_progress_points") int rewardProgressPoints,
+            List<MilestoneUnlock> unlocks,
+            List<MilestoneRequirement> requirements
     ) {}
 
 

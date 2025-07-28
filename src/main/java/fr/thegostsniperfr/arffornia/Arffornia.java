@@ -1,7 +1,11 @@
 package fr.thegostsniperfr.arffornia;
 
 import com.mojang.logging.LogUtils;
+import dev.ftb.mods.ftbteams.api.FTBTeamsAPI;
+import dev.ftb.mods.ftbteams.api.event.TeamEvent;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.command.CommandRegistration;
+import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
@@ -11,8 +15,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -26,6 +32,8 @@ public class Arffornia {
     public static final String MODID = "arffornia";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
+
+    public static final ArfforniaApiService ARFFORNA_API_SERVICE = new ArfforniaApiService();
 
 
     private DatabaseManager databaseManager;
@@ -45,28 +53,10 @@ public class Arffornia {
 
         NeoForge.EVENT_BUS.register(RecipeBanManager.class);
 
+        new FTBTeamsEventHandler();
+
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
-    }
-
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("HELLO from server starting");
-
-        LOGGER.info("Initializing Arffornia Shop Module...");
-        try {
-            this.databaseManager = new DatabaseManager();
-            this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
-
-            this.commandRegistration = new CommandRegistration(this.rewardHandler);
-            this.commandRegistration.register(event.getServer().getCommands().getDispatcher());
-
-            LOGGER.info("Shop Module and commands initialized successfully.");
-        } catch (Exception e) {
-            LOGGER.error("CRITICAL ERROR: Could not initialize Shop Module. Please check database configuration.", e);
-            this.databaseManager = null;
-            this.rewardHandler = null;
-        }
     }
 
     /**

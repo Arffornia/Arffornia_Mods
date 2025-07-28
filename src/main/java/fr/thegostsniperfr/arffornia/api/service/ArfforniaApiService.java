@@ -1,23 +1,29 @@
 package fr.thegostsniperfr.arffornia.api.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Handles HTTP requests and JSON parsing.
  */
 public class ArfforniaApiService {
 
-    private static final String API_BASE_URL = "http://127.0.0.1:8000/api";
+    private static final String API_BASE_URL = "http://127.0.0.1:8000/api"; // TODO Add this in config file
 
     private final HttpClient client = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
+
+    private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
 
     /**
      * Fetches the basic graph structure (nodes and links) asynchronously.
@@ -65,5 +71,101 @@ public class ArfforniaApiService {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
                 .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionConfig.class));
+    }
+
+    /**
+     * Retrieves an authentication token for the game server.
+     * The token is cached.
+     * @return A CompletableFuture containing the token.
+     */
+    private CompletableFuture<String> getServiceAuthToken() {
+        if (serviceAuthToken.get() != null) {
+            return CompletableFuture.completedFuture(serviceAuthToken.get());
+        }
+
+        String svcId = "minecraft-server-svc";
+        String svcSecret = "GfAEj0tVXI3Q06smusvwpAMXFLHGT9UQaA8eon0O"; // TODO Add this in config file ...
+
+        JsonObject requestBody = new JsonObject();
+        requestBody.addProperty("svc_id", svcId);
+        requestBody.addProperty("secret", svcSecret);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL + "/auth/token/svc"))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(requestBody)))
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() == 200) {
+                        JsonObject jsonResponse = gson.fromJson(response.body(), JsonObject.class);
+                        String token = jsonResponse.get("token").getAsString();
+                        serviceAuthToken.set(token);
+                        Arffornia.LOGGER.info("Successfully authenticated service account.");
+                        return token;
+                    } else {
+                        Arffornia.LOGGER.error("Failed to authenticate service account. Status: {}, Body: {}", response.statusCode(), response.body());
+                        throw new RuntimeException("Authentication failed for service account.");
+                    }
+                });
+    }
+
+    /**
+     * Notifies the backend that a player has joined a team.
+     */
+    public void sendPlayerJoinedTeam(UUID playerUuid, UUID teamUuid, String teamName) {
+        new ArfforniaApiService().getServiceAuthToken().thenAccept(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+            body.addProperty("team_uuid", teamUuid.toString());
+            body.addProperty("team_name", teamName);
+
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/teams/player/join"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .thenAccept(response -> {
+                        if(response.statusCode() != 200) {
+                            Arffornia.LOGGER.error("API call to player/join failed with status: {}", response.statusCode());
+                        }
+                    });
+        }).exceptionally(ex -> {
+            Arffornia.LOGGER.error("Failed to send player join team update", ex);
+            return null;
+        });
+    }
+
+    /**
+     * Notifies the backend that a player has left a team.
+     */
+    public void sendPlayerLeftTeam(UUID playerUuid) {
+        new ArfforniaApiService().getServiceAuthToken().thenAccept(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/teams/player/leave"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .thenAccept(response -> {
+                        if(response.statusCode() != 200) {
+                            Arffornia.LOGGER.error("API call to player/leave failed with status: {}", response.statusCode());
+                        }
+                    });
+        }).exceptionally(ex -> {
+            Arffornia.LOGGER.error("Failed to send player left team update", ex);
+            return null;
+        });
     }
 }

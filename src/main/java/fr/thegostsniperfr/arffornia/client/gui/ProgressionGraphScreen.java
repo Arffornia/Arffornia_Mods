@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static fr.thegostsniperfr.arffornia.Arffornia.ARFFORNA_API_SERVICE;
+
 /**
  * A screen that displays a progression graph, allowing users to view nodes and their connections.
  * It supports panning, cursor-centered zooming, and selecting nodes to view detailed information.
@@ -54,8 +56,6 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- API & DATA STATE ---
 
-    /** The service client for making API requests. */
-    private final ArfforniaApiService apiService;
     /** The list of all nodes currently loaded from the API. */
     private List<ProgressionNode> nodes = Collections.emptyList();
     /** The list of all links currently loaded from the API. */
@@ -77,7 +77,6 @@ public class ProgressionGraphScreen extends Screen {
 
     public ProgressionGraphScreen() {
         super(Component.empty());
-        this.apiService = new ArfforniaApiService();
     }
 
     /**
@@ -98,7 +97,7 @@ public class ProgressionGraphScreen extends Screen {
      */
     private void loadGraphData() {
         this.status = LoadingStatus.LOADING_GRAPH;
-        this.apiService.fetchGraphData().whenComplete((graphData, error) -> {
+        ARFFORNA_API_SERVICE.fetchGraphData().whenComplete((graphData, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;
@@ -336,7 +335,7 @@ public class ProgressionGraphScreen extends Screen {
 
     private void fetchAndApplyNodeDetails(int nodeId) {
         this.status = LoadingStatus.LOADING_DETAILS;
-        this.apiService.fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
+        ARFFORNA_API_SERVICE.fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;

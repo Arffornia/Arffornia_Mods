@@ -16,7 +16,16 @@ version = mod_version
 group = mod_group_id
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    exclusiveContent {
+        forRepository {
+            maven {
+                url = uri("https://cursemaven.com")
+            }
+        }
+        filter {
+            includeGroup "curse.maven"
+        }
+    }
 }
 
 base {
@@ -100,6 +109,9 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.postgresql:postgresql:42.7.3'
     implementation 'com.zaxxer:HikariCP:5.1.0'
+
+    implementation "curse.maven:ftb-teams-404468:6119437"
+    implementation "curse.maven:architectury-api-419699:5786327"
 
     jarJar(implementation("org.postgresql:postgresql:42.7.3")) {
         version {

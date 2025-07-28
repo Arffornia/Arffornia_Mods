@@ -4,6 +4,7 @@ package fr.thegostsniperfr.arffornia.client.gui;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
+import fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -12,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2i;
 
@@ -489,18 +491,11 @@ public class ProgressionGraphScreen extends Screen {
 
         int newTargetId = this.selectedNode.id();
 
-        // TODO: Get the real player auth token
-        String fakeAuthToken = "minecraft-server-svc";
+        PacketDistributor.sendToServer(new ServerboundSetTargetMilestonePacket(newTargetId));
 
-        String playerUuid = Minecraft.getInstance().getUser().getProfileId().toString().replace("-", "");
-
-        ARFFORNA_API_SERVICE.setTargetMilestone(newTargetId, fakeAuthToken, playerUuid).thenAccept(success -> {
-            if (success) {
-                this.currentTargetId = newTargetId;
-                updateClientData();
-                Minecraft.getInstance().execute(this::updateTargetButtonState);
-            }
-        });
+        this.currentTargetId = newTargetId;
+        updateClientData();
+        updateTargetButtonState();
     }
 
     private void updateClientData() {

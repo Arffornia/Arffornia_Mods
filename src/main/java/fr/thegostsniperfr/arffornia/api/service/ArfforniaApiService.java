@@ -282,23 +282,24 @@ public class ArfforniaApiService {
     /**
      * Sets the player's targeted milestone via the API.
      *
+     * @param playerUuid The UUID of the player making the request.
      * @param milestoneId The ID of the milestone to target.
-     * @param playerAuthToken The player's personal Sanctum token.
      * @return A CompletableFuture that resolves to true on success.
      */
-    public CompletableFuture<Boolean> setTargetMilestone(int milestoneId, String playerAuthToken, String playerUuid) {
-        JsonObject body = new JsonObject();
-        body.addProperty("milestone_id", milestoneId);
-        body.addProperty("player_uuid", playerUuid);
+    public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, int milestoneId) {
+        return getServiceAuthToken().thenCompose(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+            body.addProperty("milestone_id", milestoneId);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/progression/set-target"))
-                .header("Authorization", "Bearer " + playerAuthToken)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
-                .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/progression/set-target"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> response.statusCode() >= 200 && response.statusCode() <= 299);
+            return sendRequestAndCheckSuccess(request, "setTargetMilestone", playerUuid);
+        });
     }
 }

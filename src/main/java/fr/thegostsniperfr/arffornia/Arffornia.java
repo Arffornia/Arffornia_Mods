@@ -1,10 +1,8 @@
 package fr.thegostsniperfr.arffornia;
 
 import com.mojang.logging.LogUtils;
-import dev.ftb.mods.ftbteams.api.FTBTeamsAPI;
-import dev.ftb.mods.ftbteams.api.event.TeamEvent;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
-import fr.thegostsniperfr.arffornia.command.CommandRegistration;
+import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
@@ -38,7 +36,6 @@ public class Arffornia {
 
     private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
-    private CommandRegistration commandRegistration;
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -46,17 +43,33 @@ public class Arffornia {
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want *this* class (Arffornia) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
-        NeoForge.EVENT_BUS.register(this);
 
+        modEventBus.addListener(this::commonSetup);
+
+        NeoForge.EVENT_BUS.register(this);
 
         NeoForge.EVENT_BUS.register(Permissions.class);
 
         NeoForge.EVENT_BUS.register(RecipeBanManager.class);
 
-        new FTBTeamsEventHandler();
-
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
+    }
+
+    private void commonSetup(final FMLCommonSetupEvent event) {
+        if (ModList.get().isLoaded("ftbteams")) {
+            LOGGER.info("FTB Teams found. Registering compatibility event handler.");
+            new FTBTeamsEventHandler();
+        }
+    }
+
+    @SubscribeEvent
+    public void onServerStarting(ServerStartingEvent event) {
+        this.databaseManager = new DatabaseManager();
+        this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
+
+        // Register all commands
+        ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
     }
 
     /**

@@ -4,9 +4,9 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.bus.api.SubscribeEvent;
 
 @EventBusSubscriber(modid = Arffornia.MODID, value = Dist.CLIENT)
 public class HudRenderHandler {

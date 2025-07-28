@@ -9,6 +9,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,7 +86,7 @@ public class ArfforniaApiService {
         }
 
         String svcId = "minecraft-server-svc";
-        String svcSecret = "GfAEj0tVXI3Q06smusvwpAMXFLHGT9UQaA8eon0O"; // TODO Add this in config file ...
+        String svcSecret = "minecraft-server-svc"; // TODO Add this in config file ...
 
         JsonObject requestBody = new JsonObject();
         requestBody.addProperty("svc_id", svcId);
@@ -167,5 +169,86 @@ public class ArfforniaApiService {
             Arffornia.LOGGER.error("Failed to send player left team update", ex);
             return null;
         });
+    }
+
+    /**
+     * Fetches the list of completed milestones for a player.
+     * @return A CompletableFuture containing the list of milestone IDs.
+     */
+    public CompletableFuture<List<Integer>> listMilestones(UUID playerUuid) {
+        return getServiceAuthToken().thenCompose(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/progression/list"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        if (response.statusCode() == 200) {
+                            JsonObject json = gson.fromJson(response.body(), JsonObject.class);
+                            // The rest of the parsing logic to extract the list of integers
+                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {
+                            }.getType());
+                        }
+                        return Collections.emptyList();
+                    });
+        });
+    }
+
+    /**
+     * Adds a milestone to a player's active progression.
+     */
+    public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
+        return getServiceAuthToken().thenCompose(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+            body.addProperty("milestone_id", milestoneId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/progression/add"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            return sendRequestAndCheckSuccess(request, "addMilestone", playerUuid);
+        });
+    }
+
+    /**
+     * Removes a milestone from a player's active progression.
+     */
+    public CompletableFuture<Boolean> removeMilestone(UUID playerUuid, int milestoneId) {
+        return getServiceAuthToken().thenCompose(token -> {
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+            body.addProperty("milestone_id", milestoneId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_BASE_URL + "/progression/remove"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                    .build();
+
+            return sendRequestAndCheckSuccess(request, "removeMilestone", playerUuid);
+        });
+    }
+
+    private CompletableFuture<Boolean> sendRequestAndCheckSuccess(HttpRequest request, String actionName, UUID playerUuid) {
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() == 200) {
+                        return true;
+                    } else {
+                        Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
+                        return false;
+                    }
+                });
     }
 }

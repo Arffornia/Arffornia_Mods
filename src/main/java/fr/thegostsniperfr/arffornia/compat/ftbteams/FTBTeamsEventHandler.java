@@ -4,6 +4,7 @@ import dev.ftb.mods.ftbteams.api.event.PlayerJoinedPartyTeamEvent;
 import dev.ftb.mods.ftbteams.api.event.PlayerLeftPartyTeamEvent;
 import dev.ftb.mods.ftbteams.api.event.TeamEvent;
 import fr.thegostsniperfr.arffornia.Arffornia;
+
 import java.util.UUID;
 
 public class FTBTeamsEventHandler {

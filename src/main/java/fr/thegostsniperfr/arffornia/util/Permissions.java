@@ -15,8 +15,14 @@ public class Permissions {
             (player, uuid, context) -> player.hasPermissions(2)
     );
 
+    public static final PermissionNode<Boolean> MANAGE_PROGRESSION = new PermissionNode<>(
+            ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "command.progression.manage"),
+            PermissionTypes.BOOLEAN,
+            (player, uuid, context) -> player.hasPermissions(2) // Default to op level 2
+    );
+
     @SubscribeEvent
     public static void onGatherPermissions(PermissionGatherEvent.Nodes event) {
-        event.addNodes(CLAIM_REWARD_OTHERS);
+        event.addNodes(CLAIM_REWARD_OTHERS, MANAGE_PROGRESSION);
     }
 }

@@ -407,6 +407,8 @@ public class ProgressionGraphScreen extends Screen {
         currentY += 8;
 
         // --- Basic Info (Stage & Points) ---
+        guiGraphics.drawString(this.font, Component.literal("Id: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.id()).withStyle(ChatFormatting.YELLOW)), panelX + padding, currentY, 0xFF_FFFFFF);
+        currentY += this.font.lineHeight;
         guiGraphics.drawString(this.font, Component.literal("Stage: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.stageId()).withStyle(ChatFormatting.YELLOW)), panelX + padding, currentY, 0xFF_FFFFFF);
         currentY += this.font.lineHeight;
         guiGraphics.drawString(this.font, Component.literal("Points: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.rewardProgressPoints()).withStyle(ChatFormatting.AQUA)), panelX + padding, currentY, 0xFF_FFFFFF);

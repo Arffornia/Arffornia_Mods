@@ -88,12 +88,12 @@ public class ArfforniaApiService {
             return CompletableFuture.completedFuture(serviceAuthToken.get());
         }
 
-        String svcId = API_SVC_ID.get();
-        String svcSecret = API_SVC_SECRET.get();
+        String clientId = API_CLIENT_ID.get();
+        String clientSecret = API_CLIENT_SECRET.get();
 
         JsonObject requestBody = new JsonObject();
-        requestBody.addProperty("svc_id", svcId);
-        requestBody.addProperty("secret", svcSecret);
+        requestBody.addProperty("client_id", clientId);
+        requestBody.addProperty("client_secret", clientSecret);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL.get() + "/auth/token/svc"))
@@ -116,7 +116,6 @@ public class ArfforniaApiService {
                     }
                 });
     }
-
     /**
      * Notifies the backend that a player has joined a team.
      */

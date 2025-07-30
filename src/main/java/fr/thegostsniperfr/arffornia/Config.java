@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia;
 
+import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.shop.ShopConfig;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
@@ -10,6 +11,7 @@ public class Config {
 
     static {
         ShopConfig.register(BUILDER);
+        ApiConfig.register(BUILDER);
     }
 
     static final ModConfigSpec SPEC = BUILDER.build();

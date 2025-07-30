@@ -32,6 +32,10 @@ base {
     archivesName = mod_id
 }
 
+tasks.named('jar', Jar).configure {
+    archiveFileName.set("${mod_id}.jar")
+}
+
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 githubRelease {

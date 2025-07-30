@@ -15,13 +15,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
+
 /**
  * Handles HTTP requests and JSON parsing.
  */
 public class ArfforniaApiService {
-
-    private static final String API_BASE_URL = "http://127.0.0.1:8000/api"; // TODO Add this in config file
-
     private final HttpClient client = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
 
@@ -87,8 +86,8 @@ public class ArfforniaApiService {
             return CompletableFuture.completedFuture(serviceAuthToken.get());
         }
 
-        String svcId = "minecraft-server-svc";
-        String svcSecret = "minecraft-server-svc"; // TODO Add this in config file ...
+        String svcId = API_SVC_ID.get();
+        String svcSecret = API_SVC_SECRET.get();
 
         JsonObject requestBody = new JsonObject();
         requestBody.addProperty("svc_id", svcId);

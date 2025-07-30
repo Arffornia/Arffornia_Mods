@@ -34,7 +34,7 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/stages/player/get/" + playerUuid))
+                .uri(URI.create(API_BASE_URL.get() + "/stages/player/get/" + playerUuid))
                 .header("Accept", "application/json")
                 .build();
 
@@ -50,7 +50,7 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/milestone/get/" + nodeId))
+                .uri(URI.create(API_BASE_URL.get() + "/milestone/get/" + nodeId))
                 .header("Accept", "application/json")
                 .build();
 
@@ -67,9 +67,11 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/progression/config"))
+                .uri(URI.create(API_BASE_URL.get() + "/progression/config"))
                 .header("Accept", "application/json")
                 .build();
+
+
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
@@ -94,7 +96,7 @@ public class ArfforniaApiService {
         requestBody.addProperty("secret", svcSecret);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL + "/auth/token/svc"))
+                .uri(URI.create(API_BASE_URL.get() + "/auth/token/svc"))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(requestBody)))
@@ -127,7 +129,7 @@ public class ArfforniaApiService {
 
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/teams/player/join"))
+                    .uri(URI.create(API_BASE_URL.get() + "/teams/player/join"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -154,7 +156,7 @@ public class ArfforniaApiService {
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/teams/player/leave"))
+                    .uri(URI.create(API_BASE_URL.get() + "/teams/player/leave"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -182,7 +184,7 @@ public class ArfforniaApiService {
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/progression/list"))
+                    .uri(URI.create(API_BASE_URL.get() + "/progression/list"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -211,7 +213,7 @@ public class ArfforniaApiService {
             body.addProperty("milestone_id", milestoneId);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/progression/add"))
+                    .uri(URI.create(API_BASE_URL.get() + "/progression/add"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -231,7 +233,7 @@ public class ArfforniaApiService {
             body.addProperty("milestone_id", milestoneId);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/progression/remove"))
+                    .uri(URI.create(API_BASE_URL.get() + "/progression/remove"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -268,7 +270,7 @@ public class ArfforniaApiService {
             body.addProperty("username", playerName);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/player/ensure-exists"))
+                    .uri(URI.create(API_BASE_URL.get() + "/player/ensure-exists"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -292,7 +294,7 @@ public class ArfforniaApiService {
             body.addProperty("milestone_id", milestoneId);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_URL + "/progression/set-target"))
+                    .uri(URI.create(API_BASE_URL.get() + "/progression/set-target"))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))

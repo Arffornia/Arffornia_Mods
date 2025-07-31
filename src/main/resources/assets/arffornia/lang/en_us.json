@@ -4,5 +4,9 @@
   "arffornia.configuration.section.arffornia.common.toml.title": "Arffornia Configs",
 
   "key.arffornia.open_graph": "Open Progression Graph",
-  "key.category.arffornia": "Arffornia Mod"
+  "key.category.arffornia": "Arffornia Mod",
+
+  "item.arffornia.wrench": "Wrench",
+  "block.arffornia.crafter_block": "Crafter Block",
+  "creativetab.arffornia_tab": "Arffornia"
 }

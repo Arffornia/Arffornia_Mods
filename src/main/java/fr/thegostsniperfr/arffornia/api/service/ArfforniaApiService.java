@@ -50,7 +50,11 @@ public class ArfforniaApiService {
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.GraphData.class));
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.GraphData.class))
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch player graph data from API for UUID {}: {}", playerUuid, ex.getMessage());
+                    return null;
+                });
     }
 
     /**
@@ -66,7 +70,11 @@ public class ArfforniaApiService {
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.MilestoneDetails.class));
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.MilestoneDetails.class))
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch milestone details from API for node {}: {}", nodeId, ex.getMessage());
+                    return null;
+                });
     }
 
     /**
@@ -81,17 +89,19 @@ public class ArfforniaApiService {
                 .header("Accept", "application/json")
                 .build();
 
-
-
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionConfig.class));
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionConfig.class))
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch progression config from API: {}. Banning no recipes.", ex.getMessage());
+                    return new ArfforniaApiDtos.ProgressionConfig(Collections.emptyList());
+                });
     }
 
     /**
      * Retrieves an authentication token for the game server.
      * The token is cached.
-     * @return A CompletableFuture containing the token.
+     * @return A CompletableFuture containing the token, or null on failure.
      */
     private CompletableFuture<String> getServiceAuthToken() {
         if (serviceAuthToken.get() != null) {
@@ -117,15 +127,25 @@ public class ArfforniaApiService {
                         return token;
                     } else {
                         Arffornia.LOGGER.error("Failed to authenticate service account. Status: {}, Body: {}", response.statusCode(), response.body());
-                        throw new RuntimeException("Authentication failed for service account.");
+                        return null;
                     }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Could not connect to API to get service auth token: {}", ex.getMessage());
+                    return null;
                 });
     }
+
     /**
      * Notifies the backend that a player has joined a team.
      */
     public void sendPlayerJoinedTeam(UUID playerUuid, UUID teamUuid, String teamName) {
-        Arffornia.ARFFORNA_API_SERVICE.getServiceAuthToken().thenAccept(token -> {
+        getServiceAuthToken().thenAccept(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.warn("Cannot send player-joined-team update, no auth token available.");
+                return;
+            }
+
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("team_uuid", teamUuid.toString());
@@ -138,10 +158,11 @@ public class ArfforniaApiService {
                         if(response.statusCode() != 200) {
                             Arffornia.LOGGER.error("API call to player/join failed with status: {}", response.statusCode());
                         }
+                    })
+                    .exceptionally(ex -> {
+                        Arffornia.LOGGER.error("Failed to send player join team update network request", ex);
+                        return null;
                     });
-        }).exceptionally(ex -> {
-            Arffornia.LOGGER.error("Failed to send player join team update", ex);
-            return null;
         });
     }
 
@@ -149,7 +170,11 @@ public class ArfforniaApiService {
      * Notifies the backend that a player has left a team.
      */
     public void sendPlayerLeftTeam(UUID playerUuid) {
-        Arffornia.ARFFORNA_API_SERVICE.getServiceAuthToken().thenAccept(token -> {
+        getServiceAuthToken().thenAccept(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.warn("Cannot send player-left-team update, no auth token available.");
+                return;
+            }
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
@@ -160,19 +185,24 @@ public class ArfforniaApiService {
                         if(response.statusCode() != 200) {
                             Arffornia.LOGGER.error("API call to player/leave failed with status: {}", response.statusCode());
                         }
+                    })
+                    .exceptionally(ex -> {
+                        Arffornia.LOGGER.error("Failed to send player left team update network request", ex);
+                        return null;
                     });
-        }).exceptionally(ex -> {
-            Arffornia.LOGGER.error("Failed to send player left team update", ex);
-            return null;
         });
     }
 
     /**
      * Fetches the list of completed milestones for a player.
-     * @return A CompletableFuture containing the list of milestone IDs.
+     * @return A CompletableFuture containing the list of milestone IDs, or an empty list on failure.
      */
     public CompletableFuture<List<Integer>> listMilestones(UUID playerUuid) {
         return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                return CompletableFuture.completedFuture(Collections.emptyList());
+            }
+
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
@@ -182,10 +212,14 @@ public class ArfforniaApiService {
                     .thenApply(response -> {
                         if (response.statusCode() == 200) {
                             JsonObject json = gson.fromJson(response.body(), JsonObject.class);
-                            // The rest of the parsing logic to extract the list of integers
-                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {
-                            }.getType());
+                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {}.getType());
                         }
+
+                        Arffornia.LOGGER.error("API call to listMilestones failed. Status: {}, Body: {}", response.statusCode(), response.body());
+                        return Collections.<Integer>emptyList();
+                    })
+                    .exceptionally(ex -> {
+                        Arffornia.LOGGER.error("Failed to execute listMilestones network request", ex);
                         return Collections.emptyList();
                     });
         });
@@ -196,6 +230,8 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
         return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) return CompletableFuture.completedFuture(false);
+
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);
@@ -211,6 +247,8 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<Boolean> removeMilestone(UUID playerUuid, int milestoneId) {
         return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) return CompletableFuture.completedFuture(false);
+
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);
@@ -230,6 +268,10 @@ public class ArfforniaApiService {
                         Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
                         return false;
                     }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("API call to {} failed for player {} due to a network error: {}", actionName, playerUuid, ex.getMessage());
+                    return false;
                 });
     }
 
@@ -243,6 +285,11 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<Boolean> ensurePlayerExists(UUID playerUuid, String playerName) {
         return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.error("Cannot ensure player exists, auth token is null.");
+                return CompletableFuture.completedFuture(false);
+            }
+
             JsonObject body = new JsonObject();
             body.addProperty("uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("username", playerName);
@@ -262,6 +309,8 @@ public class ArfforniaApiService {
      */
     public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, int milestoneId) {
         return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) return CompletableFuture.completedFuture(false);
+
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);

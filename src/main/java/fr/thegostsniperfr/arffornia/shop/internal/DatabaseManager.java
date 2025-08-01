@@ -23,29 +23,45 @@ public class DatabaseManager {
     private final Gson gson = new Gson();
 
     public DatabaseManager() {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:postgresql://" + ShopConfig.DB_HOST.get() + ":" + ShopConfig.DB_PORT.get() + "/" + ShopConfig.DB_DATABASE.get());
-        config.setUsername(ShopConfig.DB_USERNAME.get());
-        config.setPassword(ShopConfig.DB_PASSWORD.get());
-        config.setMaximumPoolSize(5);
-        this.dataSource = new HikariDataSource(config);
+        HikariDataSource tempDataSource;
+        try {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl("jdbc:postgresql://" + ShopConfig.DB_HOST.get() + ":" + ShopConfig.DB_PORT.get() + "/" + ShopConfig.DB_DATABASE.get());
+            config.setUsername(ShopConfig.DB_USERNAME.get());
+            config.setPassword(ShopConfig.DB_PASSWORD.get());
+            config.setMaximumPoolSize(5);
+
+            tempDataSource = new HikariDataSource(config);
+            LOGGER.info("Database connection pool initialized successfully.");
+        } catch (Exception e) {
+            LOGGER.error("!!! FAILED TO INITIALIZE DATABASE CONNECTION POOL !!!");
+            LOGGER.error("The shop and reward system will be disabled. Please check your database credentials and connectivity.");
+            LOGGER.error("Connection error: {}", e.getMessage());
+            tempDataSource = null;
+        }
+        this.dataSource = tempDataSource;
     }
 
     /**
      * Gets a connection from the pool.
      * @return A database connection.
-     * @throws SQLException if a connection cannot be established.
+     * @throws SQLException if a connection cannot be established or the pool is unavailable.
      */
     public Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            throw new SQLException("Database connection is not available.");
+        }
+
         return dataSource.getConnection();
     }
 
     /**
      * Retrieves the internal user ID from the 'users' table based on a player's Minecraft UUID.
      * @param playerUuid The player's UUID.
-     * @return The user ID, or -1 if not found.
+     * @return The user ID, or -1 if not found or if DB is down.
      */
     public int getUserId(UUID playerUuid) {
+        if (dataSource == null) return -1;
 
         LOGGER.info("getUserId Player uuid: {}", playerUuid);
 
@@ -71,9 +87,11 @@ public class DatabaseManager {
     /**
      * Checks if a user has any pending rewards without fetching them.
      * @param userId The user's ID.
-     * @return true if there is at least one pending reward, false otherwise.
+     * @return true if there is at least one pending reward, false otherwise or if DB is down.
      */
     public boolean hasPendingRewards(int userId) {
+        if (dataSource == null) return false;
+
         final String sql = "SELECT 1 FROM pending_rewards WHERE user_id = ? AND status = 'pending' LIMIT 1;";
 
         try (Connection conn = getConnection(); PreparedStatement req = conn.prepareStatement(sql)) {
@@ -163,6 +181,7 @@ public class DatabaseManager {
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
+            LOGGER.info("Database connection pool closed.");
         }
     }
 }

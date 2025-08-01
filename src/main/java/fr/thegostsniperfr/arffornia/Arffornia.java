@@ -2,8 +2,11 @@ package fr.thegostsniperfr.arffornia;
 
 import com.mojang.logging.LogUtils;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
+import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
+import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
@@ -50,6 +53,10 @@ public class Arffornia {
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want *this* class (Arffornia) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
+
+        ModItems.register(modEventBus);
+        ModBlocks.register(modEventBus);
+        ModCreativeTabs.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
 

@@ -66,22 +66,39 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- DATA STRUCTURES ---
 
-    /** Represents a single, fully-detailed node in the progression graph. */
-    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType) {}
-    /** Represents a directed link between two nodes by their IDs. */
-    public record NodeLink(int sourceId, int targetId) {}
+    /**
+     * Represents a single, fully-detailed node in the progression graph.
+     */
+    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType) {
+    }
+
+    /**
+     * Represents a directed link between two nodes by their IDs.
+     */
+    public record NodeLink(int sourceId, int targetId) {
+    }
 
     // --- API & DATA STATE ---
 
-    /** The list of all nodes currently loaded from the API. */
+    /**
+     * The list of all nodes currently loaded from the API.
+     */
     private List<ProgressionNode> nodes = Collections.emptyList();
-    /** The list of all links currently loaded from the API. */
+    /**
+     * The list of all links currently loaded from the API.
+     */
     private List<NodeLink> links = Collections.emptyList();
-    /** A quick-access map to find nodes by their ID. */
+    /**
+     * A quick-access map to find nodes by their ID.
+     */
     private Map<Integer, ProgressionNode> nodeMap = Collections.emptyMap();
-    /** The current loading state of the screen. */
+    /**
+     * The current loading state of the screen.
+     */
     private LoadingStatus status = LoadingStatus.LOADING_GRAPH;
-    /** Current milestone selected details info **/
+    /**
+     * Current milestone selected details info
+     **/
     private @Nullable ArfforniaApiDtos.MilestoneDetails selectedNodeDetails = null;
 
     // --- UI STATE ---
@@ -90,7 +107,9 @@ public class ProgressionGraphScreen extends Screen {
     private float zoom = 1.0f;
     private ProgressionNode selectedNode = null;
     private boolean isDragging = false;
-    private enum LoadingStatus { IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED }
+
+    private enum LoadingStatus {IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED}
+
     private Set<Integer> completedMilestones = new HashSet<>();
     private @Nullable Integer currentTargetId = null;
     private Set<Integer> availableMilestones = new HashSet<>();
@@ -154,16 +173,20 @@ public class ProgressionGraphScreen extends Screen {
                         .map(l -> new NodeLink(l.milestoneId(), l.descendantId()))
                         .collect(Collectors.toList());
 
-                calculateAvailableMilestones();
-
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
 
                 this.completedMilestones = new HashSet<>(playerData.playerProgress().completedMilestones());
                 this.currentTargetId = playerData.playerProgress().currentTargetId();
 
-                updateClientData();
+                calculateAvailableMilestones();
 
                 this.status = LoadingStatus.IDLE;
+
+                if (this.currentTargetId != null) {
+                    fetchAndApplyNodeDetails(this.currentTargetId);
+                } else {
+                    updateClientData();
+                }
             });
         });
     }
@@ -245,11 +268,11 @@ public class ProgressionGraphScreen extends Screen {
             for (float x = firstMainVertical; x < worldRight; x += mainGridCellSize) {
                 int crossScreenX = (int) (x * this.zoom - this.cameraX);
                 int crossScreenY = (int) (y * this.zoom - this.cameraY);
-                int scaledCrossSize = (int)(crossSize * this.zoom);
+                int scaledCrossSize = (int) (crossSize * this.zoom);
                 if (scaledCrossSize < 3) continue;
 
-                guiGraphics.fill(crossScreenX - scaledCrossSize/2, crossScreenY, crossScreenX + scaledCrossSize/2 + 1, crossScreenY + 1, GRID_CROSS_COLOR);
-                guiGraphics.fill(crossScreenX, crossScreenY - scaledCrossSize/2, crossScreenX + 1, crossScreenY + scaledCrossSize/2 + 1, GRID_CROSS_COLOR);
+                guiGraphics.fill(crossScreenX - scaledCrossSize / 2, crossScreenY, crossScreenX + scaledCrossSize / 2 + 1, crossScreenY + 1, GRID_CROSS_COLOR);
+                guiGraphics.fill(crossScreenX, crossScreenY - scaledCrossSize / 2, crossScreenX + 1, crossScreenY + scaledCrossSize / 2 + 1, GRID_CROSS_COLOR);
             }
         }
     }
@@ -294,11 +317,11 @@ public class ProgressionGraphScreen extends Screen {
     private void drawNodes(GuiGraphics guiGraphics) {
         for (ProgressionNode node : nodes) {
             Vector2i nodePos = getScreenPosForNode(node);
-            int nodeDiameter = (int)(BASE_NODE_DIAMETER * this.zoom);
-            int iconDiameter = (int)(BASE_ICON_DIAMETER * this.zoom);
+            int nodeDiameter = (int) (BASE_NODE_DIAMETER * this.zoom);
+            int iconDiameter = (int) (BASE_ICON_DIAMETER * this.zoom);
 
-            if (nodePos.x + nodeDiameter/2 < 0 || nodePos.x - nodeDiameter/2 > this.width ||
-                    nodePos.y + nodeDiameter/2 < 0 || nodePos.y - nodeDiameter/2 > this.height) {
+            if (nodePos.x + nodeDiameter / 2 < 0 || nodePos.x - nodeDiameter / 2 > this.width ||
+                    nodePos.y + nodeDiameter / 2 < 0 || nodePos.y - nodeDiameter / 2 > this.height) {
                 continue;
             }
 
@@ -340,7 +363,7 @@ public class ProgressionGraphScreen extends Screen {
     private void drawElbowConnection(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target, int color) {
         Vector2i start = getScreenPosForNode(source);
         Vector2i end = getScreenPosForNode(target);
-        int lineThickness = (int)Math.max(1, BASE_LINE_THICKNESS * this.zoom);
+        int lineThickness = (int) Math.max(1, BASE_LINE_THICKNESS * this.zoom);
 
         int midX = start.x + (end.x - start.x) / 2;
         Vector2i elbow1 = new Vector2i(midX, start.y);
@@ -354,7 +377,7 @@ public class ProgressionGraphScreen extends Screen {
     private void drawStraightLine(GuiGraphics guiGraphics, ProgressionNode source, ProgressionNode target, int color) {
         Vector2i start = getScreenPosForNode(source);
         Vector2i end = getScreenPosForNode(target);
-        int lineThickness = (int)Math.max(1, BASE_LINE_THICKNESS * this.zoom);
+        int lineThickness = (int) Math.max(1, BASE_LINE_THICKNESS * this.zoom);
         drawThickLine(guiGraphics, start, end, lineThickness, color);
     }
 
@@ -367,8 +390,14 @@ public class ProgressionGraphScreen extends Screen {
             guiGraphics.fill(x1 - thickness / 2, y1 - thickness / 2, x1 + thickness / 2 + thickness % 2, y1 + thickness / 2 + thickness % 2, color);
             if (x1 == x2 && y1 == y2) break;
             int e2 = 2 * err;
-            if (e2 > -dy) { err -= dy; x1 += sx; }
-            if (e2 < dx) { err += dx; y1 += sy; }
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
         }
     }
 
@@ -448,16 +477,13 @@ public class ProgressionGraphScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (hasControlDown()) {
-            double mouseWorldXBefore = (mouseX + this.cameraX) / this.zoom;
-            double mouseWorldYBefore = (mouseY + this.cameraY) / this.zoom;
-            float zoomFactor = (verticalAmount > 0) ? 1.1f : (1.0f / 1.1f);
-            this.zoom = Mth.clamp(this.zoom * zoomFactor, 0.15f, 2.5f);
-            this.cameraX = mouseWorldXBefore * this.zoom - mouseX;
-            this.cameraY = mouseWorldYBefore * this.zoom - mouseY;
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        double mouseWorldXBefore = (mouseX + this.cameraX) / this.zoom;
+        double mouseWorldYBefore = (mouseY + this.cameraY) / this.zoom;
+        float zoomFactor = (verticalAmount > 0) ? 1.1f : (1.0f / 1.1f);
+        this.zoom = Mth.clamp(this.zoom * zoomFactor, 0.15f, 2.5f);
+        this.cameraX = mouseWorldXBefore * this.zoom - mouseX;
+        this.cameraY = mouseWorldYBefore * this.zoom - mouseY;
+        return true;
     }
 
     @Override
@@ -467,8 +493,19 @@ public class ProgressionGraphScreen extends Screen {
         }
 
         if (button == 0) {
-            boolean aNodeWasClicked = false;
+            if (this.selectedNode != null) {
+                int panelWidth = 170;
+                int panelX = this.width - panelWidth - 20;
+                int panelY = 20;
+                int panelBottom = this.height - 20;
 
+                if (mouseX >= panelX && mouseX <= (panelX + panelWidth) && mouseY >= panelY && mouseY <= panelBottom) {
+                    return true;
+                }
+            }
+
+
+            boolean aNodeWasClicked = false;
             double nodeCheckRadius = (BASE_NODE_DIAMETER / 2.0);
 
             double mouseWorldX = (mouseX + this.cameraX) / this.zoom;
@@ -555,6 +592,7 @@ public class ProgressionGraphScreen extends Screen {
 
     /**
      * Converts a node's grid coordinates to its center position on the screen.
+     *
      * @param node The node to position.
      * @return A Vector2i containing the screen-space coordinates.
      */
@@ -564,6 +602,7 @@ public class ProgressionGraphScreen extends Screen {
 
     /**
      * Converts world coordinates to screen coordinates based on camera and zoom.
+     *
      * @param worldX The world X coordinate.
      * @param worldY The world Y coordinate.
      * @return A Vector2i containing the screen-space coordinates.
@@ -604,7 +643,10 @@ public class ProgressionGraphScreen extends Screen {
     private void updateTargetButtonState() {
         if (this.setTargetButton == null || this.selectedNode == null) return;
 
-        if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
+        if (completedMilestones.contains(this.selectedNode.id())) {
+            this.setTargetButton.setMessage(Component.literal("✔ Completed"));
+            this.setTargetButton.active = false;
+        } else if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
             this.setTargetButton.setMessage(Component.literal("✔ Targeted"));
             this.setTargetButton.active = false;
         } else {

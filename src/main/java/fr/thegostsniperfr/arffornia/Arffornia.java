@@ -7,17 +7,13 @@ import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
+import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
 import fr.thegostsniperfr.arffornia.util.Permissions;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -29,8 +25,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
@@ -105,6 +100,7 @@ public class Arffornia {
      * Fired when a player joins the server.
      * 1. Ensure the player exists in the backend database.
      * 2. Once confirmed, proceed with caching their ID and checking for shop rewards.
+     * 3. Fetch and send the current milestone target to the client.
      */
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -121,6 +117,10 @@ public class Arffornia {
                                     });
                                 }
                             });
+
+                            // Fetch and send the current milestone target to the player
+                            updateAndSendPlayerTarget(player);
+
                         } else {
                             player.getServer().execute(() -> {
                                 player.sendSystemMessage(Component.literal("§cWarning: Could not synchronize your progression data. Shop and progression features may be unavailable."));
@@ -130,6 +130,38 @@ public class Arffornia {
                     });
         }
     }
+
+    /**
+     * Fetches the player's graph data, finds the name of their target milestone,
+     * and sends it to the client.
+     * @param player The player to update.
+     */
+    private void updateAndSendPlayerTarget(ServerPlayer player) {
+        String playerUuid = player.getUUID().toString().replace("-", "");
+
+        ARFFORNA_API_SERVICE.fetchPlayerGraphData(playerUuid).thenAccept(graphData -> {
+            if (graphData != null && graphData.playerProgress() != null && graphData.playerProgress().currentTargetId() != null) {
+                int targetId = graphData.playerProgress().currentTargetId();
+                ARFFORNA_API_SERVICE.fetchMilestoneDetails(targetId).thenAccept(details -> {
+                    if (details != null) {
+                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(details.name()));
+                    } else {
+                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Unknown Target"));
+                        LOGGER.warn("Could not fetch details for target milestone ID {} for player {}", targetId, player.getName().getString());
+                    }
+                });
+            } else {
+                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("None"));
+            }
+        }).exceptionally(ex -> {
+            LOGGER.error("Failed to fetch graph data on player join for {}: {}", player.getName().getString(), ex.getMessage());
+            player.getServer().execute(() -> {
+                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Error"));
+            });
+            return null;
+        });
+    }
+
 
     @SubscribeEvent
     public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {

@@ -20,5 +20,11 @@ public final class PacketHandler {
                 ServerboundSetTargetMilestonePacket.STREAM_CODEC,
                 ServerboundSetTargetMilestonePacket::handle
         );
+
+        registrar.playToClient(
+                ClientboundUpdateTargetNamePacket.TYPE,
+                ClientboundUpdateTargetNamePacket.STREAM_CODEC,
+                ClientboundUpdateTargetNamePacket::handle
+        );
     }
 }

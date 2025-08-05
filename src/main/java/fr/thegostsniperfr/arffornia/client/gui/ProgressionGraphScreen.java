@@ -69,7 +69,7 @@ public class ProgressionGraphScreen extends Screen {
     /**
      * Represents a single, fully-detailed node in the progression graph.
      */
-    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType) {
+    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType, int stageNumber) {
     }
 
     /**
@@ -114,6 +114,8 @@ public class ProgressionGraphScreen extends Screen {
     private @Nullable Integer currentTargetId = null;
     private Set<Integer> availableMilestones = new HashSet<>();
     private float rotationAngle = 0.0f;
+
+    private int maxStageNumber = 1;
 
     // --- UI ELEMENTS ---
 
@@ -166,7 +168,7 @@ public class ProgressionGraphScreen extends Screen {
                 }
 
                 this.nodes = playerData.milestones().stream()
-                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType()))
+                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(),  m.stageNumber()))
                         .collect(Collectors.toList());
 
                 this.links = playerData.milestoneClosure().stream()
@@ -177,6 +179,7 @@ public class ProgressionGraphScreen extends Screen {
 
                 this.completedMilestones = new HashSet<>(playerData.playerProgress().completedMilestones());
                 this.currentTargetId = playerData.playerProgress().currentTargetId();
+                this.maxStageNumber = playerData.playerProgress().maxStageNumber();
 
                 calculateAvailableMilestones();
 
@@ -292,24 +295,39 @@ public class ProgressionGraphScreen extends Screen {
     }
 
     private void drawConnections(GuiGraphics guiGraphics) {
-        for (NodeLink link : links) {
+        List<NodeLink> lockedLinks = new ArrayList<>();
+        List<NodeLink> availableLinks = new ArrayList<>();
+        List<NodeLink> completedLinks = new ArrayList<>();
+
+        for (NodeLink link : this.links) {
             ProgressionNode source = nodeMap.get(link.sourceId());
             ProgressionNode target = nodeMap.get(link.targetId());
             if (source == null || target == null) continue;
 
-            int lineColor;
             if (completedMilestones.contains(source.id()) && completedMilestones.contains(target.id())) {
-                lineColor = COLOR_LINK_COMPLETED;
-            } else if (completedMilestones.contains(source.id())) {
-                lineColor = COLOR_LINK_AVAILABLE;
+                completedLinks.add(link);
+            } else if (completedMilestones.contains(source.id()) && !completedMilestones.contains(target.id())) {
+                availableLinks.add(link);
             } else {
-                lineColor = COLOR_LINK_LOCKED;
+                lockedLinks.add(link);
             }
+        }
+
+        drawLinkList(guiGraphics, lockedLinks, COLOR_LINK_LOCKED);
+        drawLinkList(guiGraphics, availableLinks, COLOR_LINK_AVAILABLE);
+        drawLinkList(guiGraphics, completedLinks, COLOR_LINK_COMPLETED);
+    }
+
+    private void drawLinkList(GuiGraphics guiGraphics, List<NodeLink> linkList, int color) {
+        for (NodeLink link : linkList) {
+            ProgressionNode source = nodeMap.get(link.sourceId());
+            ProgressionNode target = nodeMap.get(link.targetId());
+            if (source == null || target == null) continue;
 
             if (source.gridX() == target.gridX() || source.gridY() == target.gridY()) {
-                drawStraightLine(guiGraphics, source, target, lineColor);
+                drawStraightLine(guiGraphics, source, target, color);
             } else {
-                drawElbowConnection(guiGraphics, source, target, lineColor);
+                drawElbowConnection(guiGraphics, source, target, color);
             }
         }
     }
@@ -542,6 +560,8 @@ public class ProgressionGraphScreen extends Screen {
 
     private void fetchAndApplyNodeDetails(int nodeId) {
         this.status = LoadingStatus.LOADING_DETAILS;
+        updateDetailsPanel();
+
         ARFFORNA_API_SERVICE.fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
@@ -553,7 +573,7 @@ public class ProgressionGraphScreen extends Screen {
                 this.selectedNodeDetails = details;
 
                 this.nodes = this.nodes.stream()
-                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType()) : n)
+                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType(), n.stageNumber()) : n)
                         .collect(Collectors.toList());
 
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
@@ -565,6 +585,8 @@ public class ProgressionGraphScreen extends Screen {
                 updateClientData();
 
                 this.status = LoadingStatus.IDLE;
+
+                updateTargetButtonState();
             });
         });
     }
@@ -646,13 +668,47 @@ public class ProgressionGraphScreen extends Screen {
         if (completedMilestones.contains(this.selectedNode.id())) {
             this.setTargetButton.setMessage(Component.literal("✔ Completed"));
             this.setTargetButton.active = false;
-        } else if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
+            return;
+        }
+
+        if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
             this.setTargetButton.setMessage(Component.literal("✔ Targeted"));
             this.setTargetButton.active = false;
-        } else {
-            this.setTargetButton.setMessage(Component.literal("Set as Target"));
-            this.setTargetButton.active = true;
+            return;
         }
+
+        if (this.selectedNodeDetails == null) {
+            this.setTargetButton.active = false;
+            return;
+        }
+
+        ProgressionNode currentNode = nodeMap.get(this.selectedNode.id());
+
+        if (currentNode.stageNumber > this.maxStageNumber) {
+            this.setTargetButton.setMessage(Component.literal("Higher Stage Locked"));
+            this.setTargetButton.active = false;
+            return;
+        }
+
+
+        List<Integer> prerequisites = this.links.stream()
+                .filter(link -> link.targetId() == this.selectedNode.id())
+                .map(NodeLink::sourceId)
+                .toList();
+
+        if (!prerequisites.isEmpty()) {
+            boolean hasCompletedPrerequisite = prerequisites.stream()
+                    .anyMatch(prereqId -> this.completedMilestones.contains(prereqId));
+
+            if (!hasCompletedPrerequisite) {
+                this.setTargetButton.setMessage(Component.literal("Prerequisite Locked"));
+                this.setTargetButton.active = false;
+                return;
+            }
+        }
+
+        this.setTargetButton.setMessage(Component.literal("Set as Target"));
+        this.setTargetButton.active = true;
     }
 
     private void handleSetTarget() {

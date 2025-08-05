@@ -21,7 +21,8 @@ public class ArfforniaApiDtos {
 
     public record PlayerProgress(
             @SerializedName("completed_milestones") List<Integer> completedMilestones,
-            @SerializedName("current_target_id") @Nullable Integer currentTargetId
+            @SerializedName("current_target_id") @Nullable Integer currentTargetId,
+            @SerializedName("max_stage_number") Integer maxStageNumber
     ) {}
 
     /** Maps to a single milestone object in the main graph list. */
@@ -30,7 +31,9 @@ public class ArfforniaApiDtos {
             @SerializedName("icon_type")
             String iconType,
             int x,
-            int y
+            int y,
+            @SerializedName("stage_number")
+            int stageNumber
     ) {}
 
     /** Maps to a single link object in the milestone_closure list. */

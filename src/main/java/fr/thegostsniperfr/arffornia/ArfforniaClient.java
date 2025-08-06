@@ -24,6 +24,7 @@ public class ArfforniaClient {
     public void clientSetup(final FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_BLOCK.get(), RenderType.cutout());
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_PART_BLOCK.get(), RenderType.cutout());
         });
     }
 

@@ -3,6 +3,8 @@ package fr.thegostsniperfr.arffornia.block;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterBlock;
 import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterPartBlock;
+import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevator;
+import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevatorPartBlock;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -18,8 +20,10 @@ public class ModBlocks {
             DeferredRegister.createBlocks(Arffornia.MODID);
 
     public static final DeferredBlock<Block> CRAFTER_BLOCK = registerBlock("crafter_block", CrafterBlock::new);
-
     public static final DeferredBlock<Block> CRAFTER_PART_BLOCK = BLOCKS.register("crafter_part_block", CrafterPartBlock::new);
+
+    public static final DeferredBlock<Block> SPACE_ELEVATOR = registerBlock("space_elevator", SpaceElevator::new);
+    public static final DeferredBlock<Block> SPACE_ELEVATOR_PART_BLOCK = BLOCKS.register("space_elevator_part_block", SpaceElevatorPartBlock::new);
 
 
     private static <T extends Block> DeferredBlock<T> registerBlock(String name, Supplier<T> block) {

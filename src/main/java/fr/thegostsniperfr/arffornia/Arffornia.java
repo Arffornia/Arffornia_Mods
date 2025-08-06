@@ -3,12 +3,14 @@ package fr.thegostsniperfr.arffornia;
 import com.mojang.logging.LogUtils;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
+import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
+import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
 import fr.thegostsniperfr.arffornia.util.Permissions;
@@ -52,6 +54,8 @@ public class Arffornia {
         ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
+        ModMenuTypes.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
 

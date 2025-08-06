@@ -22,6 +22,7 @@ public class ModCreativeTabs {
                     .displayItems((displayParameters, output) -> {
                         output.accept(ModItems.WRENCH.get());
                         output.accept(ModBlocks.CRAFTER_BLOCK.get());
+                        output.accept(ModBlocks.SPACE_ELEVATOR.get());
                     })
                     .build());
 

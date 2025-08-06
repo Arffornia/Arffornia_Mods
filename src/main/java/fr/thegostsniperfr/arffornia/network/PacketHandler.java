@@ -26,5 +26,11 @@ public final class PacketHandler {
                 ClientboundUpdateTargetNamePacket.STREAM_CODEC,
                 ClientboundUpdateTargetNamePacket::handle
         );
+
+        registrar.playToServer(
+                ServerboundLaunchElevatorPacket.TYPE,
+                ServerboundLaunchElevatorPacket.STREAM_CODEC,
+                ServerboundLaunchElevatorPacket::handle
+        );
     }
 }

@@ -44,7 +44,13 @@ public class SpaceElevatorMenu extends AbstractContainerMenu {
 
         for (int i = 0; i < 7; ++i) {
             for (int j = 0; j < 10; ++j) {
-                this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, j + i * 10, -181 + j * 18, 18 + i * 18));
+                this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, j + i * 10, -181 + j * 18, 18 + i * 18) {
+                    @Override
+                    public void setChanged() {
+                        super.setChanged();
+                        blockEntity.setChanged();
+                    }
+                });
             }
         }
 

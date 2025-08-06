@@ -44,11 +44,15 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         return count;
     }
 
-    public boolean areRequirementsMet() {
-        if (cachedMilestoneDetails == null || cachedMilestoneDetails.requirements().isEmpty()) return false;
-        for (ArfforniaApiDtos.MilestoneRequirement req : cachedMilestoneDetails.requirements()) {
+    public boolean areRequirementsMet(@Nullable ArfforniaApiDtos.MilestoneDetails details) {
+        if (details == null || details.requirements() == null || details.requirements().isEmpty()) {
+            return false;
+        }
+        for (ArfforniaApiDtos.MilestoneRequirement req : details.requirements()) {
             Item requiredItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(req.itemId()));
-            if (countItems(requiredItem) < req.amount()) return false;
+            if (countItems(requiredItem) < req.amount()) {
+                return false;
+            }
         }
         return true;
     }
@@ -81,23 +85,30 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     }
 
     public void launch() {
-        if (level == null || level.isClientSide() || !areRequirementsMet()) return;
+        if (level == null || level.isClientSide() || !areRequirementsMet(this.cachedMilestoneDetails)) return;
         consumeRequirements();
         Arffornia.LOGGER.info("Space Elevator at {} launched for milestone {}!", getBlockPos(), activeMilestoneId);
         setChanged();
     }
+
     @Override
     protected void saveAdditional(CompoundTag pTag, HolderLookup.Provider pRegistries) {
         super.saveAdditional(pTag, pRegistries);
         pTag.put("inventory", itemHandler.serializeNBT(pRegistries));
         pTag.putInt("activeMilestoneId", activeMilestoneId);
     }
+
     @Override
     protected void loadAdditional(CompoundTag pTag, HolderLookup.Provider pRegistries) {
         super.loadAdditional(pTag, pRegistries);
-        itemHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
-        if (pTag.contains("activeMilestoneId", Tag.TAG_INT)) this.activeMilestoneId = pTag.getInt("activeMilestoneId");
+        if (pTag.contains("inventory", Tag.TAG_COMPOUND)) {
+            itemHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
+        }
+        if (pTag.contains("activeMilestoneId", Tag.TAG_INT)) {
+            this.activeMilestoneId = pTag.getInt("activeMilestoneId");
+        }
     }
+
     public void setOwner(Player player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
         Arffornia.ARFFORNA_API_SERVICE.fetchPlayerGraphData(playerUuid).thenAccept(graphData -> {
@@ -108,6 +119,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             }
         });
     }
+
     public void fetchAndCacheMilestoneDetails() {
         if (this.activeMilestoneId == -1 || this.level == null) return;
         Arffornia.ARFFORNA_API_SERVICE.fetchMilestoneDetails(this.activeMilestoneId).thenAccept(details -> {
@@ -116,14 +128,19 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             if (!level.isClientSide) ((ServerLevel) level).getChunkSource().blockChanged(getBlockPos());
         });
     }
+
     @Nullable @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider pRegistries) { return saveWithoutMetadata(pRegistries); }
+
     public int getActiveMilestoneId() { return activeMilestoneId; }
+
     public void setCachedMilestoneDetails(@Nullable ArfforniaApiDtos.MilestoneDetails d) { this.cachedMilestoneDetails = d; }
 
-    public @Nullable ArfforniaApiDtos.MilestoneDetails getCachedMilestoneDetails() {
+    @Nullable
+    public ArfforniaApiDtos.MilestoneDetails getCachedMilestoneDetails() {
         return cachedMilestoneDetails;
     }
 }

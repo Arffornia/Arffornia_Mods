@@ -48,7 +48,7 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
         this.renderBackground(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
 
-        this.launchButton.active = this.menu.blockEntity.areRequirementsMet();
+        this.launchButton.active = this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
 
         ArfforniaApiDtos.MilestoneDetails details = this.menu.initialDetails;
         if (details != null) {
@@ -81,8 +81,19 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
             pGuiGraphics.renderItem(ghostStack, x, y);
 
             int countInInventory = this.menu.blockEntity.countItems(itemOpt.get());
+            double ratio = req.amount() > 0 ? (double) countInInventory / req.amount() : 1.0;
+
+            int color;
+            if (ratio >= 1.0) {
+                color = 0x55FF55; // Green
+            } else if (ratio >= 0.3) {
+                color = 0xFFB800; // Orange
+            } else {
+                color = 0xFF5555; // Red
+            }
+
             Component progressText = Component.literal(String.format("%d / %d", countInInventory, req.amount()));
-            pGuiGraphics.drawString(this.font, progressText, x + 20, y + 4, 4210752, false);
+            pGuiGraphics.drawString(this.font, progressText, x + 20, y + 4, color, false);
 
             if (this.isMouseOver(mouseX, mouseY, x, y, 16, 16)) {
                 pGuiGraphics.renderTooltip(this.font, ghostStack, mouseX, mouseY);
@@ -102,7 +113,7 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
 
     @Override
     protected void renderLabels(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY) {
-//        pGuiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 4210752, false);
+        // pGuiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 4210752, false);
 
         // Block inventory title
         pGuiGraphics.drawString(this.font, Component.literal("Space Elevator Inventory:"), -181, 6, 0xFFFFFF, true);

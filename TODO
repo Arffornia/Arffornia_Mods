@@ -1,0 +1,12 @@
+- [x] Check target milestone from progression on open & launch
+- [x] When a player click on launch, we need to ensure that the player cannot get required items during api check ... (destroy the block, fast click etc..)
+- [x] After a launch, the launch btn is 100% not clickable (we can validate 2 times the same milestone)
+- [x] Add delay between firework launches
+- [x] Check for input items
+- [ ] Check displayName format with Better Forge Chat Reborn
+- [ ] Add particles en destroy
+- [x] Fix no JEI details on requirement & new items
+- [x] Milestone & Stage names in Space Elevator menu
+- [x] Check free space on block placement
+- [x] Add jei compatibility on block part
+- [ ]

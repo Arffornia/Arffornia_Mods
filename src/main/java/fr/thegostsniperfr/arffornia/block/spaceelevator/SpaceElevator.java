@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -77,6 +78,16 @@ public class SpaceElevator extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pPos, BlockState pState) {
         return new SpaceElevatorBlockEntity(pPos, pState);
+    }
+
+    @Override
+    public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
+        BlockPos partPos = pPos.above();
+        BlockState stateAbove = pLevel.getBlockState(partPos);
+
+        boolean spaceIsFree = pLevel.isEmptyBlock(partPos) || stateAbove.canBeReplaced();
+
+        return spaceIsFree && super.canSurvive(pState, pLevel, pPos);
     }
 
     @Override

@@ -224,7 +224,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             }
         }
 
-        FireworkExplosion explosion = new FireworkExplosion(shape, colors, fadeColors, random.nextBoolean(), random.nextBoolean());
+        FireworkExplosion explosion = new FireworkExplosion(shape, colors, fadeColors, true, true);
 
         Fireworks fireworks = new Fireworks((byte) (1 + random.nextInt(3)), List.of(explosion));
 

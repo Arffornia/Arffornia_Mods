@@ -1,9 +1,10 @@
-package fr.thegostsniperfr.arffornia.client.gui;
+package fr.thegostsniperfr.arffornia.client.screen;
 
 
 import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
 import fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket;
@@ -25,8 +26,6 @@ import org.joml.Vector2i;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static fr.thegostsniperfr.arffornia.Arffornia.ARFFORNA_API_SERVICE;
 
 /**
  * A screen that displays a progression graph, allowing users to view nodes and their connections.
@@ -147,7 +146,7 @@ public class ProgressionGraphScreen extends Screen {
         this.status = LoadingStatus.LOADING_GRAPH;
         String playerUuid = Minecraft.getInstance().getUser().getProfileId().toString().replace("-", "");
 
-        ARFFORNA_API_SERVICE.fetchPlayerGraphData(playerUuid).whenComplete((playerData, error) -> {
+        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid).whenComplete((playerData, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;
@@ -562,7 +561,7 @@ public class ProgressionGraphScreen extends Screen {
         this.status = LoadingStatus.LOADING_DETAILS;
         updateDetailsPanel();
 
-        ARFFORNA_API_SERVICE.fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
+        ArfforniaApiService.getInstance().fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;

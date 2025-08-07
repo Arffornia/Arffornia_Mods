@@ -1,7 +1,7 @@
 package fr.thegostsniperfr.arffornia.client;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.client.gui.ProgressionGraphScreen;
+import fr.thegostsniperfr.arffornia.client.screen.ProgressionGraphScreen;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;

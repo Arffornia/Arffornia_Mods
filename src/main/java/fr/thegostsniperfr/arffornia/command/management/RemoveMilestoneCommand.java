@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.command.management;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -25,7 +25,7 @@ public class RemoveMilestoneCommand {
 
                                     source.sendSystemMessage(Component.literal("Requesting to remove milestone " + milestoneId + " from " + targetPlayer.getName().getString() + "..."));
 
-                                    Arffornia.ARFFORNA_API_SERVICE.removeMilestone(targetPlayer.getUUID(), milestoneId)
+                                    ArfforniaApiService.getInstance().removeMilestone(targetPlayer.getUUID(), milestoneId)
                                             .thenAccept(success -> {
                                                 if (success) {
                                                     source.sendSystemMessage(Component.literal("§aSuccessfully removed milestone."));

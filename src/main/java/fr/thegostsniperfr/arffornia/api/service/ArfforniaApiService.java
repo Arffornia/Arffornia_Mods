@@ -21,10 +21,18 @@ import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
  * Handles HTTP requests and JSON parsing.
  */
 public class ArfforniaApiService {
+    private static final ArfforniaApiService INSTANCE = new ArfforniaApiService();
+
     private final HttpClient client = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
 
     private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
+
+    private ArfforniaApiService() {}
+
+    public static ArfforniaApiService getInstance() {
+        return INSTANCE;
+    }
 
     private HttpRequest buildRequest(URI uri, String token, JsonObject body)
     {

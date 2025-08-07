@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.ChatFormatting;
@@ -171,7 +172,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         final List<ItemStack> consumedItems = consumeRequirements();
         final int activeMilestoneId = details.id();
 
-        Arffornia.ARFFORNA_API_SERVICE.addMilestone(player.getUUID(), activeMilestoneId)
+        ArfforniaApiService.getInstance().addMilestone(player.getUUID(), activeMilestoneId)
                 .thenAcceptAsync(success -> {
                     if (success) {
                         Component playerName = player.getDisplayName();
@@ -183,8 +184,9 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
                         player.getServer().getPlayerList().broadcastSystemMessage(message, false);
 
                         int stageNumber = details.stageNumber() != null ? details.stageNumber() : 1;
-                        scheduleFireworks(stageNumber, 6);
-
+                        for (int i = 0; i < stageNumber; i++) {
+                            spawnFirework();
+                        }
                     } else {
                         Arffornia.LOGGER.error("API call to complete milestone {} for player {} failed. Refunding items.", activeMilestoneId, player.getUUID());
                         player.sendSystemMessage(Component.literal("§cAn error occurred while validating the milestone. Your items have been refunded.").withStyle(ChatFormatting.RED));
@@ -202,20 +204,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             }
         }
     }
-
-    private void scheduleFireworks(int count, int delayTicks) {
-        if (count <= 0 || this.level == null || this.level.isClientSide()) {
-            return;
-        }
-
-        spawnFirework();
-
-        level.getServer().tell(new TickTask(
-                level.getServer().getTickCount() + delayTicks,
-                () -> scheduleFireworks(count - 1, delayTicks)
-        ));
-    }
-
 
     private void spawnFirework() {
         if (this.level == null || this.level.isClientSide()) return;
@@ -279,7 +267,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     public void setOwner(Player player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
 
-        Arffornia.ARFFORNA_API_SERVICE.fetchPlayerData(playerUuid).thenAccept(playerData -> {
+        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAccept(playerData -> {
             if (playerData != null) {
                 this.linkedProgressionId = playerData.activeProgressionId();
                 Arffornia.LOGGER.info("Space Elevator at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);

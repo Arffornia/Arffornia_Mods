@@ -4,6 +4,7 @@ import dev.ftb.mods.ftbteams.api.event.PlayerJoinedPartyTeamEvent;
 import dev.ftb.mods.ftbteams.api.event.PlayerLeftPartyTeamEvent;
 import dev.ftb.mods.ftbteams.api.event.TeamEvent;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public class FTBTeamsEventHandler {
         String teamName = event.getTeam().getName().getString();
 
         Arffornia.LOGGER.info("Architectury Event: Player {} joined team {} ({})", playerUuid, teamId, teamName);
-        Arffornia.ARFFORNA_API_SERVICE.sendPlayerJoinedTeam(playerUuid, teamId, teamName);
+        ArfforniaApiService.getInstance().sendPlayerJoinedTeam(playerUuid, teamId, teamName);
     }
 
     public void onPlayerLeftTeam(PlayerLeftPartyTeamEvent event) {
@@ -32,6 +33,6 @@ public class FTBTeamsEventHandler {
 
         UUID playerUuid = event.getPlayer().getUUID();
         Arffornia.LOGGER.info("Architectury Event: Player {} left a team", playerUuid);
-        Arffornia.ARFFORNA_API_SERVICE.sendPlayerLeftTeam(playerUuid);
+        ArfforniaApiService.getInstance().sendPlayerLeftTeam(playerUuid);
     }
 }

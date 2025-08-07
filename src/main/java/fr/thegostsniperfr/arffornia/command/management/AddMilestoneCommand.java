@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.command.management;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -20,7 +20,7 @@ public class AddMilestoneCommand {
 
                                     context.getSource().sendSystemMessage(Component.literal("Adding milestone " + milestoneId + " to " + target.getName().getString() + "..."));
 
-                                    Arffornia.ARFFORNA_API_SERVICE.addMilestone(target.getUUID(), milestoneId)
+                                    ArfforniaApiService.getInstance().addMilestone(target.getUUID(), milestoneId)
                                             .thenAccept(success -> {
                                                 if (success) {
                                                     context.getSource().sendSystemMessage(Component.literal("§aSuccessfully added milestone."));

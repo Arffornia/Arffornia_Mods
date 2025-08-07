@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -48,7 +49,7 @@ public record ServerboundSetTargetMilestonePacket(int milestoneId) implements Cu
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 Arffornia.LOGGER.info("Received request from player {} to target milestone {}", player.getName().getString(), packet.milestoneId());
-                Arffornia.ARFFORNA_API_SERVICE.setTargetMilestone(player.getUUID(), packet.milestoneId);
+                ArfforniaApiService.getInstance().setTargetMilestone(player.getUUID(), packet.milestoneId);
             }
         });
     }

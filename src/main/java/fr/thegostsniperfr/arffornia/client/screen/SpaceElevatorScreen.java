@@ -1,8 +1,9 @@
-package fr.thegostsniperfr.arffornia.screen;
+package fr.thegostsniperfr.arffornia.client.screen;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket;
+import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

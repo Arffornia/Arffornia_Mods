@@ -38,9 +38,6 @@ public class Arffornia {
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final ArfforniaApiService ARFFORNA_API_SERVICE = new ArfforniaApiService();
-
-
     private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
 
@@ -109,7 +106,7 @@ public class Arffornia {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer player) {
-            ARFFORNA_API_SERVICE.ensurePlayerExists(player.getUUID(), player.getName().getString())
+            ArfforniaApiService.getInstance().ensurePlayerExists(player.getUUID(), player.getName().getString())
                     .thenAccept(success -> {
                         if (success) {
                             this.rewardHandler.addPlayerToCache(player);
@@ -143,10 +140,10 @@ public class Arffornia {
     private void updateAndSendPlayerTarget(ServerPlayer player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
 
-        ARFFORNA_API_SERVICE.fetchPlayerGraphData(playerUuid).thenAccept(graphData -> {
+        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid).thenAccept(graphData -> {
             if (graphData != null && graphData.playerProgress() != null && graphData.playerProgress().currentTargetId() != null) {
                 int targetId = graphData.playerProgress().currentTargetId();
-                ARFFORNA_API_SERVICE.fetchMilestoneDetails(targetId).thenAccept(details -> {
+                ArfforniaApiService.getInstance().fetchMilestoneDetails(targetId).thenAccept(details -> {
                     if (details != null) {
                         PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(details.name()));
                     } else {

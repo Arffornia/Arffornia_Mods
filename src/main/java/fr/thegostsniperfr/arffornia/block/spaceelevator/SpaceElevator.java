@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.block.spaceelevator;
 import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -105,7 +106,7 @@ public class SpaceElevator extends BaseEntityBlock {
                     return InteractionResult.FAIL;
                 }
 
-                Arffornia.ARFFORNA_API_SERVICE.fetchProgressionData(progressionId)
+                ArfforniaApiService.getInstance().fetchProgressionData(progressionId)
                         .thenCompose(progressionData -> {
                             if (progressionData == null) {
                                 Arffornia.LOGGER.warn("Failed to fetch progression data for ID {}", progressionId);
@@ -118,7 +119,7 @@ public class SpaceElevator extends BaseEntityBlock {
                                 return CompletableFuture.completedFuture(new Object[]{progressionData, null});
                             }
 
-                            return Arffornia.ARFFORNA_API_SERVICE.fetchMilestoneDetails(progressionData.currentMilestoneId())
+                            return ArfforniaApiService.getInstance().fetchMilestoneDetails(progressionData.currentMilestoneId())
                                     .thenApply(details -> new Object[]{progressionData, details});
                         })
                         .thenAcceptAsync(data -> {

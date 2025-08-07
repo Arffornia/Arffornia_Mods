@@ -2,8 +2,8 @@ package fr.thegostsniperfr.arffornia;
 
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
-import fr.thegostsniperfr.arffornia.screen.SpaceElevatorScreen;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.neoforged.api.distmarker.Dist;

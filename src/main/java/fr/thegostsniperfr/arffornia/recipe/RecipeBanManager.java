@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.recipe;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -49,7 +50,7 @@ public class RecipeBanManager {
                 try {
                     // .join() blocks the current thread until the Future is complete.
                     // This is safe here because we are on a worker thread, not the main server thread.
-                    return Arffornia.ARFFORNA_API_SERVICE.fetchProgressionConfig().join().bannedRecipes()
+                    return ArfforniaApiService.getInstance().fetchProgressionConfig().join().bannedRecipes()
                             .stream()
                             .map(ResourceLocation::parse)
                             .collect(Collectors.toSet());

@@ -1,7 +1,7 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -24,7 +24,7 @@ public class ListMilestonesCommand {
 
                             source.sendSystemMessage(Component.literal("Fetching completed milestones for " + targetPlayer.getName().getString() + "..."));
 
-                            Arffornia.ARFFORNA_API_SERVICE.listMilestones(targetPlayer.getUUID())
+                            ArfforniaApiService.getInstance().listMilestones(targetPlayer.getUUID())
                                     .thenAccept(completedIds -> {
                                         if (completedIds == null || completedIds.isEmpty()) {
                                             source.sendSystemMessage(Component.literal("§ePlayer " + targetPlayer.getName().getString() + " has no completed milestones."));

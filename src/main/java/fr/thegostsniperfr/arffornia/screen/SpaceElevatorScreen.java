@@ -12,10 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
-
-import java.util.Optional;
 
 public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMenu> {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/space_elevator_gui.png");
@@ -53,7 +50,6 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
 
         this.launchButton.active = !this.menu.isMilestoneCompleted && this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
 
-
         ArfforniaApiDtos.MilestoneDetails details = this.menu.initialDetails;
         if (details != null) {
 
@@ -72,56 +68,34 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
             int reqStartX = this.leftPos + 8;
             pGuiGraphics.drawString(font, "Requirements:", reqStartX, contentStartY - 12, 4210752, false);
             for (int i = 0; i < Math.min(details.requirements().size(), 3); i++) {
-                renderRequirementLine(pGuiGraphics, details.requirements().get(i), reqStartX, contentStartY + i * 18, pMouseX, pMouseY);
+                renderRequirementProgress(pGuiGraphics, details.requirements().get(i), reqStartX, contentStartY + i * 18);
             }
 
             // Unlocks
             int unlockStartX = this.leftPos + 98;
             pGuiGraphics.drawString(font, "Unlocks:", unlockStartX, contentStartY - 12, 4210752, false);
-            for (int i = 0; i < Math.min(details.unlocks().size(), 8); i++) {
-                renderUnlockItem(pGuiGraphics, details.unlocks().get(i), unlockStartX + (i % 4) * 18, contentStartY + (i / 4) * 18, pMouseX, pMouseY);
-            }
         }
 
         this.renderTooltip(pGuiGraphics, pMouseX, pMouseY);
     }
 
-    private void renderRequirementLine(GuiGraphics pGuiGraphics, ArfforniaApiDtos.MilestoneRequirement req, int x, int y, int mouseX, int mouseY) {
-        Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(req.itemId()));
-        if (itemOpt.isPresent()) {
-            ItemStack ghostStack = new ItemStack(itemOpt.get());
+    private void renderRequirementProgress(GuiGraphics pGuiGraphics, ArfforniaApiDtos.MilestoneRequirement req, int x, int y) {
+        Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(req.itemId()));
 
-            pGuiGraphics.renderItem(ghostStack, x, y);
+        int countInInventory = this.menu.blockEntity.countItems(item);
+        double ratio = req.amount() > 0 ? (double) countInInventory / req.amount() : 1.0;
 
-            int countInInventory = this.menu.blockEntity.countItems(itemOpt.get());
-            double ratio = req.amount() > 0 ? (double) countInInventory / req.amount() : 1.0;
-
-            int color;
-            if (ratio >= 1.0) {
-                color = 0x55FF55; // Green
-            } else if (ratio >= 0.3) {
-                color = 0xFFB800; // Orange
-            } else {
-                color = 0xFF5555; // Red
-            }
-
-            Component progressText = Component.literal(String.format("%d / %d", countInInventory, req.amount()));
-            pGuiGraphics.drawString(this.font, progressText, x + 20, y + 4, color, false);
-
-            if (this.isMouseOver(mouseX, mouseY, x, y, 16, 16)) {
-                pGuiGraphics.renderTooltip(this.font, ghostStack, mouseX, mouseY);
-            }
+        int color;
+        if (ratio >= 1.0) {
+            color = 0x55FF55; // Green
+        } else if (ratio >= 0.3) {
+            color = 0xFFB800; // Orange
+        } else {
+            color = 0xFF5555; // Red
         }
-    }
 
-    private void renderUnlockItem(GuiGraphics pGuiGraphics, ArfforniaApiDtos.MilestoneUnlock unlock, int x, int y, int mouseX, int mouseY) {
-        Optional<ItemStack> stackOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(unlock.itemId())).map(ItemStack::new);
-        if (stackOpt.isPresent()) {
-            pGuiGraphics.renderItem(stackOpt.get(), x, y);
-            if (this.isMouseOver(mouseX, mouseY, x, y, 16, 16)) {
-                pGuiGraphics.renderTooltip(this.font, stackOpt.get(), mouseX, mouseY);
-            }
-        }
+        Component progressText = Component.literal(String.format("%d / %d", countInInventory, req.amount()));
+        pGuiGraphics.drawString(this.font, progressText, x + 20, y + 4, color, false);
     }
 
     @Override
@@ -133,9 +107,5 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
 
         // Player inventory title
         pGuiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.imageHeight - 94, 4210752, false);
-    }
-
-    private boolean isMouseOver(int mouseX, int mouseY, int x, int y, int width, int height) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
 }

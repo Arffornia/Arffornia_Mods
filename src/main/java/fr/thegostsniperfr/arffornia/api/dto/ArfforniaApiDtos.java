@@ -25,6 +25,12 @@ public class ArfforniaApiDtos {
             @SerializedName("max_stage_number") Integer maxStageNumber
     ) {}
 
+    public record ProgressionData(
+            int id,
+            @SerializedName("completed_milestones") List<Integer> completedMilestones,
+            @SerializedName("current_milestone_id") @Nullable Integer currentMilestoneId
+    ) {}
+
     /** Maps to a single milestone object in the main graph list. */
     public record ApiMilestone(
             int id,
@@ -69,6 +75,7 @@ public class ArfforniaApiDtos {
             String name,
             String description,
             @SerializedName("stage_id") int stageId,
+            @SerializedName("stage_number") @Nullable Integer stageNumber,
             @SerializedName("reward_progress_points") int rewardProgressPoints,
             List<MilestoneUnlock> unlocks,
             List<MilestoneRequirement> requirements
@@ -82,5 +89,10 @@ public class ArfforniaApiDtos {
     public record ProgressionConfig(
             @SerializedName("banned_recipes")
             List<String> bannedRecipes
+    ) {}
+
+    public record PlayerData(
+            @SerializedName("active_progression_id")
+            long activeProgressionId
     ) {}
 }

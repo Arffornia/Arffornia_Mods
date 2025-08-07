@@ -31,7 +31,7 @@ public record ServerboundLaunchElevatorPacket(BlockPos pos) implements CustomPac
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 if (player.level().getBlockEntity(packet.pos()) instanceof SpaceElevatorBlockEntity be) {
-                    be.launch();
+                    be.launch(player);
                 }
             }
         });

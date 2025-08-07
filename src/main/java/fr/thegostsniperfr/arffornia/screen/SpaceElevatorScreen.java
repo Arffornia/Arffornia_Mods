@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.screen;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -29,10 +30,12 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
     @Override
     protected void init() {
         super.init();
+        Component buttonText = this.menu.isMilestoneCompleted ? Component.literal("Completed") : Component.literal("Launch");
+
         this.launchButton = this.addRenderableWidget(new Button.Builder(
-                Component.literal("Launch"),
+                buttonText,
                 (button) -> PacketDistributor.sendToServer(new ServerboundLaunchElevatorPacket(this.menu.blockEntity.getBlockPos())))
-                .bounds(this.leftPos + 98, this.topPos + 60, 60, 20)
+                .bounds(this.leftPos + 98, this.topPos + 60, 70, 20)
                 .build());
     }
 
@@ -48,10 +51,20 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
         this.renderBackground(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
 
-        this.launchButton.active = this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
+        this.launchButton.active = !this.menu.isMilestoneCompleted && this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
+
 
         ArfforniaApiDtos.MilestoneDetails details = this.menu.initialDetails;
         if (details != null) {
+
+            int centerX = this.leftPos + this.imageWidth / 2;
+            int titleY = this.topPos - 48;
+
+            Component stageComponent = Component.literal("Stage: " + (details.stageNumber() != null ? details.stageNumber() : "N/A"));
+            Component milestoneComponent = Component.literal(details.name()).withStyle(ChatFormatting.BOLD);
+
+            pGuiGraphics.drawCenteredString(this.font, stageComponent, centerX, titleY, 0xFF_FFFFFF);
+            pGuiGraphics.drawCenteredString(this.font, milestoneComponent, centerX, titleY + this.font.lineHeight + 2, 0xFF_FFAA00);
 
             int contentStartY = this.topPos + 18;
 

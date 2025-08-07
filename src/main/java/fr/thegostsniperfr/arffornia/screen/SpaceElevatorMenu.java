@@ -19,19 +19,20 @@ public class SpaceElevatorMenu extends AbstractContainerMenu {
     public final SpaceElevatorBlockEntity blockEntity;
     @Nullable
     public final ArfforniaApiDtos.MilestoneDetails initialDetails;
+    public final boolean isMilestoneCompleted;
 
     private static final Gson GSON = new Gson();
     private static final int BUFFER_SLOTS = 70; // 10x7
 
     public SpaceElevatorMenu(int pContainerId, Inventory inv, FriendlyByteBuf extraData) {
-        this(pContainerId, inv, inv.player.level().getBlockEntity(extraData.readBlockPos()), extraData.readUtf());
+        this(pContainerId, inv, inv.player.level().getBlockEntity(extraData.readBlockPos()), extraData.readUtf(), extraData.readBoolean());
     }
 
     public SpaceElevatorMenu(int pContainerId, Inventory inv, BlockEntity entity) {
-        this(pContainerId, inv, entity, GSON.toJson(entity instanceof SpaceElevatorBlockEntity be ? be.getCachedMilestoneDetails() : null));
+        this(pContainerId, inv, entity, GSON.toJson(entity instanceof SpaceElevatorBlockEntity be ? be.getCachedMilestoneDetails() : null), false);
     }
 
-    private SpaceElevatorMenu(int pContainerId, Inventory inv, BlockEntity entity, String detailsJson) {
+    private SpaceElevatorMenu(int pContainerId, Inventory inv, BlockEntity entity, String detailsJson, boolean isCompleted) {
         super(ModMenuTypes.SPACE_ELEVATOR_MENU.get(), pContainerId);
 
         if (entity instanceof SpaceElevatorBlockEntity be) {
@@ -41,6 +42,7 @@ public class SpaceElevatorMenu extends AbstractContainerMenu {
         }
 
         this.initialDetails = detailsJson.isEmpty() ? null : GSON.fromJson(detailsJson, ArfforniaApiDtos.MilestoneDetails.class);
+        this.isMilestoneCompleted = isCompleted;
 
         for (int i = 0; i < 7; ++i) {
             for (int j = 0; j < 10; ++j) {

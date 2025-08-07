@@ -37,6 +37,48 @@ public class ArfforniaApiService {
     }
 
     /**
+     * Fetches the active progression ID for a specific player.
+     *
+     * @param playerUuid The UUID of the player.
+     * @return A CompletableFuture containing the player's data including active progression ID.
+     */
+    public CompletableFuture<ArfforniaApiDtos.PlayerData> fetchPlayerData(String playerUuid) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL.get() + "/profile/uuid/" + playerUuid))
+                .header("Accept", "application/json")
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.PlayerData.class))
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch player data from API for UUID {}: {}", playerUuid, ex.getMessage());
+                    return null;
+                });
+    }
+
+    /**
+     * Fetches progression data, including the current target milestone.
+     *
+     * @param progressionId The ID of the progression.
+     * @return A CompletableFuture containing the progression data.
+     */
+    public CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL.get() + "/progression/" + progressionId))
+                .header("Accept", "application/json")
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionData.class))
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch progression data from API for ID {}: {}", progressionId, ex.getMessage());
+                    return null;
+                });
+    }
+
+    /**
      * Fetches the PROGRESSION DATA for a specific player (completed milestones, target).
      *
      * @param playerUuid The UUID of the player.

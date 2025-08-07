@@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public class SpaceElevator extends BaseEntityBlock {
@@ -53,7 +54,6 @@ public class SpaceElevator extends BaseEntityBlock {
         );
     }
 
-    // Constructeur vide pour le codec
     public SpaceElevator(Properties properties) {
         super(properties);
     }
@@ -82,22 +82,61 @@ public class SpaceElevator extends BaseEntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, BlockHitResult pHit) {
         if (!pLevel.isClientSide()) {
-            BlockEntity entity = pLevel.getBlockEntity(pPos);
-            if (entity instanceof SpaceElevatorBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer) {
-                Arffornia.ARFFORNA_API_SERVICE.fetchMilestoneDetails(be.getActiveMilestoneId()).thenAccept(details -> {
-                    be.setCachedMilestoneDetails(details);
+            if (pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer) {
+                if (be.isLaunching()) {
+                    Arffornia.LOGGER.warn("Player {} tried to access Space Elevator at {} while it was launching.", pPlayer.getName().getString(), pPos);
+                    return InteractionResult.FAIL;
+                }
 
-                    pLevel.getServer().execute(() -> {
-                        serverPlayer.openMenu(be, buf -> {
-                            buf.writeBlockPos(pPos);
-                            String json = details != null ? GSON.toJson(details) : "";
-                            buf.writeUtf(json);
-                        });
-                    });
-                });
+                long progressionId = be.getLinkedProgressionId();
+                if (progressionId == -1) {
+                    Arffornia.LOGGER.error("Space Elevator at {} has no linked progression ID.", pPos);
+                    return InteractionResult.FAIL;
+                }
+
+                Arffornia.ARFFORNA_API_SERVICE.fetchProgressionData(progressionId)
+                        .thenCompose(progressionData -> {
+                            if (progressionData == null) {
+                                Arffornia.LOGGER.warn("Failed to fetch progression data for ID {}", progressionId);
+                                be.setCachedMilestoneDetails(null);
+                                return CompletableFuture.completedFuture(null);
+                            }
+
+                            if (progressionData.currentMilestoneId() == null) {
+                                be.setCachedMilestoneDetails(null);
+                                return CompletableFuture.completedFuture(new Object[]{progressionData, null});
+                            }
+
+                            return Arffornia.ARFFORNA_API_SERVICE.fetchMilestoneDetails(progressionData.currentMilestoneId())
+                                    .thenApply(details -> new Object[]{progressionData, details});
+                        })
+                        .thenAcceptAsync(data -> {
+                            if (data == null) {
+                                openMenu(serverPlayer, be, null, false);
+                                return;
+                            }
+
+                            var progressionData = (fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos.ProgressionData) data[0];
+                            var details = (fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos.MilestoneDetails) data[1];
+
+                            be.setCachedMilestoneDetails(details);
+                            boolean isCompleted = details != null && progressionData.completedMilestones().contains(details.id());
+                            openMenu(serverPlayer, be, details, isCompleted);
+                        }, pLevel.getServer());
             }
         }
         return InteractionResult.sidedSuccess(pLevel.isClientSide());
+    }
+
+    private void openMenu(ServerPlayer player, SpaceElevatorBlockEntity be, @Nullable fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos.MilestoneDetails details, boolean isCompleted) {
+        player.getServer().execute(() -> {
+            player.openMenu(be, buf -> {
+                buf.writeBlockPos(be.getBlockPos());
+                String json = details != null ? GSON.toJson(details) : "";
+                buf.writeUtf(json);
+                buf.writeBoolean(isCompleted);
+            });
+        });
     }
 
     @Override
@@ -120,7 +159,7 @@ public class SpaceElevator extends BaseEntityBlock {
     public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
         if (!pState.is(pNewState.getBlock())) {
             BlockEntity blockEntity = pLevel.getBlockEntity(pPos);
-            if (blockEntity instanceof SpaceElevatorBlockEntity be) {
+            if (blockEntity instanceof SpaceElevatorBlockEntity be && !be.isLaunching()) {
                 NonNullList<ItemStack> items = NonNullList.create();
                 for (int i = 0; i < be.itemHandler.getSlots(); i++) {
                     items.add(be.itemHandler.getStackInSlot(i));
@@ -134,6 +173,7 @@ public class SpaceElevator extends BaseEntityBlock {
                 pLevel.setBlock(partPos, pNewState.getFluidState().createLegacyBlock(), 35, 0);
             }
         }
+
         super.onRemove(pState, pLevel, pPos, pNewState, pIsMoving);
     }
 }

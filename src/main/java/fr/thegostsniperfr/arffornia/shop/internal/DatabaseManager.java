@@ -44,6 +44,7 @@ public class DatabaseManager {
 
     /**
      * Gets a connection from the pool.
+     *
      * @return A database connection.
      * @throws SQLException if a connection cannot be established or the pool is unavailable.
      */
@@ -57,6 +58,7 @@ public class DatabaseManager {
 
     /**
      * Retrieves the internal user ID from the 'users' table based on a player's Minecraft UUID.
+     *
      * @param playerUuid The player's UUID.
      * @return The user ID, or -1 if not found or if DB is down.
      */
@@ -86,6 +88,7 @@ public class DatabaseManager {
 
     /**
      * Checks if a user has any pending rewards without fetching them.
+     *
      * @param userId The user's ID.
      * @return true if there is at least one pending reward, false otherwise or if DB is down.
      */
@@ -107,7 +110,8 @@ public class DatabaseManager {
 
     /**
      * Fetches and locks all pending rewards for a single user within a transaction.
-     * @param userId The user's ID.
+     *
+     * @param userId     The user's ID.
      * @param connection The transactional connection to use.
      * @return A List of all PendingReward objects for that user.
      * @throws SQLException if a database error occurs.
@@ -123,7 +127,8 @@ public class DatabaseManager {
             while (res.next()) {
                 int rewardId = res.getInt("id");
                 String commandsJson = res.getString("commands");
-                Type listType = new TypeToken<ArrayList<String>>() {}.getType();
+                Type listType = new TypeToken<ArrayList<String>>() {
+                }.getType();
                 List<String> commands = gson.fromJson(commandsJson, listType);
 
                 rewards.add(new PendingReward(rewardId, userId, commands));
@@ -135,8 +140,9 @@ public class DatabaseManager {
 
     /**
      * Updates the status of multiple rewards in a single, efficient query.
-     * @param rewardIds A list of reward IDs to update.
-     * @param status The new status (e.g., "claimed").
+     *
+     * @param rewardIds  A list of reward IDs to update.
+     * @param status     The new status (e.g., "claimed").
      * @param connection The transactional connection to use.
      * @throws SQLException if a database error occurs.
      */
@@ -161,8 +167,9 @@ public class DatabaseManager {
 
     /**
      * Updates the status of a reward to 'claimed' or 'failed'.
-     * @param rewardId The ID of the reward to update.
-     * @param status The new status.
+     *
+     * @param rewardId   The ID of the reward to update.
+     * @param status     The new status.
      * @param connection The transactional connection to use.
      * @throws SQLException if a database error occurs.
      */

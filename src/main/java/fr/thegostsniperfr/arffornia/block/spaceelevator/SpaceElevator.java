@@ -7,6 +7,7 @@ import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
@@ -14,15 +15,19 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.BaseEntityBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -33,11 +38,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-public class SpaceElevator extends BaseEntityBlock {
+public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedBlock {
 
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     public static final MapCodec<SpaceElevator> CODEC = simpleCodec(SpaceElevator::new);
     private static final Gson GSON = new Gson();
-
     private static final VoxelShape SHAPE = Stream.of(
             Block.box(0, 1, 0, 16, 16, 16),
             Block.box(0, 0, 0, 2, 1, 2),
@@ -54,10 +59,38 @@ public class SpaceElevator extends BaseEntityBlock {
                 .requiresCorrectToolForDrops()
                 .noOcclusion()
         );
+        this.registerDefaultState(this.stateDefinition.any().setValue(WATERLOGGED, false));
     }
 
     public SpaceElevator(Properties properties) {
         super(properties);
+        this.registerDefaultState(this.stateDefinition.any().setValue(WATERLOGGED, false));
+    }
+
+    // --- Waterlogging ---
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        FluidState fluidState = ctx.getLevel().getFluidState(ctx.getClickedPos());
+        return this.defaultBlockState().setValue(WATERLOGGED, fluidState.getType() == Fluids.WATER);
+    }
+
+    @Override
+    public FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                  LevelAccessor level, BlockPos currentPos, BlockPos neighborPos) {
+        if (state.getValue(WATERLOGGED)) {
+            level.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
+        return super.updateShape(state, direction, neighborState, level, currentPos, neighborPos);
+    }
+
+    @Override
+    public boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
+        return false;
     }
 
     @Override
@@ -85,10 +118,13 @@ public class SpaceElevator extends BaseEntityBlock {
     public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
         BlockPos partPos = pPos.above();
         BlockState stateAbove = pLevel.getBlockState(partPos);
-
         boolean spaceIsFree = pLevel.isEmptyBlock(partPos) || stateAbove.canBeReplaced();
-
         return spaceIsFree && super.canSurvive(pState, pLevel, pPos);
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(WATERLOGGED);
     }
 
     @Override
@@ -123,6 +159,11 @@ public class SpaceElevator extends BaseEntityBlock {
                                     .thenApply(details -> new Object[]{progressionData, details});
                         })
                         .thenAcceptAsync(data -> {
+                            // Check whether the block has been destroyed during the API fetch
+                            if (!(pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity)) {
+                                return;
+                            }
+
                             if (data == null) {
                                 openMenu(serverPlayer, be, null, false);
                                 return;
@@ -170,12 +211,12 @@ public class SpaceElevator extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
         if (!pState.is(pNewState.getBlock())) {
-            BlockEntity blockEntity = pLevel.getBlockEntity(pPos);
-            if (blockEntity instanceof SpaceElevatorBlockEntity be && !be.isLaunching()) {
+            if (pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be && !be.isLaunching()) {
                 NonNullList<ItemStack> items = NonNullList.create();
                 for (int i = 0; i < be.itemHandler.getSlots(); i++) {
                     items.add(be.itemHandler.getStackInSlot(i));
                 }
+
                 Containers.dropContents(pLevel, pPos, items);
                 pLevel.updateNeighbourForOutputSignal(pPos, this);
             }

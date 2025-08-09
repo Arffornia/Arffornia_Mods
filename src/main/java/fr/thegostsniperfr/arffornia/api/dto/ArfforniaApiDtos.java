@@ -12,26 +12,33 @@ import java.util.List;
  */
 public class ArfforniaApiDtos {
 
-    /** Maps to the root JSON object from the main graph endpoint. */
+    /**
+     * Maps to the root JSON object from the main graph endpoint.
+     */
     public record GraphData(
             List<ApiMilestone> milestones,
             @SerializedName("milestone_closure") List<ApiMilestoneClosure> milestoneClosure,
             @SerializedName("playerProgress") PlayerProgress playerProgress
-    ) {}
+    ) {
+    }
 
     public record PlayerProgress(
             @SerializedName("completed_milestones") List<Integer> completedMilestones,
             @SerializedName("current_target_id") @Nullable Integer currentTargetId,
             @SerializedName("max_stage_number") Integer maxStageNumber
-    ) {}
+    ) {
+    }
 
     public record ProgressionData(
             int id,
             @SerializedName("completed_milestones") List<Integer> completedMilestones,
             @SerializedName("current_milestone_id") @Nullable Integer currentMilestoneId
-    ) {}
+    ) {
+    }
 
-    /** Maps to a single milestone object in the main graph list. */
+    /**
+     * Maps to a single milestone object in the main graph list.
+     */
     public record ApiMilestone(
             int id,
             @SerializedName("icon_type")
@@ -40,15 +47,19 @@ public class ArfforniaApiDtos {
             int y,
             @SerializedName("stage_number")
             int stageNumber
-    ) {}
+    ) {
+    }
 
-    /** Maps to a single link object in the milestone_closure list. */
+    /**
+     * Maps to a single link object in the milestone_closure list.
+     */
     public record ApiMilestoneClosure(
             @SerializedName("milestone_id")
             int milestoneId,
             @SerializedName("descendant_id")
             int descendantId
-    ) {}
+    ) {
+    }
 
     /**
      * Represents a single item unlocked by a milestone.
@@ -57,7 +68,8 @@ public class ArfforniaApiDtos {
             @SerializedName("item_id") String itemId,
             @SerializedName("display_name") String displayName,
             @SerializedName("shop_price") @Nullable Integer shopPrice
-    ) {}
+    ) {
+    }
 
     /**
      * Represents a single item required to complete a milestone.
@@ -66,10 +78,13 @@ public class ArfforniaApiDtos {
             @SerializedName("item_id") String itemId,
             @SerializedName("display_name") String displayName,
             int amount
-    ) {}
+    ) {
+    }
 
 
-    /** Maps to the detailed JSON object for a single milestone. */
+    /**
+     * Maps to the detailed JSON object for a single milestone.
+     */
     public record MilestoneDetails(
             int id,
             String name,
@@ -79,7 +94,8 @@ public class ArfforniaApiDtos {
             @SerializedName("reward_progress_points") int rewardProgressPoints,
             List<MilestoneUnlock> unlocks,
             List<MilestoneRequirement> requirements
-    ) {}
+    ) {
+    }
 
 
     /**
@@ -89,10 +105,35 @@ public class ArfforniaApiDtos {
     public record ProgressionConfig(
             @SerializedName("banned_recipes")
             List<String> bannedRecipes
-    ) {}
+    ) {
+    }
 
     public record PlayerData(
             @SerializedName("active_progression_id")
             long activeProgressionId
-    ) {}
+    ) {
+    }
+
+    public record CustomRecipe(
+            int id,
+            String type,
+            List<RecipeIngredient> ingredients,
+            List<RecipeResult> result,
+            @Nullable Integer energy,
+            @Nullable Integer time,
+            @SerializedName("milestone_unlock_id") int milestoneUnlockId
+    ) {
+    }
+
+    public record RecipeIngredient(
+            String item,
+            int count
+    ) {
+    }
+
+    public record RecipeResult(
+            String item,
+            int count
+    ) {
+    }
 }

@@ -135,6 +135,7 @@ public class Arffornia {
     /**
      * Fetches the player's graph data, finds the name of their target milestone,
      * and sends it to the client.
+     *
      * @param player The player to update.
      */
     private void updateAndSendPlayerTarget(ServerPlayer player) {

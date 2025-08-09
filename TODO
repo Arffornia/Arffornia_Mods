@@ -3,10 +3,13 @@
 - [x] After a launch, the launch btn is 100% not clickable (we can validate 2 times the same milestone)
 - [x] Add delay between firework launches
 - [x] Check for input items
-- [ ] Check displayName format with Better Forge Chat Reborn
-- [ ] Add particles en destroy
+- [x] Check displayName format with Better Forge Chat Reborn
+- [x] Add particles en destroy
 - [x] Fix no JEI details on requirement & new items
 - [x] Milestone & Stage names in Space Elevator menu
 - [x] Check free space on block placement
 - [x] Add jei compatibility on block part
-- [ ]
+
+- [ ] Fix tick update of energy ...
+- [ ] gui for crafter block
+- [ ] fix only shift click to take items from crafter block

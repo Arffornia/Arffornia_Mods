@@ -64,25 +64,13 @@ public class ProgressionGraphScreen extends Screen {
     private static final float ROTATION_SPEED = 2.5f;
 
     // --- DATA STRUCTURES ---
-
-    /**
-     * Represents a single, fully-detailed node in the progression graph.
-     */
-    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType, int stageNumber) {
-    }
-
-    /**
-     * Represents a directed link between two nodes by their IDs.
-     */
-    public record NodeLink(int sourceId, int targetId) {
-    }
-
-    // --- API & DATA STATE ---
-
+    private final Set<Integer> availableMilestones = new HashSet<>();
     /**
      * The list of all nodes currently loaded from the API.
      */
     private List<ProgressionNode> nodes = Collections.emptyList();
+
+    // --- API & DATA STATE ---
     /**
      * The list of all links currently loaded from the API.
      */
@@ -99,28 +87,17 @@ public class ProgressionGraphScreen extends Screen {
      * Current milestone selected details info
      **/
     private @Nullable ArfforniaApiDtos.MilestoneDetails selectedNodeDetails = null;
-
-    // --- UI STATE ---
-
     private double cameraX = 0, cameraY = 0;
     private float zoom = 1.0f;
+
+    // --- UI STATE ---
     private ProgressionNode selectedNode = null;
     private boolean isDragging = false;
-
-    private enum LoadingStatus {IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED}
-
     private Set<Integer> completedMilestones = new HashSet<>();
     private @Nullable Integer currentTargetId = null;
-    private Set<Integer> availableMilestones = new HashSet<>();
     private float rotationAngle = 0.0f;
-
     private int maxStageNumber = 1;
-
-    // --- UI ELEMENTS ---
-
     private Button setTargetButton;
-
-    // --- CONSTRUCTOR & LIFECYCLE METHODS ---
 
     public ProgressionGraphScreen() {
         super(Component.empty());
@@ -137,6 +114,8 @@ public class ProgressionGraphScreen extends Screen {
 
         loadGraphData();
     }
+
+    // --- UI ELEMENTS ---
 
     /**
      * Fetches the initial graph layout data from the API asynchronously.
@@ -167,7 +146,7 @@ public class ProgressionGraphScreen extends Screen {
                 }
 
                 this.nodes = playerData.milestones().stream()
-                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(),  m.stageNumber()))
+                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(), m.stageNumber()))
                         .collect(Collectors.toList());
 
                 this.links = playerData.milestoneClosure().stream()
@@ -193,6 +172,8 @@ public class ProgressionGraphScreen extends Screen {
         });
     }
 
+    // --- CONSTRUCTOR & LIFECYCLE METHODS ---
+
     /**
      * Calculates which milestones are available but not yet completed.
      * A milestone is available if at least one of its direct parents is completed.
@@ -206,7 +187,6 @@ public class ProgressionGraphScreen extends Screen {
             }
         }
     }
-
 
     /**
      * The main render loop, called every frame.
@@ -245,8 +225,6 @@ public class ProgressionGraphScreen extends Screen {
         guiGraphics.fill(0, 0, this.width, this.height, BACKGROUND_COLOR);
         this.drawGrid(guiGraphics);
     }
-
-    // --- DRAWING METHODS ---
 
     /**
      * Draws the two-layer grid with crosses at intersections.
@@ -316,6 +294,8 @@ public class ProgressionGraphScreen extends Screen {
         drawLinkList(guiGraphics, availableLinks, COLOR_LINK_AVAILABLE);
         drawLinkList(guiGraphics, completedLinks, COLOR_LINK_COMPLETED);
     }
+
+    // --- DRAWING METHODS ---
 
     private void drawLinkList(GuiGraphics guiGraphics, List<NodeLink> linkList, int color) {
         for (NodeLink link : linkList) {
@@ -490,8 +470,6 @@ public class ProgressionGraphScreen extends Screen {
         }
     }
 
-    // --- INTERACTION HANDLERS ---
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         double mouseWorldXBefore = (mouseX + this.cameraX) / this.zoom;
@@ -590,6 +568,8 @@ public class ProgressionGraphScreen extends Screen {
         });
     }
 
+    // --- INTERACTION HANDLERS ---
+
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (this.isDragging && button == 0) {
@@ -608,8 +588,6 @@ public class ProgressionGraphScreen extends Screen {
         }
         return super.mouseReleased(mouseX, mouseY, button);
     }
-
-    // --- COORDINATE UTILITIES ---
 
     /**
      * Converts a node's grid coordinates to its center position on the screen.
@@ -634,8 +612,6 @@ public class ProgressionGraphScreen extends Screen {
         return new Vector2i(screenX, screenY);
     }
 
-    // --- SCREEN BEHAVIOR ---
-
     /**
      * @return false, so the game world does not pause when this screen is open.
      */
@@ -643,6 +619,8 @@ public class ProgressionGraphScreen extends Screen {
     public boolean isPauseScreen() {
         return false;
     }
+
+    // --- COORDINATE UTILITIES ---
 
     private void updateDetailsPanel() {
         this.clearWidgets();
@@ -710,6 +688,8 @@ public class ProgressionGraphScreen extends Screen {
         this.setTargetButton.active = true;
     }
 
+    // --- SCREEN BEHAVIOR ---
+
     private void handleSetTarget() {
         if (this.selectedNode == null) return;
 
@@ -732,5 +712,20 @@ public class ProgressionGraphScreen extends Screen {
         } else {
             ClientProgressionData.currentMilestoneTarget = "None";
         }
+    }
+
+    private enum LoadingStatus {IDLE, LOADING_GRAPH, LOADING_DETAILS, FAILED}
+
+    /**
+     * Represents a single, fully-detailed node in the progression graph.
+     */
+    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType,
+                                  int stageNumber) {
+    }
+
+    /**
+     * Represents a directed link between two nodes by their IDs.
+     */
+    public record NodeLink(int sourceId, int targetId) {
     }
 }

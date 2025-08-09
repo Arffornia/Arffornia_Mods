@@ -56,7 +56,7 @@ public class RecipeBanManager {
                             .collect(Collectors.toSet());
                 } catch (Exception e) {
                     Arffornia.LOGGER.error("Failed to fetch banned recipes from API. No recipes will be banned.", e);
-                    return Set.of(); // Return an empty set on failure
+                    return Set.of();
                 }
             }
 

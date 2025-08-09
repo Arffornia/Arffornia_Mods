@@ -21,14 +21,14 @@ public record ClientboundUpdateTargetNamePacket(String targetName) implements Cu
             ClientboundUpdateTargetNamePacket::new
     );
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
     public static void handle(final ClientboundUpdateTargetNamePacket packet, final IPayloadContext context) {
         context.enqueueWork(() -> {
             ClientProgressionData.currentMilestoneTarget = packet.targetName();
         });
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

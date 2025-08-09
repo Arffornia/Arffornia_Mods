@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia;
 
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -24,6 +25,17 @@ public class ArfforniaClient {
         modEventBus.addListener(this::clientSetup);
     }
 
+    @SubscribeEvent
+    public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
+        event.register(ModMenuTypes.SPACE_ELEVATOR_MENU.get(), SpaceElevatorScreen::new);
+        event.register(ModMenuTypes.CRAFTER_MENU.get(), CrafterScreen::new);
+    }
+
+    @SubscribeEvent
+    public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        event.register(Keybindings.OPEN_GRAPH_KEY);
+    }
+
     public void clientSetup(final FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_BLOCK.get(), RenderType.cutout());
@@ -33,15 +45,5 @@ public class ArfforniaClient {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.SPACE_ELEVATOR_PART_BLOCK.get(), RenderType.cutout());
 
         });
-    }
-
-    @SubscribeEvent
-    public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
-        event.register(ModMenuTypes.SPACE_ELEVATOR_MENU.get(), SpaceElevatorScreen::new);
-    }
-
-    @SubscribeEvent
-    public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        event.register(Keybindings.OPEN_GRAPH_KEY);
     }
 }

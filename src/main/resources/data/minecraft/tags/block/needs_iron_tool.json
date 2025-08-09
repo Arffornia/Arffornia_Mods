@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "arffornia:crafter_block",
+    "arffornia:crafter_part_block",
+    "arffornia:space_elevator",
+    "arffornia:space_elevator_part_block"
+  ]
+}

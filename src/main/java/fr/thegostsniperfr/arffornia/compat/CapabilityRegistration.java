@@ -16,6 +16,7 @@ public class CapabilityRegistration {
 
     @SubscribeEvent
     public static void onRegisterCapabilities(RegisterCapabilitiesEvent event) {
+        // --- Space Elevator Capabilities  ---
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.SPACE_ELEVATOR_BE.get(),
@@ -37,6 +38,26 @@ public class CapabilityRegistration {
                     return null;
                 },
                 ModBlocks.SPACE_ELEVATOR_PART_BLOCK.get()
+        );
+
+        // --- CRAFTER CAPABILITIES ---
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.CRAFTER_BE.get(),
+                (be, side) -> {
+                    if (side == null) return be.itemHandler;
+                    return switch (side) {
+                        case DOWN -> be.automationOutputDownHandler;
+                        case EAST -> be.automationOutputEastHandler;
+                        default -> be.automationInputHandler;
+                    };
+                }
+        );
+
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.CRAFTER_BE.get(),
+                (be, side) -> be.energyStorage
         );
     }
 }

@@ -17,7 +17,6 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
@@ -45,11 +44,10 @@ import java.util.List;
 public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvider {
     public final ItemStackHandler itemHandler = new ItemStackHandler(70);
     private final IItemHandler automationHandler;
-    private long linkedProgressionId = -1;
-    private boolean isLaunching = false;
-
     @Nullable
     public ArfforniaApiDtos.MilestoneDetails cachedMilestoneDetails;
+    private long linkedProgressionId = -1;
+    private boolean isLaunching = false;
 
     public SpaceElevatorBlockEntity(BlockPos pPos, BlockState pBlockState) {
         super(ModBlockEntities.SPACE_ELEVATOR_BE.get(), pPos, pBlockState);
@@ -93,7 +91,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     public IItemHandler getAutomationItemHandler() {
         return this.automationHandler;
     }
-
 
     public int countItems(Item item) {
         int count = 0;
@@ -157,7 +154,8 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     }
 
     public void launch(ServerPlayer player) {
-        if (level == null || level.isClientSide() || isLaunching || !areRequirementsMet(this.cachedMilestoneDetails)) return;
+        if (level == null || level.isClientSide() || isLaunching || !areRequirementsMet(this.cachedMilestoneDetails))
+            return;
 
         final ArfforniaApiDtos.MilestoneDetails details = this.cachedMilestoneDetails;
         if (details == null) {
@@ -286,16 +284,23 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         return this.isLaunching;
     }
 
-    @Nullable @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+    @Nullable
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider pRegistries) { return saveWithoutMetadata(pRegistries); }
-
-    public void setCachedMilestoneDetails(@Nullable ArfforniaApiDtos.MilestoneDetails d) { this.cachedMilestoneDetails = d; }
+    public CompoundTag getUpdateTag(HolderLookup.Provider pRegistries) {
+        return saveWithoutMetadata(pRegistries);
+    }
 
     @Nullable
     public ArfforniaApiDtos.MilestoneDetails getCachedMilestoneDetails() {
         return cachedMilestoneDetails;
+    }
+
+    public void setCachedMilestoneDetails(@Nullable ArfforniaApiDtos.MilestoneDetails d) {
+        this.cachedMilestoneDetails = d;
     }
 }

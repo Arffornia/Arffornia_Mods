@@ -22,11 +22,6 @@ public record ServerboundLaunchElevatorPacket(BlockPos pos) implements CustomPac
             ServerboundLaunchElevatorPacket::new
     );
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
     public static void handle(final ServerboundLaunchElevatorPacket packet, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
@@ -35,5 +30,10 @@ public record ServerboundLaunchElevatorPacket(BlockPos pos) implements CustomPac
                 }
             }
         });
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

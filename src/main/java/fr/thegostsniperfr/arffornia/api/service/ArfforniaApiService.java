@@ -2,13 +2,16 @@ package fr.thegostsniperfr.arffornia.api.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -28,14 +31,14 @@ public class ArfforniaApiService {
 
     private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
 
-    private ArfforniaApiService() {}
+    private ArfforniaApiService() {
+    }
 
     public static ArfforniaApiService getInstance() {
         return INSTANCE;
     }
 
-    private HttpRequest buildRequest(URI uri, String token, JsonObject body)
-    {
+    private HttpRequest buildRequest(URI uri, String token, JsonObject body) {
         return HttpRequest.newBuilder()
                 .uri(uri)
                 .header("Authorization", "Bearer " + token)
@@ -109,6 +112,7 @@ public class ArfforniaApiService {
 
     /**
      * Fetches the detailed information for a single milestone asynchronously.
+     *
      * @param nodeId The ID of the node to fetch.
      * @return A CompletableFuture containing the parsed milestone details.
      */
@@ -151,6 +155,7 @@ public class ArfforniaApiService {
     /**
      * Retrieves an authentication token for the game server.
      * The token is cached.
+     *
      * @return A CompletableFuture containing the token, or null on failure.
      */
     private CompletableFuture<String> getServiceAuthToken() {
@@ -205,7 +210,7 @@ public class ArfforniaApiService {
 
             client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(response -> {
-                        if(response.statusCode() != 200) {
+                        if (response.statusCode() != 200) {
                             Arffornia.LOGGER.error("API call to player/join failed with status: {}", response.statusCode());
                         }
                     })
@@ -232,7 +237,7 @@ public class ArfforniaApiService {
 
             client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(response -> {
-                        if(response.statusCode() != 200) {
+                        if (response.statusCode() != 200) {
                             Arffornia.LOGGER.error("API call to player/leave failed with status: {}", response.statusCode());
                         }
                     })
@@ -245,6 +250,7 @@ public class ArfforniaApiService {
 
     /**
      * Fetches the list of completed milestones for a player.
+     *
      * @return A CompletableFuture containing the list of milestone IDs, or an empty list on failure.
      */
     public CompletableFuture<List<Integer>> listMilestones(UUID playerUuid) {
@@ -262,7 +268,8 @@ public class ArfforniaApiService {
                     .thenApply(response -> {
                         if (response.statusCode() == 200) {
                             JsonObject json = gson.fromJson(response.body(), JsonObject.class);
-                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {}.getType());
+                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {
+                            }.getType());
                         }
 
                         Arffornia.LOGGER.error("API call to listMilestones failed. Status: {}, Body: {}", response.statusCode(), response.body());
@@ -353,7 +360,7 @@ public class ArfforniaApiService {
     /**
      * Sets the player's targeted milestone via the API.
      *
-     * @param playerUuid The UUID of the player making the request.
+     * @param playerUuid  The UUID of the player making the request.
      * @param milestoneId The ID of the milestone to target.
      * @return A CompletableFuture that resolves to true on success.
      */
@@ -369,5 +376,29 @@ public class ArfforniaApiService {
 
             return sendRequestAndCheckSuccess(request, "setTargetMilestone", playerUuid);
         });
+    }
+
+    /**
+     * Fetches all custom recipes from the API.
+     *
+     * @return A CompletableFuture containing the list of all custom recipes.
+     */
+    public CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL.get() + "/recipes"))
+                .header("Accept", "application/json")
+                .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .<List<ArfforniaApiDtos.CustomRecipe>>thenApply(jsonResponse -> {
+                    String json = jsonResponse.body();
+                    Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {
+                    }.getType();
+                    return gson.fromJson(json, listType);
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to fetch all custom recipes from API: {}", ex.getMessage());
+                    return Collections.emptyList();
+                });
     }
 }

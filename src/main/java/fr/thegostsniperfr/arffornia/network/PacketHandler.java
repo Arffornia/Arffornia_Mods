@@ -32,5 +32,11 @@ public final class PacketHandler {
                 ServerboundLaunchElevatorPacket.STREAM_CODEC,
                 ServerboundLaunchElevatorPacket::handle
         );
+
+        registrar.playToServer(
+                ServerboundSelectRecipePacket.TYPE,
+                ServerboundSelectRecipePacket.STREAM_CODEC,
+                ServerboundSelectRecipePacket::handle
+        );
     }
 }

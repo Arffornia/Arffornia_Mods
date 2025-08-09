@@ -12,12 +12,17 @@ public class ModMenuTypes {
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(Registries.MENU, Arffornia.MODID);
 
+    public static void register(IEventBus eventBus) {
+        MENUS.register(eventBus);
+    }
+
     public static final DeferredHolder<MenuType<?>, MenuType<SpaceElevatorMenu>> SPACE_ELEVATOR_MENU =
             MENUS.register("space_elevator_menu",
                     () -> IMenuTypeExtension.create(SpaceElevatorMenu::new));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<CrafterMenu>> CRAFTER_MENU =
+            MENUS.register("crafter_menu",
+                    () -> IMenuTypeExtension.create(CrafterMenu::new));
 
-    public static void register(IEventBus eventBus) {
-        MENUS.register(eventBus);
-    }
+
 }

@@ -37,6 +37,7 @@ public class RewardHandler {
      * Fetches a player's user ID from the database and adds it to the cache.
      * This is typically called when a player joins the server.
      * The operation is submitted to an executor to avoid blocking the main server thread.
+     *
      * @param player The player to add.
      */
     public void addPlayerToCache(ServerPlayer player) {
@@ -59,6 +60,7 @@ public class RewardHandler {
     /**
      * Removes a player from the user ID cache.
      * This is typically called when a player leaves the server to free up memory.
+     *
      * @param player The player to remove.
      */
     public void removePlayerFromCache(ServerPlayer player) {
@@ -68,6 +70,7 @@ public class RewardHandler {
 
     /**
      * Checks if a player has any pending rewards.
+     *
      * @param player The player to check.
      * @return A CompletableFuture that resolves to true if rewards are pending.
      */
@@ -76,7 +79,7 @@ public class RewardHandler {
             Integer userId = userIdCache.get(player.getUUID());
             if (userId == null) {
                 userId = dbManager.getUserId(player.getUUID());
-                if(userId != -1) userIdCache.put(player.getUUID(), userId);
+                if (userId != -1) userIdCache.put(player.getUUID(), userId);
             }
 
             return userId != -1 && dbManager.hasPendingRewards(userId);
@@ -86,6 +89,7 @@ public class RewardHandler {
     /**
      * Processes pending rewards for a player, filling their inventory with as many items as possible.
      * This performs the entire claim process transactionally and handles partial claims gracefully.
+     *
      * @param player The player who is claiming their rewards.
      */
     public void claimRewardsForPlayer(ServerPlayer player) {
@@ -160,6 +164,7 @@ public class RewardHandler {
     /**
      * Counts the number of empty slots in a player's main inventory.
      * This excludes armor and off-hand slots.
+     *
      * @param player The player to check.
      * @return The number of empty slots.
      */
@@ -178,6 +183,7 @@ public class RewardHandler {
     /**
      * Counts how many items are being given by a list of commands.
      * This is a simple approximation that assumes one "give" command requires one inventory slot.
+     *
      * @param commands The list of commands for a single reward.
      * @return The number of slots estimated to be required.
      */

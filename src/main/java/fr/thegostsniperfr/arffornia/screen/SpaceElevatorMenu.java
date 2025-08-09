@@ -21,16 +21,14 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class SpaceElevatorMenu extends AbstractContainerMenu {
-    public final SpaceElevatorBlockEntity blockEntity;
-    @Nullable
-    public final ArfforniaApiDtos.MilestoneDetails initialDetails;
-    public final boolean isMilestoneCompleted;
-
     private static final Gson GSON = new Gson();
     private static final int INVENTORY_SLOTS = 70; // 10x7
     private static final int REQUIREMENT_SLOTS = 3;
     private static final int UNLOCK_SLOTS = 8;
-
+    public final SpaceElevatorBlockEntity blockEntity;
+    @Nullable
+    public final ArfforniaApiDtos.MilestoneDetails initialDetails;
+    public final boolean isMilestoneCompleted;
     private final Container requirementSlots;
     private final Container unlockSlots;
 
@@ -85,7 +83,7 @@ public class SpaceElevatorMenu extends AbstractContainerMenu {
         }
 
         // Requirement Slots
-        for(int i = 0; i < REQUIREMENT_SLOTS; i++) {
+        for (int i = 0; i < REQUIREMENT_SLOTS; i++) {
             this.addSlot(new DisplaySlot(this.requirementSlots, i, 8, 18 + i * 18));
         }
 
@@ -98,7 +96,7 @@ public class SpaceElevatorMenu extends AbstractContainerMenu {
     }
 
     private void populateDisplaySlots() {
-        if(initialDetails == null) return;
+        if (initialDetails == null) return;
 
         // Populate requirements
         for (int i = 0; i < REQUIREMENT_SLOTS; i++) {

@@ -10,8 +10,7 @@ import java.util.UUID;
 
 public class FTBTeamsEventHandler {
 
-    public FTBTeamsEventHandler()
-    {
+    public FTBTeamsEventHandler() {
         // Register event to FTB Teams
         TeamEvent.PLAYER_JOINED_PARTY.register(this::onPlayerJoinedTeam);
         TeamEvent.PLAYER_LEFT_PARTY.register(this::onPlayerLeftTeam);

@@ -37,11 +37,6 @@ public record ServerboundSetTargetMilestonePacket(int milestoneId) implements Cu
         }
     };
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
     /**
      * Handles the packet's logic on the server side.
      */
@@ -52,5 +47,10 @@ public record ServerboundSetTargetMilestonePacket(int milestoneId) implements Cu
                 ArfforniaApiService.getInstance().setTargetMilestone(player.getUUID(), packet.milestoneId);
             }
         });
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

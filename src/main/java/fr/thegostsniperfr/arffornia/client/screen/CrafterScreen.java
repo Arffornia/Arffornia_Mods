@@ -43,10 +43,14 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private int currentPage = 0;
     private String lastSearch = "";
 
+    private float smoothedEnergy;
+    private boolean firstTick = true;
+
     public CrafterScreen(CrafterMenu pMenu, Inventory pPlayerInventory, Component pTitle) {
         super(pMenu, pPlayerInventory, pTitle);
         this.imageWidth = 80 + 176;
         this.imageHeight = 166;
+        this.smoothedEnergy = 0;
     }
 
     @Override
@@ -92,6 +96,15 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
             lastSearch = this.searchBox.getValue();
             updateFilteredRecipes();
         }
+
+        float targetEnergy = this.menu.getEnergy();
+
+        if (this.firstTick) {
+            this.smoothedEnergy = targetEnergy;
+            this.firstTick = false;
+        } else {
+            this.smoothedEnergy += (targetEnergy - this.smoothedEnergy) * 0.4F;
+        }
     }
 
     @Override
@@ -101,6 +114,83 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
             this.searchBox.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
         }
         this.renderTooltip(pGuiGraphics, pMouseX, pMouseY);
+    }
+
+    private static String formatEnergy(int energy) {
+        if (energy >= 1_000) {
+            return String.format(Locale.US, "%.2f kFE", energy / 1_000.0);
+        }
+
+        return energy + " FE";
+    }
+
+    public int getScaledEnergy() {
+        int capacity = this.menu.getCapacity();
+        int energyBarSize = 60;
+        if (capacity == 0) return 0;
+        return Math.min(energyBarSize, (int) ((this.smoothedEnergy * energyBarSize) / capacity));
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics pGuiGraphics, float pPartialTick, int pMouseX, int pMouseY) {
+        int x = this.leftPos;
+        int y = this.topPos;
+
+        pGuiGraphics.fill(x + 7, y + 147, x + 78, y + 160, 0xFF373737);
+        pGuiGraphics.blit(GUI_TEXTURE, x + 80, y, 0, 0, 176, 166, 176, 166);
+
+        int progress = this.menu.getScaledProgress();
+        if (progress > 0) {
+            pGuiGraphics.blit(GUI_TEXTURE, x + 80 + 76, y + 35, 176, 0, progress + 1, 17, 176, 166);
+        }
+
+        int energy = getScaledEnergy();
+        if (energy > 0) {
+            pGuiGraphics.blit(ENERGY_BAR_TEXTURE, x + 80 + 158, y + 13 + (60 - energy), 0, 60 - energy, 12, energy, 12, 60);
+        }
+
+        renderRecipeList(pGuiGraphics, pMouseX, pMouseY);
+    }
+
+    private void renderRecipeList(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        int x = this.leftPos;
+        int y = this.topPos;
+
+        int startIndex = currentPage * recipesPerPage;
+        for (int i = 0; i < recipesPerPage; i++) {
+            int recipeIndex = startIndex + i;
+            if (recipeIndex < filteredRecipes.size()) {
+                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
+                ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe) ? RECIPE_BG_SELECTED : RECIPE_BG;
+                guiGraphics.blit(background, x + 7, y + 17 + i * 18, 0, 0, 18, 18, 18, 18);
+
+                ItemStack resultStack = ItemStack.EMPTY;
+                if (!recipe.result().isEmpty()) {
+                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(recipe.result().get(0).item()));
+                    if (item != Items.AIR) resultStack = new ItemStack(item);
+                }
+                guiGraphics.renderItem(resultStack, x + 8, y + 18 + i * 18);
+            }
+        }
+
+        for (int i = 0; i < recipesPerPage; i++) {
+            int recipeIndex = startIndex + i;
+            if (recipeIndex >= filteredRecipes.size()) break;
+            if (isMouseOver(mouseX, mouseY, x + 7, y + 17 + i * 18, 18, 18)) {
+                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
+                guiGraphics.renderTooltip(this.font, formatRecipeName(recipe.type()), mouseX, mouseY);
+            }
+        }
+
+        if (isMouseOver(mouseX, mouseY, leftPos + 80 + 158, topPos + 13, 12, 60)) {
+            String energyText = formatEnergy(this.menu.getEnergy());
+            String capacityText = formatEnergy(this.menu.getCapacity());
+            guiGraphics.renderTooltip(this.font, Component.literal(energyText + " / " + capacityText), mouseX, mouseY);
+        }
+
+        int totalPages = Math.max(1, (int) Math.ceil((double) filteredRecipes.size() / recipesPerPage));
+        String pageText = (currentPage + 1) + "/" + totalPages;
+        guiGraphics.drawCenteredString(this.font, pageText, x + 43, y + 5, 0x404040);
     }
 
     private void updateFilteredRecipes() {
@@ -152,67 +242,6 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         this.prevPageButton.active = currentPage > 0;
         this.nextPageButton.active = (currentPage + 1) * recipesPerPage < filteredRecipes.size();
     }
-
-    @Override
-    protected void renderBg(GuiGraphics pGuiGraphics, float pPartialTick, int pMouseX, int pMouseY) {
-        int x = this.leftPos;
-        int y = this.topPos;
-
-        pGuiGraphics.fill(x + 7, y + 147, x + 78, y + 160, 0xFF373737);
-        pGuiGraphics.blit(GUI_TEXTURE, x + 80, y, 0, 0, 176, 166, 176, 166);
-
-        int progress = this.menu.getScaledProgress();
-        if (progress > 0) {
-            pGuiGraphics.blit(GUI_TEXTURE, x + 80 + 76, y + 35, 176, 0, progress + 1, 17, 176, 166);
-        }
-
-        int energy = this.menu.getScaledEnergy();
-        if (energy > 0) {
-            pGuiGraphics.blit(ENERGY_BAR_TEXTURE, x + 80 + 158, y + 13 + (60 - energy), 0, 60 - energy, 12, energy, 12, 60);
-        }
-
-        renderRecipeList(pGuiGraphics, pMouseX, pMouseY);
-    }
-
-    private void renderRecipeList(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        int x = this.leftPos;
-        int y = this.topPos;
-
-        int startIndex = currentPage * recipesPerPage;
-        for (int i = 0; i < recipesPerPage; i++) {
-            int recipeIndex = startIndex + i;
-            if (recipeIndex < filteredRecipes.size()) {
-                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
-                ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe) ? RECIPE_BG_SELECTED : RECIPE_BG;
-                guiGraphics.blit(background, x + 7, y + 17 + i * 18, 0, 0, 18, 18, 18, 18);
-
-                ItemStack resultStack = ItemStack.EMPTY;
-                if (!recipe.result().isEmpty()) {
-                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(recipe.result().get(0).item()));
-                    if (item != Items.AIR) resultStack = new ItemStack(item);
-                }
-                guiGraphics.renderItem(resultStack, x + 8, y + 18 + i * 18);
-            }
-        }
-
-        for (int i = 0; i < recipesPerPage; i++) {
-            int recipeIndex = startIndex + i;
-            if (recipeIndex >= filteredRecipes.size()) break;
-            if (isMouseOver(mouseX, mouseY, x + 7, y + 17 + i * 18, 18, 18)) {
-                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
-                guiGraphics.renderTooltip(this.font, formatRecipeName(recipe.type()), mouseX, mouseY);
-            }
-        }
-
-        if (isMouseOver(mouseX, mouseY, leftPos + 80 + 158, topPos + 13, 12, 60)) {
-            guiGraphics.renderTooltip(this.font, Component.literal(this.menu.blockEntity.getEnergy() + " / " + this.menu.blockEntity.getCapacity() + " FE"), mouseX, mouseY);
-        }
-
-        int totalPages = Math.max(1, (int) Math.ceil((double) filteredRecipes.size() / recipesPerPage));
-        String pageText = (currentPage + 1) + "/" + totalPages;
-        guiGraphics.drawCenteredString(this.font, pageText, x + 43, y + 5, 0x404040);
-    }
-
 
     private MutableComponent formatRecipeName(String type) {
         String[] parts = type.split(":");

@@ -15,9 +15,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -40,7 +38,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     public static final int OUTPUT_SLOTS = 2;
     public static final int TOTAL_SLOTS = INPUT_SLOTS + OUTPUT_SLOTS;
 
-    private static final int ENERGY_CAPACITY = 100000;
+    private static final int ENERGY_CAPACITY = 12000;
     private static final int ENERGY_MAX_TRANSFER = 1000;
     public final ItemStackHandler itemHandler = createItemHandler();
     public final CustomEnergyStorage energyStorage = createEnergyStorage();
@@ -53,6 +51,8 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     private int progress = 0;
     private int maxProgress = 200;
 
+    private int clientEnergy = -1;
+    private int ticksSinceLastUpdate = 0;
 
     public CrafterBlockEntity(BlockPos pPos, BlockState pBlockState) {
         super(ModBlockEntities.CRAFTER_BE.get(), pPos, pBlockState);
@@ -63,42 +63,57 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
+        boolean hasWork = false;
         ArfforniaApiDtos.CustomRecipe currentRecipe = be.getSelectedRecipe();
 
-        if (currentRecipe == null || !be.canCraft(currentRecipe)) {
-            if (be.progress != 0) {
-                be.progress = 0;
-                setChanged(level, pos, state);
-            }
-            return;
-        }
+        if (currentRecipe != null && be.canCraft(currentRecipe)) {
+            hasWork = true;
+            be.maxProgress = currentRecipe.time() != null && currentRecipe.time() > 0 ? currentRecipe.time() : 200;
+            int totalEnergyCost = currentRecipe.energy() != null ? currentRecipe.energy() : 0;
 
-        be.maxProgress = currentRecipe.time() != null && currentRecipe.time() > 0 ? currentRecipe.time() : 200;
-        int totalEnergyCost = currentRecipe.energy() != null ? currentRecipe.energy() : 0;
+            int energyPerTick = totalEnergyCost > 0 ? (int) Math.floor((double) totalEnergyCost / be.maxProgress) : 0;
 
-        if (totalEnergyCost <= 0) {
-            be.progress++;
-        } else {
-            int energyPerTick = (int) Math.floor((double) totalEnergyCost / be.maxProgress);
-            int energyToConsume = energyPerTick;
-
-            if (be.progress == be.maxProgress - 1) {
-                int energyConsumedSoFar = energyPerTick * (be.maxProgress - 1);
-                energyToConsume = totalEnergyCost - energyConsumedSoFar;
-            }
-
-            if (be.energyStorage.getEnergyStored() >= energyToConsume) {
-                be.energyStorage.extractEnergy(energyToConsume, false);
+            if (be.energyStorage.getEnergyStored() >= energyPerTick) {
+                be.energyStorage.extractEnergy(energyPerTick, false);
                 be.progress++;
             }
+
+            if (be.progress >= be.maxProgress) {
+                be.craftItem(currentRecipe);
+                be.progress = 0;
+            }
+        } else {
+            if (be.progress != 0) {
+                be.progress = 0;
+            }
         }
 
-        if (be.progress >= be.maxProgress) {
-            be.craftItem(currentRecipe);
-            be.progress = 0;
+        be.ticksSinceLastUpdate++;
+        boolean needsSync = false;
+        int syncInterval = (hasWork || be.clientEnergy != be.energyStorage.getEnergyStored()) ? 10 : 40;
+
+        if(be.ticksSinceLastUpdate >= syncInterval){
+            be.clientEnergy = be.energyStorage.getEnergyStored();
+            needsSync = true;
+            be.ticksSinceLastUpdate = 0;
         }
 
-        setChanged(level, pos, state);
+        if(needsSync){
+            setChanged(level, pos, state);
+            level.getServer().getPlayerList().getPlayers().forEach(player -> {
+                if (player.containerMenu instanceof CrafterMenu crafterMenu && crafterMenu.blockEntity == be) {
+                    crafterMenu.broadcastChanges();
+                }
+            });
+        }
+    }
+
+    public int getClientEnergyForDataSlot() {
+        return this.clientEnergy;
+    }
+
+    public void setClientEnergyFromDataSlot(int energy) {
+        this.clientEnergy = energy;
     }
 
     private boolean canCraft(ArfforniaApiDtos.CustomRecipe recipe) {
@@ -223,30 +238,6 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         return new CustomEnergyStorage(ENERGY_CAPACITY, ENERGY_MAX_TRANSFER);
     }
 
-    public Container getInventoryWrapper() {
-        return new SimpleContainer(itemHandler.getSlots()) {
-            @Override
-            public ItemStack getItem(int slot) {
-                return itemHandler.getStackInSlot(slot);
-            }
-
-            @Override
-            public void setItem(int slot, ItemStack stack) {
-                itemHandler.setStackInSlot(slot, stack);
-            }
-
-            @Override
-            public void setChanged() {
-                CrafterBlockEntity.this.setChanged();
-            }
-
-            @Override
-            public boolean stillValid(Player pPlayer) {
-                return CrafterBlockEntity.this.stillValid(pPlayer);
-            }
-        };
-    }
-
     private IItemHandler createInputItemHandler() {
         return new IItemHandler() {
             @Override
@@ -367,10 +358,6 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
     public int getEnergy() {
         return this.energyStorage.getEnergyStored();
-    }
-
-    public void setEnergy(int value) {
-        this.energyStorage.setEnergy(value);
     }
 
     public int getCapacity() {

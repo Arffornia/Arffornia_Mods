@@ -10,6 +10,6 @@
 - [x] Check free space on block placement
 - [x] Add jei compatibility on block part
 
-- [ ] Fix tick update of energy ...
+- [x] Fix tick update of energy ...
 - [ ] gui for crafter block
-- [ ] fix only shift click to take items from crafter block
+- [x] fix only shift click to take items from crafter block

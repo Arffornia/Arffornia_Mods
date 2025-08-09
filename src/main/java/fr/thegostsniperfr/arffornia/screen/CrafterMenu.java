@@ -14,6 +14,7 @@ import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
@@ -24,7 +25,6 @@ public class CrafterMenu extends AbstractContainerMenu {
     private static final Gson GSON = new Gson();
     public final CrafterBlockEntity blockEntity;
     public final List<ArfforniaApiDtos.CustomRecipe> availableRecipes;
-    private final int blockEntitySlots = CrafterBlockEntity.TOTAL_SLOTS;
 
     // Server side
     public CrafterMenu(int pContainerId, Inventory inv, FriendlyByteBuf extraData) {
@@ -49,21 +49,17 @@ public class CrafterMenu extends AbstractContainerMenu {
     private void addSlots(Inventory inv) {
         int mainPanelXOffset = 80;
 
-        this.addSlot(new Slot(this.blockEntity.getInventoryWrapper(), 0, mainPanelXOffset + 34, 17));
-        this.addSlot(new Slot(this.blockEntity.getInventoryWrapper(), 1, mainPanelXOffset + 34, 35));
-        this.addSlot(new Slot(this.blockEntity.getInventoryWrapper(), 2, mainPanelXOffset + 34, 53));
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 0, mainPanelXOffset + 34, 17));
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 1, mainPanelXOffset + 34, 35));
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 2, mainPanelXOffset + 34, 53));
 
-        this.addSlot(new Slot(this.blockEntity.getInventoryWrapper(), 3, mainPanelXOffset + 124, 26) {
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 3, mainPanelXOffset + 124, 26) {
             @Override
-            public boolean mayPlace(@NotNull ItemStack s) {
-                return false;
-            }
+            public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });
-        this.addSlot(new Slot(this.blockEntity.getInventoryWrapper(), 4, mainPanelXOffset + 124, 44) {
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 4, mainPanelXOffset + 124, 44) {
             @Override
-            public boolean mayPlace(@NotNull ItemStack s) {
-                return false;
-            }
+            public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });
 
         int playerInvX = 8 + 80;
@@ -80,49 +76,26 @@ public class CrafterMenu extends AbstractContainerMenu {
 
     private void addDataSlots() {
         addDataSlot(new DataSlot() {
-            @Override
-            public int get() {
-                return blockEntity.getProgress();
-            }
+            @Override public int get() { return blockEntity.getProgress(); }
+            @Override public void set(int value) { blockEntity.setProgress(value); }
+        });
+        addDataSlot(new DataSlot() {
+            @Override public int get() { return blockEntity.getMaxProgress(); }
+            @Override public void set(int value) { blockEntity.setMaxProgress(value); }
+        });
 
-            @Override
-            public void set(int value) {
-                blockEntity.setProgress(value);
+        addDataSlot(new DataSlot() {
+            @Override public int get() { return blockEntity.getClientEnergyForDataSlot() & 0xFFFF; }
+            @Override public void set(int value) {
+                int energy = blockEntity.getClientEnergyForDataSlot() & 0xFFFF0000;
+                blockEntity.setClientEnergyFromDataSlot(energy | (value & 0xFFFF));
             }
         });
         addDataSlot(new DataSlot() {
-            @Override
-            public int get() {
-                return blockEntity.getMaxProgress();
-            }
-
-            @Override
-            public void set(int value) {
-                blockEntity.setMaxProgress(value);
-            }
-        });
-        addDataSlot(new DataSlot() {
-            @Override
-            public int get() {
-                return blockEntity.getEnergy() & 0xFFFF;
-            }
-
-            @Override
-            public void set(int value) {
-                int energy = blockEntity.getEnergy() & 0xFFFF0000;
-                blockEntity.setEnergy(energy | (value & 0xFFFF));
-            }
-        });
-        addDataSlot(new DataSlot() {
-            @Override
-            public int get() {
-                return (blockEntity.getEnergy() >> 16) & 0xFFFF;
-            }
-
-            @Override
-            public void set(int value) {
-                int energy = blockEntity.getEnergy() & 0xFFFF;
-                blockEntity.setEnergy(energy | (value << 16));
+            @Override public int get() { return (blockEntity.getClientEnergyForDataSlot() >> 16) & 0xFFFF; }
+            @Override public void set(int value) {
+                int energy = blockEntity.getClientEnergyForDataSlot() & 0xFFFF;
+                blockEntity.setClientEnergyFromDataSlot(energy | (value << 16));
             }
         });
     }
@@ -134,11 +107,12 @@ public class CrafterMenu extends AbstractContainerMenu {
         return maxProgress != 0 && progress != 0 ? progress * progressArrowSize / maxProgress : 0;
     }
 
-    public int getScaledEnergy() {
-        int energy = this.blockEntity.getEnergy();
-        int capacity = this.blockEntity.getCapacity();
-        int energyBarSize = 60;
-        return capacity != 0 ? (int) (((long) energy * energyBarSize) / capacity) : 0;
+    public int getEnergy() {
+        return this.blockEntity.getClientEnergyForDataSlot();
+    }
+
+    public int getCapacity(){
+        return this.blockEntity.getCapacity();
     }
 
     @Override

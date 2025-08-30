@@ -18,6 +18,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMenu> {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/space_elevator_gui.png");
     private Button launchButton;
+    private boolean launchPacketSent = false;
 
     public SpaceElevatorScreen(SpaceElevatorMenu pMenu, Inventory pPlayerInventory, Component pTitle) {
         super(pMenu, pPlayerInventory, pTitle);
@@ -32,7 +33,10 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
 
         this.launchButton = this.addRenderableWidget(new Button.Builder(
                 buttonText,
-                (button) -> PacketDistributor.sendToServer(new ServerboundLaunchElevatorPacket(this.menu.blockEntity.getBlockPos())))
+                (button) -> {
+                    PacketDistributor.sendToServer(new ServerboundLaunchElevatorPacket(this.menu.blockEntity.getBlockPos()));
+                    this.launchPacketSent = true;
+                })
                 .bounds(this.leftPos + 98, this.topPos + 60, 70, 20)
                 .build());
     }
@@ -49,7 +53,8 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
         this.renderBackground(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
 
-        this.launchButton.active = !this.menu.isMilestoneCompleted && this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
+        this.launchButton.active = !this.launchPacketSent && !this.menu.isMilestoneCompleted &&
+                this.menu.blockEntity.areRequirementsMet(this.menu.initialDetails);
 
         ArfforniaApiDtos.MilestoneDetails details = this.menu.initialDetails;
         if (details != null) {

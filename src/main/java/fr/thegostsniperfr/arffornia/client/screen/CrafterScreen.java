@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private static final ResourceLocation GUI_TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/crafter_gui.png");
     private static final ResourceLocation ENERGY_BAR_TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/energy_bar.png");
+    private static final ResourceLocation PROGRESS_ARROW_TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/progress_arrow.png");
     private static final ResourceLocation RECIPE_BG = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background.png");
     private static final ResourceLocation RECIPE_BG_SELECTED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background_selected.png");
     private static final Pattern MOD_ID_PATTERN = Pattern.compile("@(\\w*)");
@@ -141,7 +142,7 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
 
         int progress = this.menu.getScaledProgress();
         if (progress > 0) {
-            pGuiGraphics.blit(GUI_TEXTURE, x + 80 + 76, y + 35, 176, 0, progress + 1, 17, 176, 166);
+            pGuiGraphics.blit(PROGRESS_ARROW_TEXTURE, x + 80 + 76, y + 35, 0, 0, progress, 16, 24, 16);
         }
 
         int energy = getScaledEnergy();

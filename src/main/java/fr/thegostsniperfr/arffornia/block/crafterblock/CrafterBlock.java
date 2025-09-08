@@ -108,7 +108,9 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
 
     @Override
     public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
-        return true;
+        BlockPos partPos = pPos.above();
+        BlockState stateAbove = pLevel.getBlockState(partPos);
+        return pLevel.isEmptyBlock(partPos) || stateAbove.canBeReplaced();
     }
 
     @Override

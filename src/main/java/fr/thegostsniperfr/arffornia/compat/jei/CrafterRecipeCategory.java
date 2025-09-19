@@ -32,7 +32,7 @@ public class CrafterRecipeCategory implements IRecipeCategory<ArfforniaApiDtos.C
             RecipeType.create(Arffornia.MODID, "crafter", ArfforniaApiDtos.CustomRecipe.class);
 
     private static final ResourceLocation GUI_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/crafter_gui.png");
+            ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/crafter_gui_jei.png");
 
     private final IDrawable background;
     private final IDrawable icon;

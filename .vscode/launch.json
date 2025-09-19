@@ -12,13 +12,13 @@
       "projectName": "Arffornia_Mods",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/clientRunProgramArgs.txt"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\clientRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/clientRunVmArgs.txt",
-        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\bin\\main"
       ],
-      "cwd": "${workspaceFolder}/run",
+      "cwd": "${workspaceFolder}\\run",
       "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
@@ -34,13 +34,13 @@
       "projectName": "Arffornia_Mods",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/dataRunProgramArgs.txt"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\dataRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/dataRunVmArgs.txt",
-        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\bin\\main"
       ],
-      "cwd": "${workspaceFolder}/run",
+      "cwd": "${workspaceFolder}\\run",
       "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
@@ -56,13 +56,13 @@
       "projectName": "Arffornia_Mods",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/gameTestServerRunProgramArgs.txt"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\gameTestServerRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/gameTestServerRunVmArgs.txt",
-        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\bin\\main"
       ],
-      "cwd": "${workspaceFolder}/run",
+      "cwd": "${workspaceFolder}\\run",
       "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
@@ -78,13 +78,13 @@
       "projectName": "Arffornia_Mods",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/serverRunProgramArgs.txt"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\serverRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/brian/Documents/arffornia/Arffornia_Mods/build/moddev/serverRunVmArgs.txt",
-        "-Dfml.modFolders\u003darffornia%%/home/brian/Documents/arffornia/Arffornia_Mods/bin/main"
+        "@C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003darffornia%%C:\\Users\\Brian\\Documents\\GitHub\\Arffornia_Mods\\bin\\main"
       ],
-      "cwd": "${workspaceFolder}/run",
+      "cwd": "${workspaceFolder}\\run",
       "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"

@@ -38,8 +38,8 @@ public class CrafterRecipeCategory implements IRecipeCategory<ArfforniaApiDtos.C
     private final IDrawable icon;
 
     public CrafterRecipeCategory(IGuiHelper helper) {
-        this.background = helper.drawableBuilder(GUI_TEXTURE, 0, 0, 176, 86)
-                .setTextureSize(176, 166)
+        this.background = helper.drawableBuilder(GUI_TEXTURE, 0, 0, 170, 80)
+                .setTextureSize(170, 80)
                 .build();
 
         this.icon = helper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(ModBlocks.CRAFTER_BLOCK.get()));
@@ -67,24 +67,28 @@ public class CrafterRecipeCategory implements IRecipeCategory<ArfforniaApiDtos.C
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, ArfforniaApiDtos.CustomRecipe recipe, IFocusGroup focuses) {
+        int inputSlotX = 31;
+        int inputSlotY = 14;
+        int outputSlotX = 121;
+        int verticalCenter = 32;
+
         // Inputs
         for (int i = 0; i < recipe.ingredients().size() && i < 3; i++) {
             ArfforniaApiDtos.RecipeIngredient ingredient = recipe.ingredients().get(i);
             Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
             if (item != Items.AIR) {
-                builder.addSlot(RecipeIngredientRole.INPUT, 34, 17 + (i * 18))
+                builder.addSlot(RecipeIngredientRole.INPUT, inputSlotX, inputSlotY + (i * 18))
                         .addItemStack(new ItemStack(item, ingredient.count()));
             }
         }
 
         // Outputs
-        int verticalCenter = 35;
         for (int i = 0; i < recipe.result().size() && i < 2; i++) {
             ArfforniaApiDtos.RecipeResult result = recipe.result().get(i);
             Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(result.item()));
             if (item != Items.AIR) {
                 int yPos = (recipe.result().size() == 1) ? verticalCenter : (verticalCenter - 9 + (i * 18));
-                builder.addSlot(RecipeIngredientRole.OUTPUT, 124, yPos)
+                builder.addSlot(RecipeIngredientRole.OUTPUT, outputSlotX, yPos)
                         .addItemStack(new ItemStack(item, result.count()));
             }
         }

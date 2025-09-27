@@ -401,4 +401,38 @@ public class ArfforniaApiService {
                     return Collections.emptyList();
                 });
     }
+
+    /**
+     * Adds an item unlock to a specific milestone via the API.
+     * This is an admin-only action.
+     *
+     * @param milestoneId    The ID of the milestone to add to unlock to.
+     * @param itemId         The registry name of the item (e.g., "minecraft:iron_ingot").
+     * @param displayName    The generated display name (e.g., "Iron Ingot").
+     * @param imagePath      The generated image path (e.g., "minecraft_iron_ingot").
+     * @param recipesToBan   A list of recipe IDs to be banned when this item is unlocked.
+     * @return A CompletableFuture that resolves to true on success.
+     */
+    public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan) {
+        return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.error("Cannot add unlock, service auth token is null.");
+                return CompletableFuture.completedFuture(false);
+            }
+
+            JsonObject body = new JsonObject();
+            body.addProperty("item_id", itemId);
+            body.addProperty("display_name", displayName);
+            body.addProperty("image_path", imagePath);
+            body.add("recipes_to_ban", gson.toJsonTree(recipesToBan));
+
+            HttpRequest request = this.buildRequest(
+                    URI.create(API_BASE_URL.get() + "/milestones/" + milestoneId + "/add-unlock-from-game"),
+                    token,
+                    body
+            );
+
+            return sendRequestAndCheckSuccess(request, "addUnlockToMilestone", null); // UUID joueur non pertinent ici
+        });
+    }
 }

@@ -13,6 +13,7 @@ public class ProgressionCommand {
                 .requires(source -> source.hasPermission(2) || (source.getPlayer() != null && PermissionAPI.getPermission(source.getPlayer(), Permissions.MANAGE_PROGRESSION)))
                 .then(AddMilestoneCommand.register())
                 .then(RemoveMilestoneCommand.register())
-                .then(ListMilestonesCommand.register());
+                .then(ListMilestonesCommand.register())
+                .then(AddUnlockCommand.register());
     }
 }

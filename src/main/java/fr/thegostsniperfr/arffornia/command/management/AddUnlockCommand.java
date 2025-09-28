@@ -14,7 +14,6 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 public class AddUnlockCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
@@ -35,13 +34,15 @@ public class AddUnlockCommand {
                             String imagePath = generateImagePath(itemId);
 
                             List<String> recipesToBan = player.getServer().getRecipeManager().getRecipes().stream()
-                                    .filter(recipe -> ItemStack.isSameItem(recipe.value().getResultItem(player.level().registryAccess()), heldItemStack))
+                                    .filter(recipe -> {
+                                        ItemStack resultItem = recipe.value().getResultItem(player.level().registryAccess());
+                                        return resultItem != null && !resultItem.isEmpty() && ItemStack.isSameItem(resultItem, heldItemStack);
+                                    })
                                     .map(RecipeHolder::id)
                                     .map(ResourceLocation::toString)
                                     .collect(Collectors.toList());
 
-                            // Always ban the recipe of the item itself if it exists
-                            if(!recipesToBan.contains(itemId)){
+                            if (!recipesToBan.contains(itemId)) {
                                 recipesToBan.add(itemId);
                             }
 

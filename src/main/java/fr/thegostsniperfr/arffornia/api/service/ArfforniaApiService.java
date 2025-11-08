@@ -5,29 +5,39 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.command.management.AddUnlockCommand;
+import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
 
 /**
- * Handles HTTP requests and JSON parsing.
+ * Service class for handling all HTTP requests to the Arffornia web backend.
  */
 public class ArfforniaApiService {
     private static final ArfforniaApiService INSTANCE = new ArfforniaApiService();
 
     private final HttpClient client = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
+    private final ExecutorService migrationExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Arffornia-Migration-Thread"));
 
     private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
 
@@ -38,12 +48,20 @@ public class ArfforniaApiService {
         return INSTANCE;
     }
 
-    private HttpRequest buildRequest(URI uri, String token, JsonObject body) {
+    /**
+     * Shuts down the migration executor service. Should be called on server stop.
+     */
+    public void shutdown() {
+        migrationExecutor.shutdown();
+    }
+
+    private HttpRequest buildRequest(URI uri, String token, String jsonBody) {
         return HttpRequest.newBuilder()
                 .uri(uri)
                 .header("Authorization", "Bearer " + token)
+                .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
     }
 
@@ -170,7 +188,11 @@ public class ArfforniaApiService {
         body.addProperty("client_id", clientId);
         body.addProperty("client_secret", clientSecret);
 
-        HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/auth/token/svc"), "", body);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE_URL.get() + "/auth/token/svc"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                .build();
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
@@ -206,7 +228,7 @@ public class ArfforniaApiService {
             body.addProperty("team_uuid", teamUuid.toString());
             body.addProperty("team_name", teamName);
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/join"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/join"), token, gson.toJson(body));
 
             client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(response -> {
@@ -233,7 +255,7 @@ public class ArfforniaApiService {
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/leave"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/leave"), token, gson.toJson(body));
 
             client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(response -> {
@@ -262,7 +284,7 @@ public class ArfforniaApiService {
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/list"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/list"), token, gson.toJson(body));
 
             return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .thenApply(response -> {
@@ -293,7 +315,7 @@ public class ArfforniaApiService {
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/add"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/add"), token, gson.toJson(body));
 
             return sendRequestAndCheckSuccess(request, "addMilestone", playerUuid);
         });
@@ -310,7 +332,7 @@ public class ArfforniaApiService {
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/remove"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/remove"), token, gson.toJson(body));
 
             return sendRequestAndCheckSuccess(request, "removeMilestone", playerUuid);
         });
@@ -322,7 +344,11 @@ public class ArfforniaApiService {
                     if (response.statusCode() >= 200 && response.statusCode() <= 299) {
                         return true;
                     } else {
-                        Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
+                        if(response.statusCode() == 302) {
+                            Arffornia.LOGGER.error("API call to {} failed for player {}. Status: 302 (Redirect). This often indicates an authentication or middleware issue on the web server. Ensure API routes return JSON errors, not redirects.", actionName, playerUuid);
+                        } else {
+                            Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
+                        }
                         return false;
                     }
                 })
@@ -351,7 +377,7 @@ public class ArfforniaApiService {
             body.addProperty("uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("username", playerName);
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/player/ensure-exists"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/player/ensure-exists"), token, gson.toJson(body));
 
             return sendRequestAndCheckSuccess(request, "ensurePlayerExists", playerUuid);
         });
@@ -372,7 +398,7 @@ public class ArfforniaApiService {
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
             body.addProperty("milestone_id", milestoneId);
 
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/set-target"), token, body);
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/set-target"), token, gson.toJson(body));
 
             return sendRequestAndCheckSuccess(request, "setTargetMilestone", playerUuid);
         });
@@ -390,11 +416,13 @@ public class ArfforniaApiService {
                 .build();
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .<List<ArfforniaApiDtos.CustomRecipe>>thenApply(jsonResponse -> {
-                    String json = jsonResponse.body();
-                    Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {
-                    }.getType();
-                    return gson.fromJson(json, listType);
+                .thenApply(response -> {
+                    if (response.statusCode() != 200) {
+                        Arffornia.LOGGER.error("Failed to fetch all custom recipes. Status: {}", response.statusCode());
+                        return Collections.<ArfforniaApiDtos.CustomRecipe>emptyList();
+                    }
+                    Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {}.getType();
+                    return gson.fromJson(response.body(), listType);
                 })
                 .exceptionally(ex -> {
                     Arffornia.LOGGER.error("Failed to fetch all custom recipes from API: {}", ex.getMessage());
@@ -413,7 +441,7 @@ public class ArfforniaApiService {
      * @param recipesToBan   A list of recipe IDs to be banned when this item is unlocked.
      * @return A CompletableFuture that resolves to true on success.
      */
-    public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan) {
+    public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan, List<Map<String, Object>> ingredients, List<Map<String, Object>> result) {
         return getServiceAuthToken().thenCompose(token -> {
             if (token == null) {
                 Arffornia.LOGGER.error("Cannot add unlock, service auth token is null.");
@@ -425,14 +453,109 @@ public class ArfforniaApiService {
             body.addProperty("display_name", displayName);
             body.addProperty("image_path", imagePath);
             body.add("recipes_to_ban", gson.toJsonTree(recipesToBan));
+            body.add("ingredients", gson.toJsonTree(ingredients));
+            body.add("result", gson.toJsonTree(result));
 
             HttpRequest request = this.buildRequest(
                     URI.create(API_BASE_URL.get() + "/milestones/" + milestoneId + "/add-unlock-from-game"),
                     token,
-                    body
+                    gson.toJson(body)
             );
 
-            return sendRequestAndCheckSuccess(request, "addUnlockToMilestone", null); // UUID joueur non pertinent ici
+            return sendRequestAndCheckSuccess(request, "addUnlockToMilestone", null);
+        });
+    }
+
+    public void runRecipeMigration(MinecraftServer server, Collection<RecipeHolder<?>> allRecipes) {
+        migrationExecutor.submit(() -> {
+            try {
+                String token = getServiceAuthToken().join();
+                if (token == null) {
+                    Arffornia.LOGGER.error("Recipe Sync failed: Could not get auth token.");
+                    return;
+                }
+
+                // 1. Get the list of items that need a recipe from the API
+                HttpRequest getRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(API_BASE_URL.get() + "/migration/items-to-migrate"))
+                        .header("Authorization", "Bearer " + token)
+                        .header("Accept", "application/json")
+                        .GET()
+                        .build();
+
+                HttpResponse<String> response = client.send(getRequest, HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() != 200) {
+                    Arffornia.LOGGER.error("Recipe Sync failed: Could not get item list from API. Status: {}", response.statusCode());
+                    return;
+                }
+
+                Type listType = new TypeToken<List<String>>() {}.getType();
+                List<String> itemsToMigrate = gson.fromJson(response.body(), listType);
+
+                if (itemsToMigrate == null || itemsToMigrate.isEmpty()) {
+                    Arffornia.LOGGER.info("Recipe Sync: No items require a recipe sync from the API.");
+                    return;
+                }
+                Arffornia.LOGGER.info("Recipe Sync: Found {} items to sync. Preparing batch payload...", itemsToMigrate.size());
+
+                List<Map<String, Object>> batchPayload = new ArrayList<>();
+                RegistryAccess registryAccess = server.registryAccess();
+
+                // 2. Find the vanilla recipe for each item
+                for (String itemId : itemsToMigrate) {
+                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
+                    if (item == Items.AIR) {
+                        Arffornia.LOGGER.warn("Recipe Sync: Skipping unknown item_id '{}'", itemId);
+                        continue;
+                    }
+
+                    Optional<RecipeHolder<?>> recipeHolderOpt = AddUnlockCommand.findBestCraftingRecipeFor(allRecipes, new ItemStack(item), server.overworld());
+
+                    if (recipeHolderOpt.isEmpty()) {
+                        Arffornia.LOGGER.warn("Recipe Sync: No vanilla crafting recipe found for '{}'. It might be from a different recipe type (smelting, etc.) or added by a mod in a non-standard way.", itemId);
+                        continue;
+                    }
+
+                    Map<String, Object> recipePayload = AddUnlockCommand.convertRecipeToPayload(recipeHolderOpt.get().value(), registryAccess);
+                    if (recipePayload != null) {
+                        recipePayload.put("item_id", itemId); // Add the item_id for the backend to identify the unlock
+                        batchPayload.add(recipePayload);
+                    } else {
+                        Arffornia.LOGGER.warn("Recipe Sync: Unsupported recipe type for '{}'", itemId);
+                    }
+                }
+
+                if (batchPayload.isEmpty()) {
+                    Arffornia.LOGGER.info("Recipe Sync complete. No valid vanilla recipes found for the requested items.");
+                    return;
+                }
+
+                // 3. Send the batch of found recipes to the API
+                Arffornia.LOGGER.info("Recipe Sync: Sending batch of {} recipes to the API...", batchPayload.size());
+                JsonObject finalPayload = new JsonObject();
+                finalPayload.add("recipes", gson.toJsonTree(batchPayload));
+
+                HttpRequest batchRequest = this.buildRequest(
+                        URI.create(API_BASE_URL.get() + "/migration/submit-batch-recipes"),
+                        token,
+                        gson.toJson(finalPayload)
+                );
+
+                HttpResponse<String> batchResponse = client.send(batchRequest, HttpResponse.BodyHandlers.ofString());
+
+                if (batchResponse.statusCode() >= 200 && batchResponse.statusCode() < 300) {
+                    Arffornia.LOGGER.info("Recipe Sync: Batch request successful!");
+                    Arffornia.LOGGER.warn("Recipe sync on startup was successful. It is recommended to set 'migrateOnStartup' to 'false' in the config to prevent unnecessary checks on every launch.");
+                } else {
+                    Arffornia.LOGGER.error("Recipe Sync: Batch request failed. Status: {}, Body: {}", batchResponse.statusCode(), batchResponse.body());
+                }
+
+            } catch (Exception e) {
+                Arffornia.LOGGER.error("A critical error occurred during the recipe sync process.", e);
+            } finally {
+                CustomRecipeManager.loadRecipes();
+            }
         });
     }
 }

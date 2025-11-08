@@ -43,9 +43,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
@@ -140,24 +138,21 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
                         return;
                     }
 
-                    List<ArfforniaApiDtos.CustomRecipe> unlockedRecipes;
-
+                    Set<Integer> unlockedMilestoneIds;
                     if (progressionData != null && progressionData.completedMilestones() != null) {
-                        Set<Integer> completedMilestoneIds = new HashSet<>(progressionData.completedMilestones());
-
-                        unlockedRecipes = CustomRecipeManager.getAllRecipes().stream()
-                                .filter(recipe -> completedMilestoneIds.contains(recipe.milestoneUnlockId()))
-                                .collect(Collectors.toList());
+                        unlockedMilestoneIds = new HashSet<>(progressionData.completedMilestones());
                     } else {
                         Arffornia.LOGGER.warn("Could not fetch progression data for ID {}. No recipes will be shown.", progressionId);
-                        unlockedRecipes = Collections.emptyList();
+                        unlockedMilestoneIds = Collections.emptySet();
                     }
+
+                    Arffornia.LOGGER.info("Server: Opening crafter for progression ID {}. Sending unlocked milestone IDs: {}",
+                            progressionId, unlockedMilestoneIds);
 
                     serverPlayer.openMenu(be, buf -> {
                         buf.writeBlockPos(pPos);
-                        buf.writeUtf(GSON.toJson(unlockedRecipes));
+                        buf.writeVarIntArray(unlockedMilestoneIds.stream().mapToInt(Integer::intValue).toArray());
                     });
-
                 }, pLevel.getServer());
             }
         }

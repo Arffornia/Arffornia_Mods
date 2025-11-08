@@ -5,16 +5,23 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
+/**
+ * Command to create a new unlock for a milestone based on the item held by the player.
+ * It automatically finds a compatible crafting recipe for the item and sends it to the web API.
+ */
 public class AddUnlockCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("addunlock")
@@ -29,39 +36,132 @@ public class AddUnlockCommand {
                                 return 0;
                             }
 
+                            RecipeManager recipeManager = player.getServer().getRecipeManager();
+                            Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(recipeManager.getRecipes(), heldItemStack, player.level());
+
+                            if (recipeHolderOpt.isEmpty()) {
+                                context.getSource().sendFailure(Component.literal("§cNo compatible crafting-style recipe found for this item."));
+                                return 0;
+                            }
+
+                            RecipeHolder<?> recipeHolder = recipeHolderOpt.get();
+                            Map<String, Object> payload = convertRecipeToPayload(recipeHolder.value(), player.level().registryAccess());
+
+                            if (payload == null) {
+                                context.getSource().sendFailure(Component.literal("§cUnsupported recipe format: " + recipeHolder.value().getClass().getSimpleName()));
+                                return 0;
+                            }
+
                             String itemId = BuiltInRegistries.ITEM.getKey(heldItemStack.getItem()).toString();
                             String displayName = generateDisplayName(itemId);
                             String imagePath = generateImagePath(itemId);
+                            List<String> recipesToBan = List.of(recipeHolder.id().toString());
 
-                            List<String> recipesToBan = player.getServer().getRecipeManager().getRecipes().stream()
-                                    .filter(recipe -> {
-                                        ItemStack resultItem = recipe.value().getResultItem(player.level().registryAccess());
-                                        return resultItem != null && !resultItem.isEmpty() && ItemStack.isSameItem(resultItem, heldItemStack);
-                                    })
-                                    .map(RecipeHolder::id)
-                                    .map(ResourceLocation::toString)
-                                    .collect(Collectors.toList());
+                            context.getSource().sendSystemMessage(Component.literal("§eRegistering unlock for '" + displayName + "' to milestone " + milestoneId + "..."));
+                            context.getSource().sendSystemMessage(Component.literal("§7Found recipe " + recipeHolder.id() + " to use and ban."));
 
-                            if (!recipesToBan.contains(itemId)) {
-                                recipesToBan.add(itemId);
-                            }
+                            @SuppressWarnings("unchecked")
+                            CompletableFuture<Boolean> future = ArfforniaApiService.getInstance().addUnlockToMilestone(
+                                    milestoneId,
+                                    itemId,
+                                    displayName,
+                                    imagePath,
+                                    recipesToBan,
+                                    (List<Map<String, Object>>) payload.get("ingredients"),
+                                    (List<Map<String, Object>>) payload.get("result")
+                            );
 
-                            context.getSource().sendSystemMessage(Component.literal("§eAdding unlock for '" + displayName + "' to milestone " + milestoneId + "..."));
-                            context.getSource().sendSystemMessage(Component.literal("§7Found " + recipesToBan.size() + " associated recipes to ban."));
-
-                            ArfforniaApiService.getInstance().addUnlockToMilestone(milestoneId, itemId, displayName, imagePath, recipesToBan)
-                                    .thenAcceptAsync(success -> {
-                                        if (success) {
-                                            context.getSource().sendSystemMessage(Component.literal("§aSuccessfully added item unlock for '" + displayName + "' to milestone " + milestoneId));
-                                        } else {
-                                            context.getSource().sendFailure(Component.literal("§cFailed to add item unlock. Check server logs for details."));
-                                        }
-                                    }, player.getServer());
+                            future.thenAcceptAsync(success -> {
+                                if (success) {
+                                    context.getSource().sendSystemMessage(Component.literal("§aSuccessfully registered item unlock and its recipe."));
+                                } else {
+                                    context.getSource().sendFailure(Component.literal("§cFailed to register item unlock. Check server logs."));
+                                }
+                            }, player.getServer());
 
                             return 1;
                         })
                 );
     }
+
+    /**
+     * Finds the best crafting-style recipe for a given result item from a provided collection of recipes.
+     * It iterates through all recipes, prioritizing shaped recipes to preserve the grid layout.
+     * @param allRecipes A collection of all recipes to search through.
+     * @param result The ItemStack that the recipe should produce.
+     * @param level The current level, used to get the RegistryAccess.
+     * @return An Optional containing the best matching RecipeHolder, or empty if none is found.
+     */
+    public static Optional<RecipeHolder<?>> findBestCraftingRecipeFor(Collection<RecipeHolder<?>> allRecipes, ItemStack result, Level level) {
+        RegistryAccess registryAccess = level.registryAccess();
+
+        return allRecipes.stream()
+                .filter(recipe -> !recipe.id().getNamespace().equals("arffornia"))
+                .filter(recipe -> {
+                    if (!ItemStack.isSameItem(recipe.value().getResultItem(registryAccess), result)) {
+                        return false;
+                    }
+                    return recipe.value() instanceof ShapedRecipe || recipe.value() instanceof ShapelessRecipe;
+                })
+                .sorted((r1, r2) -> {
+                    boolean r1IsShaped = r1.value() instanceof ShapedRecipe;
+                    boolean r2IsShaped = r2.value() instanceof ShapelessRecipe;
+                    if (r1IsShaped && !r2IsShaped) return -1;
+                    if (!r1IsShaped && r2IsShaped) return 1;
+                    return 0;
+                })
+                .findFirst();
+    }
+
+    /**
+     * Converts a Recipe object into a payload map suitable for JSON serialization.
+     * @param recipe The recipe to convert.
+     * @param registryAccess The registry access from the current level.
+     * @return A mutable map representing the recipe, or null if the recipe type is unsupported.
+     */
+    @Nullable
+    public static Map<String, Object> convertRecipeToPayload(Recipe<?> recipe, RegistryAccess registryAccess) {
+        List<Map<String, Object>> ingredientsPayload = new ArrayList<>(Collections.nCopies(9, null));
+        ItemStack resultStack = recipe.getResultItem(registryAccess);
+        NonNullList<Ingredient> ingredients = recipe.getIngredients();
+
+        if (recipe instanceof ShapedRecipe shapedRecipe) {
+            int recipeWidth = shapedRecipe.getWidth();
+            int recipeHeight = shapedRecipe.getHeight();
+
+            for (int y = 0; y < recipeHeight; y++) {
+                for (int x = 0; x < recipeWidth; x++) {
+                    Ingredient ingredient = ingredients.get(y * recipeWidth + x);
+                    if (!ingredient.isEmpty()) {
+                        ItemStack firstStack = ingredient.getItems()[0];
+                        String ingredientId = BuiltInRegistries.ITEM.getKey(firstStack.getItem()).toString();
+                        ingredientsPayload.set(y * 3 + x, Map.of("item", ingredientId, "count", 1));
+                    }
+                }
+            }
+        } else if (recipe instanceof ShapelessRecipe) {
+            for (int i = 0; i < ingredients.size() && i < 9; i++) {
+                Ingredient ingredient = ingredients.get(i);
+                if (!ingredient.isEmpty()) {
+                    ItemStack firstStack = ingredient.getItems()[0];
+                    String ingredientId = BuiltInRegistries.ITEM.getKey(firstStack.getItem()).toString();
+                    ingredientsPayload.set(i, Map.of("item", ingredientId, "count", 1));
+                }
+            }
+        } else {
+            return null;
+        }
+
+        List<Map<String, Object>> resultPayload = List.of(
+                Map.of("item", BuiltInRegistries.ITEM.getKey(resultStack.getItem()).toString(), "count", resultStack.getCount())
+        );
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("ingredients", ingredientsPayload);
+        payload.put("result", resultPayload);
+        return payload;
+    }
+
 
     private static String generateDisplayName(String itemId) {
         String path = itemId.substring(itemId.indexOf(':') + 1);

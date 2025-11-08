@@ -36,7 +36,11 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private static final ResourceLocation RECIPE_BG = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background.png");
     private static final ResourceLocation RECIPE_BG_SELECTED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background_selected.png");
     private static final Pattern MOD_ID_PATTERN = Pattern.compile("@(\\w*)");
-    private final int recipesPerPage = 7;
+
+    private static final int RECIPE_ROWS = 7;
+    private static final int RECIPE_COLUMNS = 4;
+    private final int recipesPerPage = RECIPE_ROWS * RECIPE_COLUMNS;
+
     private EditBox searchBox;
     private Button nextPageButton;
     private Button prevPageButton;
@@ -156,29 +160,32 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private void renderRecipeList(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int x = this.leftPos;
         int y = this.topPos;
-
         int startIndex = currentPage * recipesPerPage;
+
         for (int i = 0; i < recipesPerPage; i++) {
             int recipeIndex = startIndex + i;
-            if (recipeIndex < filteredRecipes.size()) {
-                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
-                ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe) ? RECIPE_BG_SELECTED : RECIPE_BG;
-                guiGraphics.blit(background, x + 7, y + 17 + i * 18, 0, 0, 18, 18, 18, 18);
-
-                ItemStack resultStack = ItemStack.EMPTY;
-                if (!recipe.result().isEmpty()) {
-                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(recipe.result().get(0).item()));
-                    if (item != Items.AIR) resultStack = new ItemStack(item);
-                }
-                guiGraphics.renderItem(resultStack, x + 8, y + 18 + i * 18);
+            if (recipeIndex >= filteredRecipes.size()) {
+                break;
             }
-        }
 
-        for (int i = 0; i < recipesPerPage; i++) {
-            int recipeIndex = startIndex + i;
-            if (recipeIndex >= filteredRecipes.size()) break;
-            if (isMouseOver(mouseX, mouseY, x + 7, y + 17 + i * 18, 18, 18)) {
-                ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
+            int row = i % RECIPE_ROWS;
+            int col = i / RECIPE_ROWS;
+            int recipeX = x + 7 + (col * 18);
+            int recipeY = y + 17 + (row * 18);
+
+            ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
+            ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe) ? RECIPE_BG_SELECTED : RECIPE_BG;
+            guiGraphics.blit(background, recipeX, recipeY, 0, 0, 18, 18, 18, 18);
+
+            ItemStack resultStack = ItemStack.EMPTY;
+            if (!recipe.result().isEmpty()) {
+                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(recipe.result().get(0).item()));
+                if (item != Items.AIR) resultStack = new ItemStack(item);
+            }
+
+            guiGraphics.renderItem(resultStack, recipeX + 1, recipeY + 1);
+
+            if (isMouseOver(mouseX, mouseY, recipeX, recipeY, 18, 18)) {
                 guiGraphics.renderTooltip(this.font, formatRecipeName(recipe.type()), mouseX, mouseY);
             }
         }
@@ -263,7 +270,12 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
             int recipeIndex = startIndex + i;
             if (recipeIndex >= filteredRecipes.size()) break;
 
-            if (isMouseOver(pMouseX, pMouseY, x + 7, y + 17 + i * 18, 18, 18)) {
+            int row = i % RECIPE_ROWS;
+            int col = i / RECIPE_ROWS;
+            int recipeX = x + 7 + (col * 18);
+            int recipeY = y + 17 + (row * 18);
+
+            if (isMouseOver(pMouseX, pMouseY, recipeX, recipeY, 18, 18)) {
                 ArfforniaApiDtos.CustomRecipe clickedRecipe = filteredRecipes.get(recipeIndex);
                 Integer unlockId = clickedRecipe.milestoneUnlockId();
 

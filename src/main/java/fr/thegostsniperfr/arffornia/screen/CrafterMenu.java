@@ -1,10 +1,9 @@
 package fr.thegostsniperfr.arffornia.screen;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
+import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -17,26 +16,26 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class CrafterMenu extends AbstractContainerMenu {
-    private static final Gson GSON = new Gson();
     public final CrafterBlockEntity blockEntity;
     public final List<ArfforniaApiDtos.CustomRecipe> availableRecipes;
 
-    // Server side
     public CrafterMenu(int pContainerId, Inventory inv, FriendlyByteBuf extraData) {
         this(pContainerId, inv, inv.player.level().getBlockEntity(extraData.readBlockPos()));
 
-        String recipesJson = extraData.readUtf();
-        Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {
-        }.getType();
-        this.availableRecipes.addAll(GSON.fromJson(recipesJson, listType));
+        int[] unlockedIds = extraData.readVarIntArray();
+        Set<Integer> unlockedMilestoneIds = Arrays.stream(unlockedIds).boxed().collect(Collectors.toSet());
+
+        this.availableRecipes.clear();
+        this.availableRecipes.addAll(ClientRecipeCache.getRecipesByMilestoneIds(unlockedMilestoneIds));
     }
 
-    // Client side
     public CrafterMenu(int pContainerId, Inventory inv, BlockEntity entity) {
         super(ModMenuTypes.CRAFTER_MENU.get(), pContainerId);
         this.blockEntity = (CrafterBlockEntity) entity;
@@ -49,15 +48,21 @@ public class CrafterMenu extends AbstractContainerMenu {
     private void addSlots(Inventory inv) {
         int mainPanelXOffset = 80;
 
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 0, mainPanelXOffset + 34, 17));
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 1, mainPanelXOffset + 34, 35));
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 2, mainPanelXOffset + 34, 53));
+        // 3x3 Crafting Grid
+        int gridX = mainPanelXOffset + 18;
+        int gridY = 17;
+        for (int row = 0; row < 3; ++row) {
+            for (int col = 0; col < 3; ++col) {
+                this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, col + row * 3, gridX + col * 18, gridY + row * 18));
+            }
+        }
 
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 3, mainPanelXOffset + 124, 26) {
+        // Output Slots
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 9, mainPanelXOffset + 124, 26) {
             @Override
             public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 4, mainPanelXOffset + 124, 44) {
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 10, mainPanelXOffset + 124, 44) {
             @Override
             public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });

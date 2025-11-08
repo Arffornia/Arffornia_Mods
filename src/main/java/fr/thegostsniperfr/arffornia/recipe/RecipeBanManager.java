@@ -11,45 +11,34 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class RecipeBanManager {
 
-    private static final Set<ResourceLocation> BANNED_RECIPE_IDS = ConcurrentHashMap.newKeySet();
+    private static Collection<RecipeHolder<?>> originalRecipes = Collections.emptyList();
 
     /**
-     * Checks if a given recipe ID is in the ban list.
-     *
-     * @param recipeId The unique ResourceLocation of the recipe to check.
-     * @return true if the recipe is banned, false otherwise.
+     * Provides access to the original, unmodified recipe list for other parts of the mod, like migration.
+     * @return A collection of all recipes as loaded from data packs.
      */
-    public static boolean isBanned(ResourceLocation recipeId) {
-        return BANNED_RECIPE_IDS.contains(recipeId);
+    public static Collection<RecipeHolder<?>> getOriginalRecipes() {
+        return originalRecipes;
     }
 
-    /**
-     * This event listener registers our custom ReloadListener.
-     * The listener will be responsible for fetching API data and applying the bans
-     * after the server has loaded all its data packs (including recipes).
-     */
     @SubscribeEvent
     public static void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(new SimplePreparableReloadListener<Set<ResourceLocation>>() {
 
-            /**
-             * This method runs in a background thread. It's the perfect place for
-             * network requests or heavy processing. Here we fetch the banned recipes from the API.
-             */
             @Override
             protected Set<ResourceLocation> prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
+                // This part runs on a worker thread.
                 Arffornia.LOGGER.info("Fetching banned recipe list from API...");
                 try {
-                    // .join() blocks the current thread until the Future is complete.
-                    // This is safe here because we are on a worker thread, not the main server thread.
                     return ArfforniaApiService.getInstance().fetchProgressionConfig().join().bannedRecipes()
                             .stream()
                             .map(ResourceLocation::parse)
@@ -60,31 +49,23 @@ public class RecipeBanManager {
                 }
             }
 
-            /**
-             * This method runs on the main server thread after prepare() is complete.
-             * It applies the data we fetched.
-             */
             @Override
             protected void apply(Set<ResourceLocation> apiBannedRecipes, ResourceManager resourceManager, ProfilerFiller profiler) {
-                // Update the main ban list with the fresh data from the API
-                BANNED_RECIPE_IDS.clear();
-                BANNED_RECIPE_IDS.addAll(apiBannedRecipes);
-                Arffornia.LOGGER.info("Loaded {} banned recipes from API.", BANNED_RECIPE_IDS.size());
-
                 RecipeManager manager = event.getServerResources().getRecipeManager();
 
-                Collection<RecipeHolder<?>> currentRecipes = manager.getRecipes();
-                int originalCount = currentRecipes.size();
+                RecipeBanManager.originalRecipes = new ArrayList<>(manager.getRecipes());
+                Arffornia.LOGGER.info("Cached {} original recipes before banning.", RecipeBanManager.originalRecipes.size());
 
-                List<RecipeHolder<?>> filteredRecipes = currentRecipes.stream()
-                        .filter(recipe -> !RecipeBanManager.isBanned(recipe.id()))
+                int originalCount = RecipeBanManager.originalRecipes.size();
+                List<RecipeHolder<?>> filteredRecipes = RecipeBanManager.originalRecipes.stream()
+                        .filter(recipe -> !apiBannedRecipes.contains(recipe.id()))
                         .collect(Collectors.toList());
 
                 manager.replaceRecipes(filteredRecipes);
 
                 int removedCount = originalCount - filteredRecipes.size();
                 if (removedCount > 0) {
-                    Arffornia.LOGGER.info("Recipe ban process complete. Removed {} recipes.", removedCount);
+                    Arffornia.LOGGER.info("Recipe ban process complete. Removed {} recipes from active manager.", removedCount);
                 }
             }
         });

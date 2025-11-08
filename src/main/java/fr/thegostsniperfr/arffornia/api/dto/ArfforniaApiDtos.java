@@ -121,7 +121,8 @@ public class ArfforniaApiDtos {
             List<RecipeResult> result,
             @Nullable Integer energy,
             @Nullable Integer time,
-            @SerializedName("milestone_unlock_id") int milestoneUnlockId
+            @SerializedName("milestone_unlock_id") int milestoneUnlockId,
+            @SerializedName("milestone_id") int milestoneId
     ) {
     }
 

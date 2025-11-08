@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
-    public static final int INPUT_SLOTS = 3;
+    public static final int INPUT_SLOTS = 9;
     public static final int OUTPUT_SLOTS = 2;
     public static final int TOTAL_SLOTS = INPUT_SLOTS + OUTPUT_SLOTS;
 
@@ -119,8 +119,16 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     private boolean canCraft(ArfforniaApiDtos.CustomRecipe recipe) {
         Map<Item, Integer> requiredItems = Maps.newHashMap();
         for (ArfforniaApiDtos.RecipeIngredient ingredient : recipe.ingredients()) {
-            Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
-            requiredItems.merge(item, ingredient.count(), Integer::sum);
+            if (ingredient != null) {
+                Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
+                requiredItems.merge(item, ingredient.count(), Integer::sum);
+            } else {
+                Arffornia.LOGGER.debug("Recipe check: Found a null ingredient (empty slot) in recipe '{}' (Unlock ID: {}). This is normal for shaped recipes.", recipe.type(), recipe.milestoneUnlockId());
+            }
+        }
+
+        if (requiredItems.isEmpty()) {
+            return false;
         }
 
         for (int i = 0; i < INPUT_SLOTS; i++) {
@@ -161,6 +169,10 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
     private void craftItem(ArfforniaApiDtos.CustomRecipe recipe) {
         for (ArfforniaApiDtos.RecipeIngredient ingredient : recipe.ingredients()) {
+            if (ingredient == null) {
+                continue;
+            }
+
             Item requiredItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
             int amountToConsume = ingredient.count();
             for (int i = 0; i < INPUT_SLOTS; i++) {

@@ -6,9 +6,11 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
+import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
+import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
@@ -23,23 +25,26 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Mod(Arffornia.MODID)
 public class Arffornia {
-    // Define mod id in a common place for everything to reference
     public static final String MODID = "arffornia";
-    // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
+    private static final AtomicBoolean hasAttemptedMigration = new AtomicBoolean(false);
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -56,14 +61,15 @@ public class Arffornia {
 
         modEventBus.addListener(this::commonSetup);
 
+        // Register event handlers to the FORGE event bus
         NeoForge.EVENT_BUS.register(this);
-
         NeoForge.EVENT_BUS.register(Permissions.class);
-
         NeoForge.EVENT_BUS.register(RecipeBanManager.class);
+        NeoForge.EVENT_BUS.register(CustomRecipeManager.class);
 
-        // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
+
+        modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -77,24 +83,26 @@ public class Arffornia {
     public void onServerStarting(ServerStartingEvent event) {
         this.databaseManager = new DatabaseManager();
         this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
-
-        // Register all commands
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
     }
 
-    /**
-     * Cleanly shuts down resources when the server stops.
-     */
+    @SubscribeEvent
+    public void onServerStarted(ServerStartedEvent event) {
+        if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
+            ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
+        }
+    }
+
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         if (this.databaseManager != null) {
-            LOGGER.info("Closing shop database connection pool.");
             this.databaseManager.close();
         }
 
         if (this.rewardHandler != null) {
             this.rewardHandler.shutdown();
         }
+        ArfforniaApiService.getInstance().shutdown();
     }
 
     /**

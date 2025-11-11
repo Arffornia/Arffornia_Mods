@@ -46,11 +46,11 @@ public class CrafterMenu extends AbstractContainerMenu {
     }
 
     private void addSlots(Inventory inv) {
-        int mainPanelXOffset = 80;
+        int mainPanelXOffset = 79;
 
         // 3x3 Crafting Grid
-        int gridX = mainPanelXOffset + 18;
-        int gridY = 17;
+        int gridX = mainPanelXOffset + 9;
+        int gridY = 18;
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 3; ++col) {
                 this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, col + row * 3, gridX + col * 18, gridY + row * 18));
@@ -58,11 +58,11 @@ public class CrafterMenu extends AbstractContainerMenu {
         }
 
         // Output Slots
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 9, mainPanelXOffset + 124, 26) {
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 9, mainPanelXOffset + 126, 27) {
             @Override
             public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });
-        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 10, mainPanelXOffset + 124, 44) {
+        this.addSlot(new SlotItemHandler(this.blockEntity.itemHandler, 10, mainPanelXOffset + 126, 45) {
             @Override
             public boolean mayPlace(@NotNull ItemStack s) { return false; }
         });

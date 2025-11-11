@@ -19,7 +19,7 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 public class ArfforniaClient {
 
     @SubscribeEvent
-    public static void onClientSetup(final FMLClientSetupEvent event) { // Rendez la méthode static et annotez-la
+    public static void onClientSetup(final FMLClientSetupEvent event) {
         Arffornia.LOGGER.info("Client setup: Triggering ClientRecipeCache loading.");
         ClientRecipeCache.loadRecipes();
 

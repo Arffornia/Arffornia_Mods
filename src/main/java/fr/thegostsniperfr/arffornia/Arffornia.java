@@ -89,6 +89,7 @@ public class Arffornia {
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
         if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
+            Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
         }
     }

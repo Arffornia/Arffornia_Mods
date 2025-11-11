@@ -558,4 +558,32 @@ public class ArfforniaApiService {
             }
         });
     }
+
+    /**
+     * Overwrites all requirements for a given milestone with a new set from in-game.
+     * This is an admin-only action.
+     *
+     * @param milestoneId  The ID of the milestone to update.
+     * @param requirements A list of maps, where each map represents a required item.
+     * @return A CompletableFuture that resolves to true on success.
+     */
+    public CompletableFuture<Boolean> setMilestoneRequirements(int milestoneId, List<Map<String, Object>> requirements) {
+        return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.error("Cannot set milestone requirements, service auth token is null.");
+                return CompletableFuture.completedFuture(false);
+            }
+
+            JsonObject body = new JsonObject();
+            body.add("requirements", gson.toJsonTree(requirements));
+
+            HttpRequest request = this.buildRequest(
+                    URI.create(API_BASE_URL.get() + "/milestones/" + milestoneId + "/set-requirements"),
+                    token,
+                    gson.toJson(body)
+            );
+
+            return sendRequestAndCheckSuccess(request, "setMilestoneRequirements", null);
+        });
+    }
 }

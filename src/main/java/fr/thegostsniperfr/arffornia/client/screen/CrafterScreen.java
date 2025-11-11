@@ -2,8 +2,11 @@ package fr.thegostsniperfr.arffornia.client.screen;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.compat.jei.ArfforniaJeiPlugin;
 import fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
+import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -277,15 +280,29 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
 
             if (isMouseOver(pMouseX, pMouseY, recipeX, recipeY, 18, 18)) {
                 ArfforniaApiDtos.CustomRecipe clickedRecipe = filteredRecipes.get(recipeIndex);
-                Integer unlockId = clickedRecipe.milestoneUnlockId();
 
-                if (this.menu.blockEntity.isRecipeSelected(clickedRecipe)) {
-                    unlockId = null;
+                if (pButton == 0) { // Left Click
+                    Integer unlockId = clickedRecipe.milestoneUnlockId();
+
+                    if (this.menu.blockEntity.isRecipeSelected(clickedRecipe)) {
+                        unlockId = null;
+                    }
+
+                    PacketDistributor.sendToServer(new ServerboundSelectRecipePacket(this.menu.blockEntity.getBlockPos(), unlockId));
+                    this.minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                    return true;
+                } else if (pButton == 2) { // Middle Click
+                    if (!clickedRecipe.result().isEmpty() && ArfforniaJeiPlugin.RUNTIME != null) {
+                        Item resultItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(clickedRecipe.result().get(0).item()));
+                        ItemStack resultStack = new ItemStack(resultItem);
+                        if (!resultStack.isEmpty()) {
+                            ArfforniaJeiPlugin.RUNTIME.getRecipesGui().show(
+                                    ArfforniaJeiPlugin.RUNTIME.getJeiHelpers().getFocusFactory().createFocus(RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, resultStack)
+                            );
+                            return true;
+                        }
+                    }
                 }
-
-                PacketDistributor.sendToServer(new ServerboundSelectRecipePacket(this.menu.blockEntity.getBlockPos(), unlockId));
-                this.minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                return true;
             }
         }
 

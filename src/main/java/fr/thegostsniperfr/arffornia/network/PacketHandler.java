@@ -38,5 +38,11 @@ public final class PacketHandler {
                 ServerboundSelectRecipePacket.STREAM_CODEC,
                 ServerboundSelectRecipePacket::handle
         );
+
+        registrar.playToServer(
+                ServerboundPlaceRecipePacket.TYPE,
+                ServerboundPlaceRecipePacket.STREAM_CODEC,
+                ServerboundPlaceRecipePacket::handle
+        );
     }
 }

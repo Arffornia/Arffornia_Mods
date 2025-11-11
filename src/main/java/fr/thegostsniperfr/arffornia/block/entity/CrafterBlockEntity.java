@@ -122,8 +122,6 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
             if (ingredient != null) {
                 Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
                 requiredItems.merge(item, ingredient.count(), Integer::sum);
-            } else {
-                Arffornia.LOGGER.debug("Recipe check: Found a null ingredient (empty slot) in recipe '{}' (Unlock ID: {}). This is normal for shaped recipes.", recipe.type(), recipe.milestoneUnlockId());
             }
         }
 

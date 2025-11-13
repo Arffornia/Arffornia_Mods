@@ -84,6 +84,16 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
+        Arffornia.LOGGER.info("Server has started. Loading initial Arffornia data...");
+
+        try {
+            CustomRecipeManager.loadRecipes().join();
+            Arffornia.LOGGER.info("Custom recipes loaded successfully.");
+        } catch (Exception e) {
+            Arffornia.LOGGER.error("Failed to load initial custom recipes. The mod may not function correctly.", e);
+        }
+
+
         if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
             Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());

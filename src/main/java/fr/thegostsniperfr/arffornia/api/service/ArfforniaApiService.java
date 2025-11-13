@@ -554,7 +554,7 @@ public class ArfforniaApiService {
             } catch (Exception e) {
                 Arffornia.LOGGER.error("A critical error occurred during the recipe sync process.", e);
             } finally {
-                CustomRecipeManager.loadRecipes();
+                CustomRecipeManager.loadRecipes().join();
             }
         });
     }

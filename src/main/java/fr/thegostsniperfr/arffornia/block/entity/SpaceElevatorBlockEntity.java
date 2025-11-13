@@ -251,11 +251,20 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     protected void loadAdditional(CompoundTag pTag, HolderLookup.Provider pRegistries) {
         super.loadAdditional(pTag, pRegistries);
 
-        if (pTag.contains("inventory", Tag.TAG_COMPOUND)) {
-            itemHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
+        if (pTag.contains("inventory")) {
+            // Create a temporary handler to load the potentially outdated saved data.
+            ItemStackHandler savedHandler = new ItemStackHandler();
+            savedHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
+
+            // Copy items from the loaded data into our correctly-sized handler.
+            // This prevents an out-of-bounds error if the saved inventory was smaller.
+            int limit = Math.min(savedHandler.getSlots(), this.itemHandler.getSlots());
+            for (int i = 0; i < limit; i++) {
+                this.itemHandler.setStackInSlot(i, savedHandler.getStackInSlot(i));
+            }
         }
 
-        if (pTag.contains("linkedProgressionId", Tag.TAG_LONG)) {
+        if (pTag.contains("linkedProgressionId")) {
             this.linkedProgressionId = pTag.getLong("linkedProgressionId");
         }
 

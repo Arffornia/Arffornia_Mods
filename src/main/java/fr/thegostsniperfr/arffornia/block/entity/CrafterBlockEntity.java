@@ -334,12 +334,32 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     protected void loadAdditional(CompoundTag pTag, HolderLookup.Provider pRegistries) {
         super.loadAdditional(pTag, pRegistries);
-        itemHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
+
+        if (pTag.contains("inventory")) {
+            // Create a temporary handler to load the potentially outdated saved data.
+            ItemStackHandler savedHandler = new ItemStackHandler();
+            savedHandler.deserializeNBT(pRegistries, pTag.getCompound("inventory"));
+
+            // Copy items from the loaded data into our correctly-sized handler.
+            // This prevents an out-of-bounds error if the saved inventory was smaller.
+            int limit = Math.min(savedHandler.getSlots(), this.itemHandler.getSlots());
+            for (int i = 0; i < limit; i++) {
+                this.itemHandler.setStackInSlot(i, savedHandler.getStackInSlot(i));
+            }
+        }
+
         energyStorage.setEnergy(pTag.getInt("energy"));
         linkedProgressionId = pTag.getLong("linkedProgressionId");
-        selectedRecipeMilestoneUnlockId = pTag.contains("selectedRecipeId") ? pTag.getInt("selectedRecipeId") : null;
+        if (pTag.contains("selectedRecipeId")) {
+            selectedRecipeMilestoneUnlockId = pTag.getInt("selectedRecipeId");
+        } else {
+            selectedRecipeMilestoneUnlockId = null;
+        }
         progress = pTag.getInt("progress");
-        maxProgress = pTag.getInt("maxProgress");
+
+        // Safety check to prevent division-by-zero if maxProgress is invalid from a save
+        int loadedMaxProgress = pTag.getInt("maxProgress");
+        maxProgress = (loadedMaxProgress > 0) ? loadedMaxProgress : 200;
     }
 
     @Nullable

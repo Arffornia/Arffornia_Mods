@@ -98,7 +98,14 @@ public class AddUnlockCommand {
         return allRecipes.stream()
                 .filter(recipe -> !recipe.id().getNamespace().equals("arffornia"))
                 .filter(recipe -> {
-                    if (!ItemStack.isSameItem(recipe.value().getResultItem(registryAccess), result)) {
+                    ItemStack recipeResult = recipe.value().getResultItem(registryAccess);
+
+                    if (recipeResult == null || recipeResult.isEmpty()) {
+//                        Arffornia.LOGGER.warn("Skipping recipe {} because its result is null or empty. This might be a misconfigured recipe from another mod.", recipe.id());
+                        return false;
+                    }
+
+                    if (!ItemStack.isSameItem(recipeResult, result)) {
                         return false;
                     }
                     return recipe.value() instanceof ShapedRecipe || recipe.value() instanceof ShapelessRecipe;

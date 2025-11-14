@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.screen;
 
+import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
@@ -32,8 +33,12 @@ public class CrafterMenu extends AbstractContainerMenu {
         int[] unlockedIds = extraData.readVarIntArray();
         Set<Integer> unlockedMilestoneIds = Arrays.stream(unlockedIds).boxed().collect(Collectors.toSet());
 
+        Arffornia.LOGGER.info("Client CrafterMenu: Received unlocked milestones: " + unlockedMilestoneIds.toString());
+
         this.availableRecipes.clear();
         this.availableRecipes.addAll(ClientRecipeCache.getRecipesByMilestoneIds(unlockedMilestoneIds));
+
+        Arffornia.LOGGER.info("Client CrafterMenu: Found " + this.availableRecipes.size() + " available recipes after filtering.");
     }
 
     public CrafterMenu(int pContainerId, Inventory inv, BlockEntity entity) {

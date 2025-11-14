@@ -4,10 +4,7 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -42,6 +39,16 @@ public class ClientRecipeCache {
 
         return unlockedMilestoneIds.stream()
                 .map(id -> RECIPES_BY_MILESTONE_ID.getOrDefault(id, Collections.emptyList()))
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns a flat list of all custom recipes currently held in the client-side cache.
+     * @return A collection of all cached recipes.
+     */
+    public static Collection<ArfforniaApiDtos.CustomRecipe> getAllCachedRecipes() {
+        return RECIPES_BY_MILESTONE_ID.values().stream()
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
     }

@@ -12,6 +12,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -23,6 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2i;
+import net.minecraft.client.gui.components.ImageButton;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,6 +58,8 @@ public class ProgressionGraphScreen extends Screen {
     private static final ResourceLocation TEX_NODE_AVAILABLE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
     private static final ResourceLocation TEX_NODE_LOCKED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
     private static final ResourceLocation TEX_NODE_TARGET = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/node_background.png");
+
+    private static final ResourceLocation TEX_HOME_BUTTON = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/home_icon.png");
 
     private static final int COLOR_LINK_COMPLETED = 0xFF4CAF50;
     private static final int COLOR_LINK_AVAILABLE = 0xFFFF9800;
@@ -112,7 +116,24 @@ public class ProgressionGraphScreen extends Screen {
 
         SoundUtils.playClickSound();
 
+        if (ClientProgressionData.graphStateHasBeenSet) {
+            this.cameraX = ClientProgressionData.lastCameraX;
+            this.cameraY = ClientProgressionData.lastCameraY;
+            this.zoom = ClientProgressionData.lastZoom;
+        }
+
+        refreshWidgets();
         loadGraphData();
+    }
+
+    @Override
+    public void onClose() {
+        ClientProgressionData.lastCameraX = this.cameraX;
+        ClientProgressionData.lastCameraY = this.cameraY;
+        ClientProgressionData.lastZoom = this.zoom;
+        ClientProgressionData.graphStateHasBeenSet = true;
+
+        super.onClose();
     }
 
     // --- UI ELEMENTS ---
@@ -193,24 +214,29 @@ public class ProgressionGraphScreen extends Screen {
      */
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.rotationAngle += partialTick * ROTATION_SPEED;
+        guiGraphics.fill(0, 0, this.width, this.height, BACKGROUND_COLOR);
+        this.drawGrid(guiGraphics);
+
+        this.rotationAngle += ROTATION_SPEED;
+
         if (this.rotationAngle >= 360.0f) {
             this.rotationAngle -= 360.0f;
         }
 
-
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-
-        if (this.status == LoadingStatus.LOADING_GRAPH) {
-            guiGraphics.drawCenteredString(this.font, "Loading Graph...", this.width / 2, this.height / 2, INFO_TEXT_COLOR);
-            return;
-        } else if (this.status == LoadingStatus.FAILED) {
-            guiGraphics.drawCenteredString(this.font, "Failed to load data. See logs for details.", this.width / 2, this.height / 2, 0xFFCC0000);
+        if (this.status == LoadingStatus.LOADING_GRAPH || this.status == LoadingStatus.FAILED) {
+            if (this.status == LoadingStatus.LOADING_GRAPH) {
+                guiGraphics.drawCenteredString(this.font, "Loading Graph...", this.width / 2, this.height / 2, INFO_TEXT_COLOR);
+            } else {
+                guiGraphics.drawCenteredString(this.font, "Failed to load data. See logs for details.", this.width / 2, this.height / 2, 0xFFCC0000);
+            }
+            super.render(guiGraphics, mouseX, mouseY, partialTick);
             return;
         }
 
         this.drawConnections(guiGraphics);
         this.drawNodes(guiGraphics);
+
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         if (this.selectedNode != null) {
             this.drawInfoPanel(guiGraphics, this.selectedNode);
@@ -222,8 +248,6 @@ public class ProgressionGraphScreen extends Screen {
      */
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
-        guiGraphics.fill(0, 0, this.width, this.height, BACKGROUND_COLOR);
-        this.drawGrid(guiGraphics);
     }
 
     /**
@@ -527,7 +551,7 @@ public class ProgressionGraphScreen extends Screen {
                 this.isDragging = true;
             }
 
-            updateDetailsPanel();
+            refreshWidgets();
 
             return true;
         }
@@ -537,7 +561,7 @@ public class ProgressionGraphScreen extends Screen {
 
     private void fetchAndApplyNodeDetails(int nodeId) {
         this.status = LoadingStatus.LOADING_DETAILS;
-        updateDetailsPanel();
+        refreshWidgets();
 
         ArfforniaApiService.getInstance().fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
             Minecraft.getInstance().execute(() -> {
@@ -622,8 +646,33 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- COORDINATE UTILITIES ---
 
-    private void updateDetailsPanel() {
+    private void refreshWidgets() {
         this.clearWidgets();
+
+        ImageButton homeButton = new ImageButton(
+                10, 10, 30, 30,
+                new WidgetSprites(TEX_HOME_BUTTON, TEX_HOME_BUTTON),
+                (button) -> {
+                    this.cameraX = 0;
+                    this.cameraY = 0;
+                    this.zoom = 1.0f;
+                    ClientProgressionData.lastCameraX = 0;
+                    ClientProgressionData.lastCameraY = 0;
+                    ClientProgressionData.lastZoom = 1.0f;
+                    SoundUtils.playClickSound();
+                },
+                Component.translatable("gui.arffornia.reset_view")
+        ) {
+            @Override
+            public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+                guiGraphics.blit(
+                        this.sprites.get(this.isActive(), this.isHoveredOrFocused()),
+                        this.getX(), this.getY(), 0, 0,
+                        this.width, this.height, this.width, this.height
+                );
+            }
+        };
+        this.addRenderableWidget(homeButton);
 
         if (this.selectedNode != null) {
             this.setTargetButton = Button.builder(
@@ -634,7 +683,6 @@ public class ProgressionGraphScreen extends Screen {
                     .build();
 
             updateTargetButtonState();
-
             this.addRenderableWidget(this.setTargetButton);
         }
     }

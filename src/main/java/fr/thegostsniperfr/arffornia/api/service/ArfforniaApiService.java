@@ -15,6 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -390,13 +391,13 @@ public class ArfforniaApiService {
      * @param milestoneId The ID of the milestone to target.
      * @return A CompletableFuture that resolves to true on success.
      */
-    public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, int milestoneId) {
+    public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId) {
         return getServiceAuthToken().thenCompose(token -> {
             if (token == null) return CompletableFuture.completedFuture(false);
 
             JsonObject body = new JsonObject();
             body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-            body.addProperty("milestone_id", milestoneId);
+            body.add("milestone_id", gson.toJsonTree(milestoneId));
 
             HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/set-target"), token, gson.toJson(body));
 

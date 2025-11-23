@@ -698,7 +698,7 @@ public class ProgressionGraphScreen extends Screen {
 
         if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
             this.setTargetButton.setMessage(Component.literal("✔ Targeted"));
-            this.setTargetButton.active = false;
+            this.setTargetButton.active = true;
             return;
         }
 
@@ -741,14 +741,18 @@ public class ProgressionGraphScreen extends Screen {
     private void handleSetTarget() {
         if (this.selectedNode == null) return;
 
-        int newTargetId = this.selectedNode.id();
+        Integer newTargetId;
+
+        if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
+            newTargetId = null;
+        } else {
+            newTargetId = this.selectedNode.id();
+        }
 
         PacketDistributor.sendToServer(new ServerboundSetTargetMilestonePacket(newTargetId));
 
 
         this.currentTargetId = newTargetId;
-
-        calculateAvailableMilestones();
 
         updateClientData();
         updateTargetButtonState();

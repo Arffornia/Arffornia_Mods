@@ -313,7 +313,16 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     protected void renderLabels(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY) {
         pGuiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.inventoryLabelY, 4210752, false);
 
-        ArfforniaApiDtos.CustomRecipe selectedRecipe = this.menu.blockEntity.getSelectedRecipe();
+        Integer selectedId = this.menu.blockEntity.getSelectedRecipeMilestoneUnlockId();
+
+        ArfforniaApiDtos.CustomRecipe selectedRecipe = null;
+        if (selectedId != null) {
+            selectedRecipe = this.menu.availableRecipes.stream()
+                    .filter(recipe -> selectedId.equals(recipe.milestoneUnlockId()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
         Component title = (selectedRecipe != null) ? formatRecipeName(selectedRecipe.type()).withStyle(ChatFormatting.GOLD) : this.title;
 
         pGuiGraphics.drawCenteredString(this.font, title, this.titleLabelX, this.titleLabelY, 4210752);

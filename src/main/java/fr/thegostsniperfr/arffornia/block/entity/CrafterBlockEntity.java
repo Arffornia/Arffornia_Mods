@@ -208,6 +208,11 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     @Nullable
+    public Integer getSelectedRecipeMilestoneUnlockId() {
+        return selectedRecipeMilestoneUnlockId;
+    }
+
+    @Nullable
     public ArfforniaApiDtos.CustomRecipe getSelectedRecipe() {
         return this.selectedRecipeMilestoneUnlockId != null ? CustomRecipeManager.getRecipeByMilestoneUnlockId(this.selectedRecipeMilestoneUnlockId) : null;
     }

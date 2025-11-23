@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+
+  "pattern": [
+    "DID",
+    "ICI",
+    "BCB"
+  ],
+
+  "key": {
+    "C": {
+      "item": "sophisticatedstorage:iron_chest"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "B": {
+      "item": "minecraft:iron_block"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    }
+  },
+
+  "result": {
+    "id": "arffornia:space_elevator",
+    "count": 1
+  }
+}

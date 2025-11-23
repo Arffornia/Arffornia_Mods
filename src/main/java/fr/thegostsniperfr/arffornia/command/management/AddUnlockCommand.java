@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.command.management;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.NonNullList;
@@ -36,8 +37,7 @@ public class AddUnlockCommand {
                                 return 0;
                             }
 
-                            RecipeManager recipeManager = player.getServer().getRecipeManager();
-                            Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(recipeManager.getRecipes(), heldItemStack, player.level());
+                            Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(RecipeBanManager.getOriginalRecipes(), heldItemStack, player.level());
 
                             if (recipeHolderOpt.isEmpty()) {
                                 context.getSource().sendFailure(Component.literal("§cNo compatible crafting-style recipe found for this item."));

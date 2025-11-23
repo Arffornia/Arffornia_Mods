@@ -15,6 +15,7 @@ public class ProgressionCommand {
                 .then(RemoveMilestoneCommand.register())
                 .then(ListMilestonesCommand.register())
                 .then(AddUnlockCommand.register())
-                .then(SetRequirementsCommand.register());
+                .then(SetRequirementsCommand.register())
+                .then(MoveItemCommand.register());
     }
 }

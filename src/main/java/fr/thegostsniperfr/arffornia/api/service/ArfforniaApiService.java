@@ -587,4 +587,36 @@ public class ArfforniaApiService {
             return sendRequestAndCheckSuccess(request, "setMilestoneRequirements", null);
         });
     }
+
+    /**
+     * Moves a milestone item (unlock or requirement) from one milestone to another via the API.
+     * This is an admin-only action.
+     *
+     * @param fromMilestoneId The ID of the source milestone.
+     * @param toMilestoneId   The ID of the destination milestone.
+     * @param itemId          The registry name of the item to move.
+     * @return A CompletableFuture that resolves to true on success.
+     */
+    public CompletableFuture<Boolean> moveMilestoneItem(int fromMilestoneId, int toMilestoneId, String itemId) {
+        return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.error("Cannot move milestone item, service auth token is null.");
+                return CompletableFuture.completedFuture(false);
+            }
+
+            JsonObject body = new JsonObject();
+            body.addProperty("from_milestone_id", fromMilestoneId);
+            body.addProperty("to_milestone_id", toMilestoneId);
+            body.addProperty("item_id", itemId);
+
+            HttpRequest request = this.buildRequest(
+                    URI.create(API_BASE_URL.get() + "/milestone-items/move"),
+                    token,
+                    gson.toJson(body)
+            );
+
+            return sendRequestAndCheckSuccess(request, "moveMilestoneItem", null);
+        });
+    }
+
 }

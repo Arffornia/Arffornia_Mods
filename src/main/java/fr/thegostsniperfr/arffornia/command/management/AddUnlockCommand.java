@@ -24,11 +24,13 @@ import java.util.concurrent.CompletableFuture;
  * It automatically finds a compatible crafting recipe for the item and sends it to the web API.
  */
 public class AddUnlockCommand {
+
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("addunlock")
                 .then(Commands.argument("milestone_id", IntegerArgumentType.integer(1))
                         .executes(context -> {
                             ServerPlayer player = context.getSource().getPlayerOrException();
+                            Level level = player.level();
                             int milestoneId = IntegerArgumentType.getInteger(context, "milestone_id");
                             ItemStack heldItemStack = player.getMainHandItem();
 
@@ -37,18 +39,23 @@ public class AddUnlockCommand {
                                 return 0;
                             }
 
-                            Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(RecipeBanManager.getOriginalRecipes(), heldItemStack, player.level());
+                            Collection<RecipeHolder<?>> allRecipes = RecipeBanManager.getOriginalRecipes();
+
+                            Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(allRecipes, heldItemStack, level);
 
                             if (recipeHolderOpt.isEmpty()) {
-                                context.getSource().sendFailure(Component.literal("§cNo compatible crafting-style recipe found for this item."));
+                                context.getSource().sendFailure(Component.literal("§cNo compatible recipe found."));
+                                String debugInfo = getAvailableRecipeTypesDebug(allRecipes, heldItemStack, level);
+                                context.getSource().sendSystemMessage(Component.literal(debugInfo));
                                 return 0;
                             }
 
                             RecipeHolder<?> recipeHolder = recipeHolderOpt.get();
-                            Map<String, Object> payload = convertRecipeToPayload(recipeHolder.value(), player.level().registryAccess());
+
+                            Map<String, Object> payload = convertRecipeToPayload(recipeHolder.value(), level.registryAccess());
 
                             if (payload == null) {
-                                context.getSource().sendFailure(Component.literal("§cUnsupported recipe format: " + recipeHolder.value().getClass().getSimpleName()));
+                                context.getSource().sendFailure(Component.literal("§cUnsupported recipe format (Conversion failed): " + recipeHolder.value().getClass().getSimpleName()));
                                 return 0;
                             }
 
@@ -57,8 +64,7 @@ public class AddUnlockCommand {
                             String imagePath = generateImagePath(itemId);
                             List<String> recipesToBan = List.of(recipeHolder.id().toString());
 
-                            context.getSource().sendSystemMessage(Component.literal("§eRegistering unlock for '" + displayName + "' to milestone " + milestoneId + "..."));
-                            context.getSource().sendSystemMessage(Component.literal("§7Found recipe " + recipeHolder.id() + " to use and ban."));
+                            context.getSource().sendSystemMessage(Component.literal("§eRegistering unlock for '" + displayName + "' (" + recipeHolder.value().getClass().getSimpleName() + ")..."));
 
                             @SuppressWarnings("unchecked")
                             CompletableFuture<Boolean> future = ArfforniaApiService.getInstance().addUnlockToMilestone(
@@ -99,22 +105,27 @@ public class AddUnlockCommand {
                 .filter(recipe -> !recipe.id().getNamespace().equals("arffornia"))
                 .filter(recipe -> {
                     ItemStack recipeResult = recipe.value().getResultItem(registryAccess);
+                    if (recipeResult == null || recipeResult.isEmpty()) return false;
+                    if (!ItemStack.isSameItem(recipeResult, result)) return false;
 
-                    if (recipeResult == null || recipeResult.isEmpty()) {
-//                        Arffornia.LOGGER.warn("Skipping recipe {} because its result is null or empty. This might be a misconfigured recipe from another mod.", recipe.id());
-                        return false;
+                    if (recipe.value() instanceof ShapedRecipe || recipe.value() instanceof ShapelessRecipe) {
+                        return true;
                     }
 
-                    if (!ItemStack.isSameItem(recipeResult, result)) {
-                        return false;
+                    String typeId = recipe.value().getType().toString();
+                    String className = recipe.value().getClass().getSimpleName();
+
+                    if (typeId.contains("infusion") || className.contains("InfusionRecipe")) {
+                        return true;
                     }
-                    return recipe.value() instanceof ShapedRecipe || recipe.value() instanceof ShapelessRecipe;
+
+                    return false;
                 })
                 .sorted((r1, r2) -> {
-                    boolean r1IsShaped = r1.value() instanceof ShapedRecipe;
-                    boolean r2IsShaped = r2.value() instanceof ShapelessRecipe;
-                    if (r1IsShaped && !r2IsShaped) return -1;
-                    if (!r1IsShaped && r2IsShaped) return 1;
+                    boolean r1Shape = r1.value() instanceof ShapedRecipe;
+                    boolean r2Shape = r2.value() instanceof ShapedRecipe;
+                    if (r1Shape && !r2Shape) return -1;
+                    if (!r1Shape && r2Shape) return 1;
                     return 0;
                 })
                 .findFirst();
@@ -132,30 +143,45 @@ public class AddUnlockCommand {
         ItemStack resultStack = recipe.getResultItem(registryAccess);
         NonNullList<Ingredient> ingredients = recipe.getIngredients();
 
-        if (recipe instanceof ShapedRecipe shapedRecipe) {
-            int recipeWidth = shapedRecipe.getWidth();
-            int recipeHeight = shapedRecipe.getHeight();
+        String className = recipe.getClass().getSimpleName();
+        String typeId = recipe.getType().toString();
 
-            for (int y = 0; y < recipeHeight; y++) {
-                for (int x = 0; x < recipeWidth; x++) {
-                    Ingredient ingredient = ingredients.get(y * recipeWidth + x);
-                    if (!ingredient.isEmpty()) {
-                        ItemStack firstStack = ingredient.getItems()[0];
-                        String ingredientId = BuiltInRegistries.ITEM.getKey(firstStack.getItem()).toString();
-                        ingredientsPayload.set(y * 3 + x, Map.of("item", ingredientId, "count", 1));
+        try {
+            if (recipe instanceof ShapedRecipe shapedRecipe) {
+                int width = shapedRecipe.getWidth();
+                int height = shapedRecipe.getHeight();
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        int index = y * width + x;
+                        if (index < ingredients.size()) {
+                            ingredientsPayload.set(y * 3 + x, convertIngredientToMap(ingredients.get(index)));
+                        }
                     }
                 }
             }
-        } else if (recipe instanceof ShapelessRecipe) {
-            for (int i = 0; i < ingredients.size() && i < 9; i++) {
-                Ingredient ingredient = ingredients.get(i);
-                if (!ingredient.isEmpty()) {
-                    ItemStack firstStack = ingredient.getItems()[0];
-                    String ingredientId = BuiltInRegistries.ITEM.getKey(firstStack.getItem()).toString();
-                    ingredientsPayload.set(i, Map.of("item", ingredientId, "count", 1));
+            else if (recipe instanceof ShapelessRecipe) {
+                for (int i = 0; i < ingredients.size() && i < 9; i++) {
+                    ingredientsPayload.set(i, convertIngredientToMap(ingredients.get(i)));
                 }
             }
-        } else {
+            // Mystical Agriculture Pattern
+            else if (typeId.contains("infusion") || className.contains("InfusionRecipe")) {
+                if (!ingredients.isEmpty()) {
+                    ingredientsPayload.set(4, convertIngredientToMap(ingredients.get(0)));
+
+                    int[] surroundingSlots = {0, 1, 2, 3, 5, 6, 7, 8};
+
+                    for (int i = 1; i < ingredients.size() && i <= 8; i++) {
+                        int gridIndex = surroundingSlots[i - 1];
+                        ingredientsPayload.set(gridIndex, convertIngredientToMap(ingredients.get(i)));
+                    }
+                }
+            }
+            else {
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
 
@@ -169,6 +195,36 @@ public class AddUnlockCommand {
         return payload;
     }
 
+    @Nullable
+    private static Map<String, Object> convertIngredientToMap(Ingredient ingredient) {
+        if (ingredient.isEmpty()) return null;
+        ItemStack[] items = ingredient.getItems();
+        if (items.length == 0) return null;
+
+        ItemStack firstStack = items[0];
+        String ingredientId = BuiltInRegistries.ITEM.getKey(firstStack.getItem()).toString();
+        return Map.of("item", ingredientId, "count", 1);
+    }
+
+    public static String getAvailableRecipeTypesDebug(Collection<RecipeHolder<?>> allRecipes, ItemStack targetItem, Level level) {
+        RegistryAccess registryAccess = level.registryAccess();
+        StringBuilder debugMsg = new StringBuilder();
+        List<RecipeHolder<?>> matchingRecipes = allRecipes.stream()
+                .filter(r -> {
+                    ItemStack result = r.value().getResultItem(registryAccess);
+                    return result != null && !result.isEmpty() && ItemStack.isSameItem(result, targetItem);
+                })
+                .toList();
+
+        if (matchingRecipes.isEmpty()) return "§c[DEBUG] No recipes found.";
+
+        debugMsg.append("§e[DEBUG] Found ").append(matchingRecipes.size()).append(" potential recipe(s):\n");
+        for (RecipeHolder<?> holder : matchingRecipes) {
+            debugMsg.append("§7- ID: ").append(holder.id()).append("\n");
+            debugMsg.append("  Type: ").append(holder.value().getType()).append("\n");
+        }
+        return debugMsg.toString();
+    }
 
     private static String generateDisplayName(String itemId) {
         String path = itemId.substring(itemId.indexOf(':') + 1);

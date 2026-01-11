@@ -1,6 +1,5 @@
 package fr.thegostsniperfr.arffornia.client.screen;
 
-
 import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
@@ -69,6 +68,12 @@ public class ProgressionGraphScreen extends Screen {
 
     // --- DATA STRUCTURES ---
     private final Set<Integer> availableMilestones = new HashSet<>();
+
+    // Cached lists to avoid sorting links every frame
+    private final List<NodeLink> cachedLockedLinks = new ArrayList<>();
+    private final List<NodeLink> cachedAvailableLinks = new ArrayList<>();
+    private final List<NodeLink> cachedCompletedLinks = new ArrayList<>();
+
     /**
      * The list of all nodes currently loaded from the API.
      */
@@ -182,6 +187,9 @@ public class ProgressionGraphScreen extends Screen {
 
                 calculateAvailableMilestones();
 
+                // Populate the cache so links are visible
+                updateLinkCache();
+
                 this.status = LoadingStatus.IDLE;
 
                 if (this.currentTargetId != null) {
@@ -205,6 +213,29 @@ public class ProgressionGraphScreen extends Screen {
             // If the parent is completed but the child is not, the child becomes available.
             if (this.completedMilestones.contains(link.sourceId()) && !this.completedMilestones.contains(link.targetId())) {
                 this.availableMilestones.add(link.targetId());
+            }
+        }
+    }
+
+    /**
+     * Recalculates the cached link lists to avoid sorting them every frame.
+     * This should be called whenever completion data or graph structure changes.
+     */
+    private void updateLinkCache() {
+        this.cachedLockedLinks.clear();
+        this.cachedAvailableLinks.clear();
+        this.cachedCompletedLinks.clear();
+
+        for (NodeLink link : this.links) {
+            boolean sourceCompleted = this.completedMilestones.contains(link.sourceId());
+            boolean targetCompleted = this.completedMilestones.contains(link.targetId());
+
+            if (sourceCompleted && targetCompleted) {
+                this.cachedCompletedLinks.add(link);
+            } else if (sourceCompleted && !targetCompleted) {
+                this.cachedAvailableLinks.add(link);
+            } else {
+                this.cachedLockedLinks.add(link);
             }
         }
     }
@@ -296,36 +327,34 @@ public class ProgressionGraphScreen extends Screen {
     }
 
     private void drawConnections(GuiGraphics guiGraphics) {
-        List<NodeLink> lockedLinks = new ArrayList<>();
-        List<NodeLink> availableLinks = new ArrayList<>();
-        List<NodeLink> completedLinks = new ArrayList<>();
-
-        for (NodeLink link : this.links) {
-            ProgressionNode source = nodeMap.get(link.sourceId());
-            ProgressionNode target = nodeMap.get(link.targetId());
-            if (source == null || target == null) continue;
-
-            if (completedMilestones.contains(source.id()) && completedMilestones.contains(target.id())) {
-                completedLinks.add(link);
-            } else if (completedMilestones.contains(source.id()) && !completedMilestones.contains(target.id())) {
-                availableLinks.add(link);
-            } else {
-                lockedLinks.add(link);
-            }
-        }
-
-        drawLinkList(guiGraphics, lockedLinks, COLOR_LINK_LOCKED);
-        drawLinkList(guiGraphics, availableLinks, COLOR_LINK_AVAILABLE);
-        drawLinkList(guiGraphics, completedLinks, COLOR_LINK_COMPLETED);
+        // Cached lists are populated in loadGraphData and updated if necessary
+        drawLinkList(guiGraphics, cachedLockedLinks, COLOR_LINK_LOCKED);
+        drawLinkList(guiGraphics, cachedAvailableLinks, COLOR_LINK_AVAILABLE);
+        drawLinkList(guiGraphics, cachedCompletedLinks, COLOR_LINK_COMPLETED);
     }
 
     // --- DRAWING METHODS ---
 
     private void drawLinkList(GuiGraphics guiGraphics, List<NodeLink> linkList, int color) {
+        // Safety margin for culling (drawing slightly outside screen is fine, drawing way outside is wasteful)
+        int margin = 100;
+
         for (NodeLink link : linkList) {
             ProgressionNode source = nodeMap.get(link.sourceId());
             ProgressionNode target = nodeMap.get(link.targetId());
             if (source == null || target == null) continue;
+
+            Vector2i start = getScreenPosForNode(source);
+            Vector2i end = getScreenPosForNode(target);
+
+            // Occlusion culling check
+            // If both points are far outside the screen, skip drawing completely
+            boolean startVisible = start.x > -margin && start.x < width + margin && start.y > -margin && start.y < height + margin;
+            boolean endVisible = end.x > -margin && end.x < width + margin && end.y > -margin && end.y < height + margin;
+
+            if (!startVisible && !endVisible) {
+                continue;
+            }
 
             if (source.gridX() == target.gridX() || source.gridY() == target.gridY()) {
                 drawStraightLine(guiGraphics, source, target, color);
@@ -404,6 +433,23 @@ public class ProgressionGraphScreen extends Screen {
 
     private void drawThickLine(GuiGraphics guiGraphics, Vector2i p1, Vector2i p2, int thickness, int color) {
         int x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
+
+        if (x1 == x2) {
+            // Vertical Line
+            int minY = Math.min(y1, y2);
+            int maxY = Math.max(y1, y2);
+            // + thickness % 2 ensures odd thicknesses render centered
+            guiGraphics.fill(x1 - thickness / 2, minY - thickness / 2, x1 + thickness / 2 + thickness % 2, maxY + thickness / 2, color);
+            return;
+        } else if (y1 == y2) {
+            // Horizontal Line
+            int minX = Math.min(x1, x2);
+            int maxX = Math.max(x1, x2);
+            guiGraphics.fill(minX - thickness / 2, y1 - thickness / 2, maxX + thickness / 2, y1 + thickness / 2 + thickness % 2, color);
+            return;
+        }
+
+        // Fallback: Bresenham's algorithm for diagonal lines
         int dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
         int sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
         int err = dx - dy;
@@ -755,6 +801,11 @@ public class ProgressionGraphScreen extends Screen {
         this.currentTargetId = newTargetId;
 
         updateClientData();
+
+        // Refresh cache to ensure visual link updates
+        calculateAvailableMilestones();
+        updateLinkCache();
+
         updateTargetButtonState();
     }
 

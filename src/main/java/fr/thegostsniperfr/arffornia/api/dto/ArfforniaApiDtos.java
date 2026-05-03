@@ -16,6 +16,7 @@ public class ArfforniaApiDtos {
      * Maps to the root JSON object from the main graph endpoint.
      */
     public record GraphData(
+            List<GraphDefinition> graphs,
             List<ApiMilestone> milestones,
             @SerializedName("milestone_closure") List<ApiMilestoneClosure> milestoneClosure,
             @SerializedName("playerProgress") PlayerProgress playerProgress
@@ -36,17 +37,24 @@ public class ArfforniaApiDtos {
     ) {
     }
 
+    public record GraphDefinition(
+            int id,
+            String name,
+            @SerializedName("icon_item_id") String iconItemId,
+            List<String> categories
+    ) {
+    }
+
     /**
      * Maps to a single milestone object in the main graph list.
      */
     public record ApiMilestone(
             int id,
-            @SerializedName("icon_type")
-            String iconType,
+            @SerializedName("icon_type") String iconType,
             int x,
             int y,
-            @SerializedName("stage_number")
-            int stageNumber
+            @SerializedName("stage_number") int stageNumber,
+            @SerializedName("graph_id") int graphId
     ) {
     }
 

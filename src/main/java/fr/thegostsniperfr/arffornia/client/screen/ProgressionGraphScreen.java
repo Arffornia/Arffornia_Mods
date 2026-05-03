@@ -19,6 +19,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
@@ -108,6 +109,10 @@ public class ProgressionGraphScreen extends Screen {
     private int maxStageNumber = 1;
     private Button setTargetButton;
 
+    private List<ArfforniaApiDtos.GraphDefinition> graphs = Collections.emptyList();
+    private int currentGraphId = -1;
+    private Map<String, List<ArfforniaApiDtos.GraphDefinition>> categorizedGraphs = new LinkedHashMap<>();
+
     public ProgressionGraphScreen() {
         super(Component.empty());
     }
@@ -171,8 +176,23 @@ public class ProgressionGraphScreen extends Screen {
                     return;
                 }
 
+                this.graphs = playerData.graphs() != null ? playerData.graphs() : Collections.emptyList();
+                this.categorizedGraphs.clear();
+                for (var graph : this.graphs) {
+                    List<String> cats = (graph.categories() == null || graph.categories().isEmpty()) ? List.of("General") : graph.categories();
+                    for (String cat : cats) {
+                        this.categorizedGraphs.computeIfAbsent(cat, k -> new ArrayList<>()).add(graph);
+                    }
+                }
+
+                if (ClientProgressionData.lastGraphId != -1) {
+                    this.currentGraphId = ClientProgressionData.lastGraphId;
+                } else if (!this.graphs.isEmpty()) {
+                    this.currentGraphId = this.graphs.get(0).id();
+                }
+
                 this.nodes = playerData.milestones().stream()
-                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(), m.stageNumber()))
+                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(), m.stageNumber(), m.graphId()))
                         .collect(Collectors.toList());
 
                 this.links = playerData.milestoneClosure().stream()
@@ -267,10 +287,36 @@ public class ProgressionGraphScreen extends Screen {
         this.drawConnections(guiGraphics);
         this.drawNodes(guiGraphics);
 
+        this.drawSidebar(guiGraphics, mouseX, mouseY);
+
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         if (this.selectedNode != null) {
             this.drawInfoPanel(guiGraphics, this.selectedNode);
+        }
+    }
+
+    private void drawSidebar(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        int sidebarWidth = 160;
+        guiGraphics.fill(0, 0, sidebarWidth, this.height, 0xDD111111);
+
+        int currentY = 10;
+        for (Map.Entry<String, List<ArfforniaApiDtos.GraphDefinition>> entry : categorizedGraphs.entrySet()) {
+            guiGraphics.drawString(this.font, entry.getKey(), 10, currentY, 0xFFFFAA00);
+            currentY += 15;
+
+            for (ArfforniaApiDtos.GraphDefinition graph : entry.getValue()) {
+                int bgColor = (graph.id() == this.currentGraphId) ? 0x88FF7300 : 0x00000000;
+                guiGraphics.fill(0, currentY - 2, sidebarWidth, currentY + 16, bgColor);
+
+                Item iconItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(graph.iconItemId()));
+                guiGraphics.renderItem(new ItemStack(iconItem), 5, currentY - 2);
+
+                guiGraphics.drawString(this.font, graph.name(), 25, currentY + 2, 0xFFFFFFFF);
+
+                currentY += 20;
+            }
+            currentY += 5;
         }
     }
 
@@ -342,7 +388,7 @@ public class ProgressionGraphScreen extends Screen {
         for (NodeLink link : linkList) {
             ProgressionNode source = nodeMap.get(link.sourceId());
             ProgressionNode target = nodeMap.get(link.targetId());
-            if (source == null || target == null) continue;
+            if (source == null || target == null || source.graphId() != this.currentGraphId) continue;
 
             Vector2i start = getScreenPosForNode(source);
             Vector2i end = getScreenPosForNode(target);
@@ -366,6 +412,8 @@ public class ProgressionGraphScreen extends Screen {
 
     private void drawNodes(GuiGraphics guiGraphics) {
         for (ProgressionNode node : nodes) {
+            if (node.graphId() != this.currentGraphId) continue;
+
             Vector2i nodePos = getScreenPosForNode(node);
             int nodeDiameter = (int) (BASE_NODE_DIAMETER * this.zoom);
             int iconDiameter = (int) (BASE_ICON_DIAMETER * this.zoom);
@@ -558,6 +606,26 @@ public class ProgressionGraphScreen extends Screen {
         }
 
         if (button == 0) {
+            int sidebarWidth = 160;
+            if (mouseX <= sidebarWidth) {
+                int currentY = 10;
+                for (Map.Entry<String, List<ArfforniaApiDtos.GraphDefinition>> entry : categorizedGraphs.entrySet()) {
+                    currentY += 15;
+                    for (ArfforniaApiDtos.GraphDefinition graph : entry.getValue()) {
+                        if (mouseY >= currentY - 2 && mouseY <= currentY + 16) {
+                            this.currentGraphId = graph.id();
+                            ClientProgressionData.lastGraphId = this.currentGraphId;
+                            this.centerOnRoot();
+                            SoundUtils.playClickSound();
+                            return true;
+                        }
+                        currentY += 20;
+                    }
+                    currentY += 5;
+                }
+                return true;
+            }
+
             if (this.selectedNode != null) {
                 int panelWidth = 170;
                 int panelX = this.width - panelWidth - 20;
@@ -577,6 +645,8 @@ public class ProgressionGraphScreen extends Screen {
             double mouseWorldY = (mouseY + this.cameraY) / this.zoom;
 
             for (ProgressionNode node : nodes) {
+                if (node.graphId() != this.currentGraphId) continue;
+
                 double nodeWorldX = node.gridX() * BASE_GRID_CELL_SPACING;
                 double nodeWorldY = node.gridY() * BASE_GRID_CELL_SPACING;
 
@@ -620,7 +690,7 @@ public class ProgressionGraphScreen extends Screen {
                 this.selectedNodeDetails = details;
 
                 this.nodes = this.nodes.stream()
-                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType(), n.stageNumber()) : n)
+                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType(), n.stageNumber(), n.graphId()) : n)
                         .collect(Collectors.toList());
 
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
@@ -696,15 +766,10 @@ public class ProgressionGraphScreen extends Screen {
         this.clearWidgets();
 
         ImageButton homeButton = new ImageButton(
-                10, 10, 30, 30,
+                170, 10, 30, 30,
                 new WidgetSprites(TEX_HOME_BUTTON, TEX_HOME_BUTTON),
                 (button) -> {
-                    this.cameraX = 0;
-                    this.cameraY = 0;
-                    this.zoom = 1.0f;
-                    ClientProgressionData.lastCameraX = 0;
-                    ClientProgressionData.lastCameraY = 0;
-                    ClientProgressionData.lastZoom = 1.0f;
+                    this.centerOnRoot();
                     SoundUtils.playClickSound();
                 },
                 Component.translatable("gui.arffornia.reset_view")
@@ -823,12 +888,36 @@ public class ProgressionGraphScreen extends Screen {
      * Represents a single, fully-detailed node in the progression graph.
      */
     public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType,
-                                  int stageNumber) {
+                                  int stageNumber, int graphId) {
     }
 
     /**
      * Represents a directed link between two nodes by their IDs.
      */
     public record NodeLink(int sourceId, int targetId) {
+    }
+
+    private void centerOnRoot() {
+        Optional<ProgressionNode> rootNode = nodes.stream()
+                .filter(n -> n.graphId() == this.currentGraphId && n.stageNumber() == 1)
+                .findFirst();
+
+        if (rootNode.isPresent()) {
+            ProgressionNode root = rootNode.get();
+
+            double worldX = root.gridX() * BASE_GRID_CELL_SPACING;
+            double worldY = root.gridY() * BASE_GRID_CELL_SPACING;
+
+            float targetScreenX = this.width * 0.2f;
+            float targetScreenY = this.height * 0.5f;
+
+            this.zoom = 1.0f;
+            this.cameraX = (worldX * this.zoom) - targetScreenX;
+            this.cameraY = (worldY * this.zoom) - targetScreenY;
+
+            ClientProgressionData.lastCameraX = this.cameraX;
+            ClientProgressionData.lastCameraY = this.cameraY;
+            ClientProgressionData.lastZoom = this.zoom;
+        }
     }
 }

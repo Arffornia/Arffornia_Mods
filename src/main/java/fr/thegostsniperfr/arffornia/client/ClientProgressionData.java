@@ -10,4 +10,6 @@ public class ClientProgressionData {
     public static double lastCameraY = 0;
 
     public static float lastZoom = 1.0f;
+
+    public static int lastGraphId = -1;
 }

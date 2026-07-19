@@ -130,6 +130,40 @@ public class ArfforniaApiService {
     }
 
     /**
+     * Update Player Streak if this is their first connection of the day.
+     *
+     * @param playerUuid The UUID of the player.
+     * @return A CompletableFuture containing if it's the first connection of the day by the player.
+     */
+    public CompletableFuture<ArfforniaApiDtos.DayStreakData> updatePlayerStreak(String playerUuid) {
+        return getServiceAuthToken().thenCompose(token -> {
+            if (token == null) {
+                Arffornia.LOGGER.warn("Cannot send player streak update, no auth token available.");
+                return CompletableFuture.completedFuture(null);
+            }
+
+            JsonObject body = new JsonObject();
+            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
+
+            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/day-streak"), token, gson.toJson(body));
+
+            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        if (response.statusCode() != 200) {
+                            Arffornia.LOGGER.error("API call to player streak update failed with status: {}", response.statusCode());
+                            return null;
+                        }
+
+                        return gson.fromJson(response.body(), ArfforniaApiDtos.DayStreakData.class);
+                    })
+                    .exceptionally(ex -> {
+                        Arffornia.LOGGER.error("Failed to update player day streak data from API for UUID {}: {}", playerUuid, ex.getMessage());
+                        return null;
+                    });
+        });
+    }
+
+    /**
      * Fetches the detailed information for a single milestone asynchronously.
      *
      * @param nodeId The ID of the node to fetch.
@@ -618,5 +652,4 @@ public class ArfforniaApiService {
             return sendRequestAndCheckSuccess(request, "moveMilestoneItem", null);
         });
     }
-
 }

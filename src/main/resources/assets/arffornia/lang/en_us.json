@@ -9,5 +9,10 @@
   "item.arffornia.wrench": "Wrench",
   "block.arffornia.crafter_block": "Crafter Block",
   "block.arffornia.space_elevator": "Space Elevator",
-  "creativetab.arffornia_tab": "Arffornia"
+  "creativetab.arffornia_tab": "Arffornia",
+
+  "item.arffornia.epic_key": "Epic Key",
+  "item.arffornia.streak_key": "Streak Key",
+  "block.arffornia.loot_box": "Loot Box",
+  "block.arffornia.streak_box": "Daily Streak Box"
 }

@@ -1,7 +1,9 @@
 package fr.thegostsniperfr.arffornia;
 
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
+import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.renderer.BoxRenderer;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
 import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
@@ -14,6 +16,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModLoadingContext;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
@@ -49,5 +52,10 @@ public class ArfforniaClient {
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(Keybindings.OPEN_GRAPH_KEY);
+    }
+
+    @SubscribeEvent
+    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(ModBlockEntities.LOOT_BOX_BE.get(), BoxRenderer::new);
     }
 }

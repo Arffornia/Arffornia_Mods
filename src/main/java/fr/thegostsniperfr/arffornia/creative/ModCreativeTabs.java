@@ -23,6 +23,11 @@ public class ModCreativeTabs {
                         output.accept(ModItems.WRENCH.get());
                         output.accept(ModBlocks.CRAFTER_BLOCK.get());
                         output.accept(ModBlocks.SPACE_ELEVATOR.get());
+
+                        // Lootbox items
+                        output.accept(ModBlocks.LOOT_BOX.get());
+                        output.accept(ModItems.EPIC_KEY.get());
+                        output.accept(ModItems.STREAK_KEY.get());
                     })
                     .build());
 

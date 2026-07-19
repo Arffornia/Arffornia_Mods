@@ -24,5 +24,8 @@ public class ModMenuTypes {
             MENUS.register("crafter_menu",
                     () -> IMenuTypeExtension.create(CrafterMenu::new));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<PreviewMenu>> PREVIEW_MENU =
+            MENUS.register("preview_menu",
+                    () -> IMenuTypeExtension.create(PreviewMenu::new));
 
 }

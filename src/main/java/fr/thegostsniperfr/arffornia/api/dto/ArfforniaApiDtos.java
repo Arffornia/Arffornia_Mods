@@ -37,6 +37,12 @@ public class ArfforniaApiDtos {
     ) {
     }
 
+    public record DayStreakData(
+            @SerializedName("day_streak")int dayStreak,
+            @SerializedName("is_first_day_connection") boolean isFirstDayConnection
+    ) {
+    }
+
     public record GraphDefinition(
             int id,
             String name,

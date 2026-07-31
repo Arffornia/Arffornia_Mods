@@ -54,7 +54,8 @@ public class ArfforniaApiDtos {
             int x,
             int y,
             @SerializedName("stage_number") int stageNumber,
-            @SerializedName("graph_id") int graphId
+            @SerializedName("graph_id") int graphId,
+            @SerializedName("first_unlock_item_id") @Nullable String firstUnlockItemId
     ) {
     }
 

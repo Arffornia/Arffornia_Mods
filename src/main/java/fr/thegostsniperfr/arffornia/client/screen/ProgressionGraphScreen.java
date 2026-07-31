@@ -21,6 +21,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2i;
@@ -192,7 +193,17 @@ public class ProgressionGraphScreen extends Screen {
                 }
 
                 this.nodes = playerData.milestones().stream()
-                        .map(m -> new ProgressionNode(m.id(), "Loading...", "", m.x(), m.y(), m.iconType(), m.stageNumber(), m.graphId()))
+                        .map(m -> new ProgressionNode(
+                                m.id(),
+                                "Loading...",
+                                "",
+                                m.x(),
+                                m.y(),
+                                m.iconType(),
+                                m.stageNumber(),
+                                m.graphId(),
+                                m.firstUnlockItemId()
+                        ))
                         .collect(Collectors.toList());
 
                 this.links = playerData.milestoneClosure().stream()
@@ -302,22 +313,67 @@ public class ProgressionGraphScreen extends Screen {
 
         int currentY = 10;
         for (Map.Entry<String, List<ArfforniaApiDtos.GraphDefinition>> entry : categorizedGraphs.entrySet()) {
-            guiGraphics.drawString(this.font, entry.getKey(), 10, currentY, 0xFFFFAA00);
-            currentY += 15;
+            List<ArfforniaApiDtos.GraphDefinition> categoryGraphs = entry.getValue();
 
-            for (ArfforniaApiDtos.GraphDefinition graph : entry.getValue()) {
-                int bgColor = (graph.id() == this.currentGraphId) ? 0x88FF7300 : 0x00000000;
-                guiGraphics.fill(0, currentY - 2, sidebarWidth, currentY + 16, bgColor);
-
-                Item iconItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(graph.iconItemId()));
-                guiGraphics.renderItem(new ItemStack(iconItem), 5, currentY - 2);
-
-                guiGraphics.drawString(this.font, graph.name(), 25, currentY + 2, 0xFFFFFFFF);
-
-                currentY += 20;
+            // --- 1. Category Header Icon ---
+            ItemStack categoryIconStack = ItemStack.EMPTY;
+            if (!categoryGraphs.isEmpty()) {
+                categoryIconStack = getGraphIconStack(categoryGraphs.get(0));
             }
-            currentY += 5;
+            if (categoryIconStack.isEmpty()) {
+                categoryIconStack = new ItemStack(Items.BOOK);
+            }
+
+            guiGraphics.renderItem(categoryIconStack, 6, currentY - 2);
+            guiGraphics.drawString(this.font, entry.getKey(), 26, currentY + 3, 0xFFFFAA00);
+            currentY += 22;
+
+            // --- 2. Individual Graph Entries ---
+            for (ArfforniaApiDtos.GraphDefinition graph : entry.getValue()) {
+                int bgColor = (graph.id() == this.currentGraphId) ? 0x88FF7300 : 0x22FFFFFF;
+                guiGraphics.fill(10, currentY - 2, sidebarWidth - 10, currentY + 18, bgColor);
+
+                // Resolve icon for this graph
+                ItemStack graphIconStack = getGraphIconStack(graph);
+                if (graphIconStack.isEmpty()) {
+                    graphIconStack = new ItemStack(Items.BOOK);
+                }
+
+                guiGraphics.renderItem(graphIconStack, 14, currentY);
+                guiGraphics.drawString(this.font, graph.name(), 34, currentY + 4, 0xFFFFFFFF);
+
+                currentY += 22;
+            }
+            currentY += 8;
         }
+    }
+
+    /**
+     * Resolves the icon for a graph by checking its first milestone's unlock item,
+     * matching the website's stages.js logic.
+     */
+    private ItemStack getGraphIconStack(ArfforniaApiDtos.GraphDefinition graph) {
+        // 1. Look for the first milestone in this graph that has an unlock item
+        Optional<ProgressionNode> firstMilestone = nodes.stream()
+                .filter(n -> n.graphId() == graph.id() && n.firstUnlockItemId() != null && !n.firstUnlockItemId().isEmpty())
+                .findFirst();
+
+        if (firstMilestone.isPresent()) {
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(firstMilestone.get().firstUnlockItemId()));
+            if (item != Items.AIR) {
+                return new ItemStack(item);
+            }
+        }
+
+        // 2. Fallback to custom icon_item_id if set (ignoring generic migration default)
+        if (graph.iconItemId() != null && !graph.iconItemId().isEmpty() && !graph.iconItemId().equals("minecraft:grass_block")) {
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(graph.iconItemId()));
+            if (item != Items.AIR) {
+                return new ItemStack(item);
+            }
+        }
+
+        return ItemStack.EMPTY;
     }
 
     /**
@@ -416,8 +472,8 @@ public class ProgressionGraphScreen extends Screen {
 
             Vector2i nodePos = getScreenPosForNode(node);
             int nodeDiameter = (int) (BASE_NODE_DIAMETER * this.zoom);
-            int iconDiameter = (int) (BASE_ICON_DIAMETER * this.zoom);
 
+            // Viewport culling: skip draw calls for nodes outside visible bounds
             if (nodePos.x + nodeDiameter / 2 < 0 || nodePos.x - nodeDiameter / 2 > this.width ||
                     nodePos.y + nodeDiameter / 2 < 0 || nodePos.y - nodeDiameter / 2 > this.height) {
                 continue;
@@ -426,7 +482,6 @@ public class ProgressionGraphScreen extends Screen {
             int nodeScreenX = nodePos.x - nodeDiameter / 2;
             int nodeScreenY = nodePos.y - nodeDiameter / 2;
 
-            ResourceLocation iconTexture = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/icons/" + node.iconType() + ".png");
             ResourceLocation backgroundTexture;
             boolean shouldAnimate = false;
 
@@ -441,6 +496,7 @@ public class ProgressionGraphScreen extends Screen {
                 backgroundTexture = TEX_NODE_LOCKED;
             }
 
+            // --- 1. Background Rendering ---
             if (shouldAnimate) {
                 guiGraphics.pose().pushPose();
                 guiGraphics.pose().translate(nodePos.x(), nodePos.y(), 0);
@@ -448,12 +504,42 @@ public class ProgressionGraphScreen extends Screen {
                 guiGraphics.pose().translate(-nodeDiameter / 2.0, -nodeDiameter / 2.0, 0);
 
                 guiGraphics.blit(backgroundTexture, 0, 0, 0, 0, nodeDiameter, nodeDiameter, nodeDiameter, nodeDiameter);
-                guiGraphics.blit(iconTexture, (nodeDiameter - iconDiameter) / 2, (nodeDiameter - iconDiameter) / 2, 0, 0, iconDiameter, iconDiameter, iconDiameter, iconDiameter);
 
                 guiGraphics.pose().popPose();
             } else {
                 guiGraphics.blit(backgroundTexture, nodeScreenX, nodeScreenY, 0, 0, nodeDiameter, nodeDiameter, nodeDiameter, nodeDiameter);
-                guiGraphics.blit(iconTexture, nodeScreenX + (nodeDiameter - iconDiameter) / 2, nodeScreenY + (nodeDiameter - iconDiameter) / 2, 0, 0, iconDiameter, iconDiameter, iconDiameter, iconDiameter);
+            }
+
+            // --- 2. Icon Rendering (Native ItemStack with PNG fallback) ---
+            ItemStack iconStack = ItemStack.EMPTY;
+            if (node.firstUnlockItemId() != null && !node.firstUnlockItemId().isEmpty()) {
+                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(node.firstUnlockItemId()));
+                if (item != Items.AIR) {
+                    iconStack = new ItemStack(item);
+                }
+            }
+
+            if (!iconStack.isEmpty()) {
+                guiGraphics.pose().pushPose();
+                // Z-level 100 keeps item models rendered on top of the node background
+                guiGraphics.pose().translate(nodePos.x(), nodePos.y(), 100);
+                guiGraphics.pose().scale(this.zoom * 1.3f, this.zoom * 1.3f, 1.0f);
+                // Default item render size is 16x16; (-8, -8) centers it on the node origin
+                guiGraphics.renderItem(iconStack, -8, -8);
+                guiGraphics.pose().popPose();
+            } else {
+                // Static 2D icon fallback when no unlocked item is assigned
+                ResourceLocation iconTexture = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/icons/" + node.iconType() + ".png");
+                int iconDiameter = (int) (BASE_ICON_DIAMETER * this.zoom);
+
+                guiGraphics.blit(
+                        iconTexture,
+                        nodePos.x() - iconDiameter / 2,
+                        nodePos.y() - iconDiameter / 2,
+                        0, 0,
+                        iconDiameter, iconDiameter,
+                        iconDiameter, iconDiameter
+                );
             }
         }
     }
@@ -690,7 +776,17 @@ public class ProgressionGraphScreen extends Screen {
                 this.selectedNodeDetails = details;
 
                 this.nodes = this.nodes.stream()
-                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(n.id(), details.name(), details.description(), n.gridX(), n.gridY(), n.iconType(), n.stageNumber(), n.graphId()) : n)
+                        .map(n -> (n.id() == nodeId) ? new ProgressionNode(
+                                n.id(),
+                                details.name(),
+                                details.description(),
+                                n.gridX(),
+                                n.gridY(),
+                                n.iconType(),
+                                n.stageNumber(),
+                                n.graphId(),
+                                n.firstUnlockItemId()
+                        ) : n)
                         .collect(Collectors.toList());
 
                 this.nodeMap = this.nodes.stream().collect(Collectors.toMap(ProgressionNode::id, node -> node));
@@ -887,8 +983,17 @@ public class ProgressionGraphScreen extends Screen {
     /**
      * Represents a single, fully-detailed node in the progression graph.
      */
-    public record ProgressionNode(int id, String name, String description, int gridX, int gridY, String iconType,
-                                  int stageNumber, int graphId) {
+    public record ProgressionNode(
+            int id,
+            String name,
+            String description,
+            int gridX,
+            int gridY,
+            String iconType,
+            int stageNumber,
+            int graphId,
+            @Nullable String firstUnlockItemId
+    ) {
     }
 
     /**

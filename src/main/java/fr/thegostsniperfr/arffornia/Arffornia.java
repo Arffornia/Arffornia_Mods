@@ -9,6 +9,7 @@ import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
+import fr.thegostsniperfr.arffornia.lootbox.LootBoxManager;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
@@ -98,6 +99,8 @@ public class Arffornia {
             Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
         }
+
+        LootBoxManager.load();
     }
 
     @SubscribeEvent
@@ -117,6 +120,7 @@ public class Arffornia {
      * 1. Ensure the player exists in the backend database.
      * 2. Once confirmed, proceed with caching their ID and checking for shop rewards.
      * 3. Fetch and send the current milestone target to the client.
+     * 4. Check Player Day Streak
      */
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -125,22 +129,19 @@ public class Arffornia {
                     .thenAccept(success -> {
                         if (success) {
                             this.rewardHandler.addPlayerToCache(player);
-                            this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
-                                if (hasRewards) {
-                                    player.getServer().execute(() -> {
-                                        player.sendSystemMessage(Component.literal("§aYou have pending rewards from the shop!"));
-                                        player.sendSystemMessage(Component.literal("§eType §b/arffornia shop claim_reward §eto receive them."));
-                                    });
-                                }
-                            });
 
                             // Fetch and send the current milestone target to the player
                             updateAndSendPlayerTarget(player);
 
+                            // 1. Update Player Streak
+                            updatePlayerStreak(player);
+
+                            // 2. Check Player Pending Rewards
+                            checkPlayerPendingReward(player);
+
                         } else {
                             player.getServer().execute(() -> {
-                                player.sendSystemMessage(Component.literal("§cWarning: Could not synchronize your progression data. Shop and progression features may be unavailable."));
-                                LOGGER.error("Failed to ensure player {} exists in the database.", player.getName().getString());
+                                player.sendSystemMessage(Component.literal("§cWarning: Could not synchronize your progression data."));
                             });
                         }
                     });
@@ -161,10 +162,15 @@ public class Arffornia {
                 int targetId = graphData.playerProgress().currentTargetId();
                 ArfforniaApiService.getInstance().fetchMilestoneDetails(targetId).thenAccept(details -> {
                     if (details != null) {
-                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(details.name()));
+                        player.getServer().execute(() -> {
+                            PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(details.name()));
+                        });
                     } else {
-                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Unknown Target"));
-                        LOGGER.warn("Could not fetch details for target milestone ID {} for player {}", targetId, player.getName().getString());
+                        player.getServer().execute(() -> {
+                            PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Unknown Target"));
+                            LOGGER.warn("Could not fetch details for target milestone ID {} for player {}", targetId, player.getName().getString());
+
+                        });
                     }
                 });
             } else {
@@ -176,6 +182,37 @@ public class Arffornia {
                 PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Error"));
             });
             return null;
+        });
+    }
+
+    /**
+     * Update Player Streak if this is their first connection of the day.
+     *
+     * @param player The player to update.
+     */
+    private void updatePlayerStreak(ServerPlayer player) {
+        ArfforniaApiService.getInstance().updatePlayerStreak(player.getUUID().toString()).thenAccept(dayStreakData -> {
+            if (dayStreakData == null) {
+                player.sendSystemMessage(Component.literal("§eAn error occurred while updating your streak. Please try again later or contact support if the issue persists."));
+            }
+            else if (dayStreakData.isFirstDayConnection()) {
+                player.sendSystemMessage(Component.literal("§aWelcome! You've reached a " + dayStreakData.dayStreak() + "-day streak!"));
+                player.sendSystemMessage(Component.literal("§eA Daily Streak Key has been added to your pending rewards!"));
+            }
+            else {
+                player.sendSystemMessage(Component.literal("§aWelcome back, " + player.getName().getString() + "!"));
+            }
+        });
+    }
+
+    private void checkPlayerPendingReward(ServerPlayer player) {
+        this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
+            if (hasRewards) {
+                player.getServer().execute(() -> {
+                    player.sendSystemMessage(Component.literal("§aYou have pending rewards!"));
+                    player.sendSystemMessage(Component.literal("§eType §b/arffornia shop claim_reward §eto receive them."));
+                });
+            }
         });
     }
 

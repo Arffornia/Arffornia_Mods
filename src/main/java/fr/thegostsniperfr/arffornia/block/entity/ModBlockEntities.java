@@ -27,4 +27,7 @@ public class ModBlockEntities {
                             ModBlocks.CRAFTER_BLOCK.get()).build(null));
 
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LootBoxBlockEntity>> LOOT_BOX_BE =
+            BLOCK_ENTITIES.register("loot_box", () ->
+                    BlockEntityType.Builder.of(LootBoxBlockEntity::new, ModBlocks.LOOT_BOX.get()).build(null));
 }

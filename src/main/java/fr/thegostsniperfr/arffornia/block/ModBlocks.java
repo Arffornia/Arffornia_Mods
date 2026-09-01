@@ -3,12 +3,14 @@ package fr.thegostsniperfr.arffornia.block;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterBlock;
 import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterPartBlock;
+import fr.thegostsniperfr.arffornia.block.lootbox.LootBoxBlock;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevator;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevatorPartBlock;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -25,6 +27,7 @@ public class ModBlocks {
     public static final DeferredBlock<Block> SPACE_ELEVATOR = registerBlock("space_elevator", SpaceElevator::new);
     public static final DeferredBlock<Block> SPACE_ELEVATOR_PART_BLOCK = BLOCKS.register("space_elevator_part_block", SpaceElevatorPartBlock::new);
 
+    public static final DeferredBlock<Block> LOOT_BOX = registerBlock("loot_box", () -> new LootBoxBlock(BlockBehaviour.Properties.of().strength(3.0f).requiresCorrectToolForDrops()));
 
     private static <T extends Block> DeferredBlock<T> registerBlock(String name, Supplier<T> block) {
         DeferredBlock<T> toReturn = BLOCKS.register(name, block);

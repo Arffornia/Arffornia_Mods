@@ -12,6 +12,12 @@ public class ModItems {
 
     public static final DeferredItem<Item> WRENCH = ITEMS.register("wrench", WrenchItem::new);
 
+    public static final DeferredItem<Item> EPIC_KEY = ITEMS.register("epic_key",
+            () -> new Item(new Item.Properties().stacksTo(64)));
+
+    public static final DeferredItem<Item> STREAK_KEY = ITEMS.register("streak_key",
+            () -> new Item(new Item.Properties().stacksTo(64)));
+
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);
     }

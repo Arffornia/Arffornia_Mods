@@ -50,6 +50,11 @@ public class CustomRecipeManager {
         });
     }
 
+    /** Adds or replaces one recipe in the server cache. Intended for GameTests only. */
+    public static void putRecipeForTesting(ArfforniaApiDtos.CustomRecipe recipe) {
+        RECIPES_BY_MILESTONE_UNLOCK_ID.put(recipe.milestoneUnlockId(), recipe);
+    }
+
     @Nullable
     public static ArfforniaApiDtos.CustomRecipe getRecipeByMilestoneUnlockId(int milestoneUnlockId) {
         return RECIPES_BY_MILESTONE_UNLOCK_ID.get(milestoneUnlockId);

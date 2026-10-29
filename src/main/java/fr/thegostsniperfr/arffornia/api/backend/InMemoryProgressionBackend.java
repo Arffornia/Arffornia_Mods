@@ -30,7 +30,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final Map<String, Integer> targetByPlayer = new ConcurrentHashMap<>();
     private final List<String> bannedRecipes = new CopyOnWriteArrayList<>();
     private final List<AddMilestoneCall> addMilestoneCalls = new CopyOnWriteArrayList<>();
-    private volatile boolean failAddMilestone = false;
+    private final Set<Integer> failingMilestones = ConcurrentHashMap.newKeySet();
 
     public static String compact(UUID uuid) {
         return uuid.toString().replace("-", "");
@@ -60,8 +60,10 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return this;
     }
 
-    public void setFailAddMilestone(boolean fail) {
-        this.failAddMilestone = fail;
+    /** Makes {@link #addMilestone} report failure for this milestone id (per id, so parallel tests do not interfere). */
+    public InMemoryProgressionBackend failAddMilestoneFor(int milestoneId) {
+        failingMilestones.add(milestoneId);
+        return this;
     }
 
     public boolean isCompleted(long progressionId, int milestoneId) {
@@ -99,7 +101,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
         addMilestoneCalls.add(new AddMilestoneCall(playerUuid, milestoneId));
         Long progressionId = activeProgressionByPlayer.get(compact(playerUuid));
-        if (failAddMilestone || progressionId == null) {
+        if (failingMilestones.contains(milestoneId) || progressionId == null) {
             return CompletableFuture.completedFuture(false);
         }
         completeMilestone(progressionId, milestoneId);

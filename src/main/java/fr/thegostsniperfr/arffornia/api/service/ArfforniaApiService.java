@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.ApiText;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.command.management.AddUnlockCommand;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
@@ -52,6 +53,12 @@ public class ArfforniaApiService {
     /**
      * Shuts down the migration executor service. Should be called on server stop.
      */
+    /** Adds {@code Accept-Language} for the given game language (no header when it is unknown). */
+    private static HttpRequest.Builder withLanguage(HttpRequest.Builder builder, @Nullable String minecraftLanguage) {
+        String tag = ApiText.toLanguageTag(minecraftLanguage);
+        return tag == null ? builder : builder.header(ApiText.ACCEPT_LANGUAGE, tag);
+    }
+
     public void shutdown() {
         migrationExecutor.shutdown();
     }
@@ -115,9 +122,18 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the player's specific progress data.
      */
     public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid) {
-        HttpRequest request = HttpRequest.newBuilder()
+        return fetchPlayerGraphData(playerUuid, null);
+    }
+
+    /**
+     * Same as {@link #fetchPlayerGraphData(String)}, asking the API for text in the player's language.
+     *
+     * @param minecraftLanguage the player's game language (e.g. {@code fr_fr}), or null for the API default.
+     */
+    public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid, @Nullable String minecraftLanguage) {
+        HttpRequest request = withLanguage(HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL.get() + "/stages/player/get/" + playerUuid))
-                .header("Accept", "application/json")
+                .header("Accept", "application/json"), minecraftLanguage)
                 .build();
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -136,9 +152,18 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the parsed milestone details.
      */
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId) {
-        HttpRequest request = HttpRequest.newBuilder()
+        return fetchMilestoneDetails(nodeId, null);
+    }
+
+    /**
+     * Same as {@link #fetchMilestoneDetails(int)}, asking the API for text in the player's language.
+     *
+     * @param minecraftLanguage the player's game language (e.g. {@code fr_fr}), or null for the API default.
+     */
+    public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId, @Nullable String minecraftLanguage) {
+        HttpRequest request = withLanguage(HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL.get() + "/milestone/get/" + nodeId))
-                .header("Accept", "application/json")
+                .header("Accept", "application/json"), minecraftLanguage)
                 .build();
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())

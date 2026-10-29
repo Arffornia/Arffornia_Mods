@@ -52,6 +52,8 @@ class LangFilesTest {
     /** Literals allowed because they are not language content (commands typed as-is). */
     private static final Set<String> ALLOWED_LITERALS = Set.of("/arffornia shop claim_reward");
     private static final Pattern FORMAT_ARG = Pattern.compile("%(?:\\d+\\$)?s");
+    /** An item name read from API data; it must be shown through ItemLabels.of(itemId, displayName). */
+    private static final Pattern API_ITEM_NAME = Pattern.compile("\\b\\w+\\.displayName\\(\\)");
 
     private static final Map<String, Map<String, String>> LANGS = new LinkedHashMap<>();
     private static final Map<Path, String> SOURCES = new LinkedHashMap<>();
@@ -161,6 +163,38 @@ class LangFilesTest {
             while (m.find()) {
                 if (!ALLOWED_LITERALS.contains(m.group(1))) {
                     problems.add(file + ": Component.literal(\"" + m.group(1) + "\"), use Component.translatable");
+                }
+            }
+        });
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
+
+    @Test
+    void modDescriptionIsTranslated() {
+        for (String locale : LOCALES) {
+            assertTrue(LANGS.get(locale).containsKey("fml.menu.mods.info.description.arffornia"),
+                    locale + ".json: missing the Mods-list description (fml.menu.mods.info.description.arffornia)");
+        }
+    }
+
+    /**
+     * API item display names are English text generated on the server. Screens show the game's own,
+     * translated item name and use the API value only as a fallback (ItemLabels.of).
+     */
+    @Test
+    void apiItemNamesAreShownThroughItemLabels() {
+        List<String> problems = new ArrayList<>();
+        SOURCES.forEach((file, source) -> {
+            if (!file.toString().replace('\\', '/').contains("/client/")) {
+                return;
+            }
+            String[] lines = source.split("\\R");
+            for (int i = 0; i < lines.length; i++) {
+                Matcher m = API_ITEM_NAME.matcher(lines[i]);
+                while (m.find()) {
+                    if (!lines[i].contains("ItemLabels.of(")) {
+                        problems.add(file + ":" + (i + 1) + ": " + m.group() + " shown raw, use ItemLabels.of(itemId, displayName)");
+                    }
                 }
             }
         });

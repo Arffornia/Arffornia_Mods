@@ -5,6 +5,7 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.client.ClientProgressionData;
+import fr.thegostsniperfr.arffornia.client.util.ItemLabels;
 import fr.thegostsniperfr.arffornia.client.util.SoundUtils;
 import fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket;
 import net.minecraft.ChatFormatting;
@@ -160,7 +161,7 @@ public class ProgressionGraphScreen extends Screen {
         this.status = LoadingStatus.LOADING_GRAPH;
         String playerUuid = Minecraft.getInstance().getUser().getProfileId().toString().replace("-", "");
 
-        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid).whenComplete((playerData, error) -> {
+        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid, selectedLanguage()).whenComplete((playerData, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;
@@ -655,9 +656,10 @@ public class ProgressionGraphScreen extends Screen {
             for (ArfforniaApiDtos.MilestoneUnlock unlock : this.selectedNodeDetails.unlocks()) {
                 ItemStack itemStack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(unlock.itemId())));
                 guiGraphics.renderItem(itemStack, panelX + padding, currentY);
+                Component itemName = ItemLabels.of(unlock.itemId(), unlock.displayName());
                 Component unlockLabel = unlock.shopPrice() != null
-                        ? Component.translatable("gui.arffornia.milestone.unlock_price", unlock.displayName(), String.valueOf(unlock.shopPrice()))
-                        : Component.literal(unlock.displayName());
+                        ? Component.translatable("gui.arffornia.milestone.unlock_price", itemName, String.valueOf(unlock.shopPrice()))
+                        : itemName;
                 guiGraphics.drawString(this.font, unlockLabel, panelX + padding + 20, currentY + 4, textColor);
                 currentY += 18;
             }
@@ -673,7 +675,7 @@ public class ProgressionGraphScreen extends Screen {
                 ItemStack itemStack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(req.itemId())), req.amount());
                 guiGraphics.renderItem(itemStack, panelX + padding, currentY);
                 guiGraphics.renderItemDecorations(this.font, itemStack, panelX + padding, currentY);
-                guiGraphics.drawString(this.font, req.displayName(), panelX + padding + 20, currentY + 4, textColor);
+                guiGraphics.drawString(this.font, ItemLabels.of(req.itemId(), req.displayName()), panelX + padding + 20, currentY + 4, textColor);
                 currentY += 18;
             }
         }
@@ -770,7 +772,7 @@ public class ProgressionGraphScreen extends Screen {
         this.status = LoadingStatus.LOADING_DETAILS;
         refreshWidgets();
 
-        ArfforniaApiService.getInstance().fetchMilestoneDetails(nodeId).whenComplete((details, error) -> {
+        ArfforniaApiService.getInstance().fetchMilestoneDetails(nodeId, selectedLanguage()).whenComplete((details, error) -> {
             Minecraft.getInstance().execute(() -> {
                 if (error != null) {
                     this.status = LoadingStatus.FAILED;
@@ -973,6 +975,11 @@ public class ProgressionGraphScreen extends Screen {
         updateLinkCache();
 
         updateTargetButtonState();
+    }
+
+    /** The game language picked by the player (e.g. {@code fr_fr}), sent to the API for translated content. */
+    private static String selectedLanguage() {
+        return Minecraft.getInstance().getLanguageManager().getSelected();
     }
 
     /** Category names come from the API; the implicit "no category" group uses a lang key. */

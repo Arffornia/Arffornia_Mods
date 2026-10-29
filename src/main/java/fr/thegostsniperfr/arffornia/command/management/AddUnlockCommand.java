@@ -1,5 +1,7 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -35,7 +37,7 @@ public class AddUnlockCommand {
                             ItemStack heldItemStack = player.getMainHandItem();
 
                             if (heldItemStack.isEmpty()) {
-                                context.getSource().sendFailure(Component.literal("§cYou must hold an item in your main hand."));
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.addunlock.no_item"));
                                 return 0;
                             }
 
@@ -44,9 +46,8 @@ public class AddUnlockCommand {
                             Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(allRecipes, heldItemStack, level);
 
                             if (recipeHolderOpt.isEmpty()) {
-                                context.getSource().sendFailure(Component.literal("§cNo compatible recipe found."));
-                                String debugInfo = getAvailableRecipeTypesDebug(allRecipes, heldItemStack, level);
-                                context.getSource().sendSystemMessage(Component.literal(debugInfo));
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.addunlock.no_recipe"));
+                                context.getSource().sendSystemMessage(getAvailableRecipeTypesDebug(allRecipes, heldItemStack, level));
                                 return 0;
                             }
 
@@ -55,7 +56,7 @@ public class AddUnlockCommand {
                             Map<String, Object> payload = convertRecipeToPayload(recipeHolder.value(), level.registryAccess());
 
                             if (payload == null) {
-                                context.getSource().sendFailure(Component.literal("§cUnsupported recipe format (Conversion failed): " + recipeHolder.value().getClass().getSimpleName()));
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.addunlock.unsupported", recipeHolder.value().getClass().getSimpleName()));
                                 return 0;
                             }
 
@@ -64,7 +65,7 @@ public class AddUnlockCommand {
                             String imagePath = generateImagePath(itemId);
                             List<String> recipesToBan = List.of(recipeHolder.id().toString());
 
-                            context.getSource().sendSystemMessage(Component.literal("§eRegistering unlock for '" + displayName + "' (" + recipeHolder.value().getClass().getSimpleName() + ")..."));
+                            context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.addunlock.registering", displayName, recipeHolder.value().getClass().getSimpleName()).withStyle(ChatFormatting.YELLOW));
 
                             @SuppressWarnings("unchecked")
                             CompletableFuture<Boolean> future = ArfforniaApiService.getInstance().addUnlockToMilestone(
@@ -79,9 +80,9 @@ public class AddUnlockCommand {
 
                             future.thenAcceptAsync(success -> {
                                 if (success) {
-                                    context.getSource().sendSystemMessage(Component.literal("§aSuccessfully registered item unlock and its recipe."));
+                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.addunlock.success").withStyle(ChatFormatting.GREEN));
                                 } else {
-                                    context.getSource().sendFailure(Component.literal("§cFailed to register item unlock. Check server logs."));
+                                    context.getSource().sendFailure(Component.translatable("commands.arffornia.addunlock.failed"));
                                 }
                             }, player.getServer());
 
@@ -206,9 +207,8 @@ public class AddUnlockCommand {
         return Map.of("item", ingredientId, "count", 1);
     }
 
-    public static String getAvailableRecipeTypesDebug(Collection<RecipeHolder<?>> allRecipes, ItemStack targetItem, Level level) {
+    public static Component getAvailableRecipeTypesDebug(Collection<RecipeHolder<?>> allRecipes, ItemStack targetItem, Level level) {
         RegistryAccess registryAccess = level.registryAccess();
-        StringBuilder debugMsg = new StringBuilder();
         List<RecipeHolder<?>> matchingRecipes = allRecipes.stream()
                 .filter(r -> {
                     ItemStack result = r.value().getResultItem(registryAccess);
@@ -216,14 +216,17 @@ public class AddUnlockCommand {
                 })
                 .toList();
 
-        if (matchingRecipes.isEmpty()) return "§c[DEBUG] No recipes found.";
-
-        debugMsg.append("§e[DEBUG] Found ").append(matchingRecipes.size()).append(" potential recipe(s):\n");
-        for (RecipeHolder<?> holder : matchingRecipes) {
-            debugMsg.append("§7- ID: ").append(holder.id()).append("\n");
-            debugMsg.append("  Type: ").append(holder.value().getType()).append("\n");
+        if (matchingRecipes.isEmpty()) {
+            return Component.translatable("commands.arffornia.addunlock.debug.none").withStyle(ChatFormatting.RED);
         }
-        return debugMsg.toString();
+
+        MutableComponent debugMsg = Component.translatable("commands.arffornia.addunlock.debug.found", matchingRecipes.size())
+                .withStyle(ChatFormatting.YELLOW);
+        for (RecipeHolder<?> holder : matchingRecipes) {
+            debugMsg.append("\n").append(Component.translatable("commands.arffornia.addunlock.debug.entry",
+                    holder.id().toString(), String.valueOf(holder.value().getType())).withStyle(ChatFormatting.GRAY));
+        }
+        return debugMsg;
     }
 
     private static String generateDisplayName(String itemId) {

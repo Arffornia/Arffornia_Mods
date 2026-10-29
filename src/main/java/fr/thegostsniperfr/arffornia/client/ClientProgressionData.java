@@ -1,7 +1,10 @@
 package fr.thegostsniperfr.arffornia.client;
 
+import net.minecraft.network.chat.Component;
+
 public class ClientProgressionData {
-    public static String currentMilestoneTarget = "No milestone";
+    /** Shown in the HUD; a literal milestone name from the API or a translatable fallback. */
+    public static Component currentMilestoneTarget = Component.translatable("hud.arffornia.target.none");
 
     public static boolean graphStateHasBeenSet = false;
 

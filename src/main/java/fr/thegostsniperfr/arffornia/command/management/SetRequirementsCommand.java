@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -35,12 +36,12 @@ public class SetRequirementsCommand {
 
                             // Check if the number of unique items exceeds the limit.
                             if (aggregatedItems.size() > 3) {
-                                context.getSource().sendFailure(Component.literal("§cYou can only set requirements for a maximum of 3 different item types at a time. Your inventory contains " + aggregatedItems.size() + "."));
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.setrequirements.too_many", aggregatedItems.size()));
                                 return 0;
                             }
 
                             if (aggregatedItems.isEmpty()) {
-                                context.getSource().sendFailure(Component.literal("§cYour inventory is empty. No requirements were set."));
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.setrequirements.empty"));
                                 return 0;
                             }
 
@@ -63,14 +64,14 @@ public class SetRequirementsCommand {
                             }
 
 
-                            context.getSource().sendSystemMessage(Component.literal("§eSending " + requirementsPayload.size() + " unique items (" + totalItems + " total) as new requirements for milestone " + milestoneId + "..."));
+                            context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.setrequirements.sending", requirementsPayload.size(), totalItems, milestoneId).withStyle(ChatFormatting.YELLOW));
 
                             ArfforniaApiService.getInstance().setMilestoneRequirements(milestoneId, requirementsPayload)
                                     .thenAcceptAsync(success -> {
                                         if (success) {
-                                            context.getSource().sendSystemMessage(Component.literal("§aSuccessfully updated requirements for milestone " + milestoneId + "."));
+                                            context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.setrequirements.success", milestoneId).withStyle(ChatFormatting.GREEN));
                                         } else {
-                                            context.getSource().sendFailure(Component.literal("§cFailed to update requirements. Check server logs."));
+                                            context.getSource().sendFailure(Component.translatable("commands.arffornia.setrequirements.failed"));
                                         }
                                     }, player.getServer());
 

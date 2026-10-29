@@ -1,0 +1,26 @@
+# Review depth by changed paths (read by .github/workflows/claude-review.yml from the base branch).
+# Per file: a deep path is always deep; a light path carves out of standard; anything else is `default`.
+# The PR takes the highest file level; more than escalate.lines_changed changed lines raises it one level.
+default: standard
+levels:
+  deep:
+    - "src/main/java/**/network/**"       # serverbound payloads: untrusted input
+    - "src/main/java/**/shop/**"          # rewards run console commands, JDBC to the website DB
+    - "src/main/java/**/api/**"           # service-account auth, HTTP to the website
+    - "src/main/java/**/config/**"
+    - "src/main/java/**/command/**"       # op-level commands
+    - "build.gradle"
+    - "settings.gradle"
+    - "gradle/**"
+    - ".github/workflows/**"
+    - "src/main/templates/**"
+  standard:
+    - "src/**"
+  light:
+    - "**/*.md"
+    - "docs/**"
+    - "src/main/resources/assets/**/lang/**"
+    - "src/main/resources/assets/**/textures/**"
+    - "src/test/**"
+escalate:
+  lines_changed: 400

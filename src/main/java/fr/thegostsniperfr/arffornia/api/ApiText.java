@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 
 /**
  * Helpers for text that comes from the Arffornia API (see the docs decision record
- * "Player-visible text in data and APIs", ADR 0008).
+ * "Player-visible text in data and APIs", ADR 0009).
  * <ul>
  *   <li>Requests made for a player carry that player's game language in {@code Accept-Language}, so the
  *       API can answer in it (the website falls back to English).</li>

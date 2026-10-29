@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.ChatFormatting;
@@ -180,7 +180,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         final int activeMilestoneId = details.id();
         final UUID creditedPlayer = this.ownerUuid;
 
-        ArfforniaApiService.getInstance().addMilestone(creditedPlayer, activeMilestoneId)
+        ProgressionBackends.get().addMilestone(creditedPlayer, activeMilestoneId)
                 .thenAcceptAsync(success -> {
                     if (success) {
                         Component playerName = player.getDisplayName();
@@ -217,7 +217,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
 
         this.isLaunching = true;
         String playerUuid = player.getUUID().toString().replace("-", "");
-        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAcceptAsync(playerData -> {
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAcceptAsync(playerData -> {
             this.isLaunching = false;
             if (isRemoved()) {
                 return;
@@ -318,7 +318,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         setChanged();
         String playerUuid = player.getUUID().toString().replace("-", "");
 
-        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAccept(playerData -> {
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAccept(playerData -> {
             if (playerData != null) {
                 this.linkedProgressionId = playerData.activeProgressionId();
                 Arffornia.LOGGER.info("Space Elevator at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);

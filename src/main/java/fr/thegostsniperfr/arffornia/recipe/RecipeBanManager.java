@@ -1,7 +1,7 @@
 package fr.thegostsniperfr.arffornia.recipe;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -39,7 +39,7 @@ public class RecipeBanManager {
                 // This part runs on a worker thread.
                 Arffornia.LOGGER.info("Fetching banned recipe list from API...");
                 try {
-                    return ArfforniaApiService.getInstance().fetchProgressionConfig().join().bannedRecipes()
+                    return ProgressionBackends.get().fetchProgressionConfig().join().bannedRecipes()
                             .stream()
                             .map(ResourceLocation::parse)
                             .collect(Collectors.toSet());

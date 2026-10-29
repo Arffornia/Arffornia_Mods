@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia;
 
 import com.mojang.logging.LogUtils;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
@@ -77,6 +78,11 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        if (ProgressionBackends.isFake()) {
+            // Offline/test mode: no website database, so no shop rewards and no /arffornia commands.
+            LOGGER.warn("In-memory progression backend active: shop rewards and /arffornia commands are disabled.");
+            return;
+        }
         this.databaseManager = new DatabaseManager();
         this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
@@ -94,7 +100,7 @@ public class Arffornia {
         }
 
 
-        if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
+        if (ApiConfig.MIGRATE_ON_STARTUP.get() && !ProgressionBackends.isFake() && !hasAttemptedMigration.getAndSet(true)) {
             Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
         }

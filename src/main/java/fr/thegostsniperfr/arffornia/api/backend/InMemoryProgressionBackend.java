@@ -12,12 +12,16 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * In-memory backend for GameTests and offline dev runs ({@code -Darffornia.backend=fake}).
- * All futures complete immediately. State is shared, so tests should use distinct ids.
+ * Reads complete immediately; {@link #addMilestone} completes after a short delay, like a network call.
+ * State is shared, so tests should use distinct ids.
  */
 public final class InMemoryProgressionBackend implements ProgressionBackend {
+    /** Delay applied to write calls to mimic network latency. */
+    private static final long ASYNC_DELAY_MS = 50;
 
     /** A recorded {@link #addMilestone} call. */
     public record AddMilestoneCall(UUID playerUuid, int milestoneId) {
@@ -97,15 +101,20 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return CompletableFuture.completedFuture(milestones.get(milestoneId));
     }
 
+    /**
+     * Completes asynchronously after a short delay, like the real HTTP call, so callers' in-flight guards are exercised.
+     */
     @Override
     public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
         addMilestoneCalls.add(new AddMilestoneCall(playerUuid, milestoneId));
-        Long progressionId = activeProgressionByPlayer.get(compact(playerUuid));
-        if (failingMilestones.contains(milestoneId) || progressionId == null) {
-            return CompletableFuture.completedFuture(false);
-        }
-        completeMilestone(progressionId, milestoneId);
-        return CompletableFuture.completedFuture(true);
+        return CompletableFuture.supplyAsync(() -> {
+            Long progressionId = activeProgressionByPlayer.get(compact(playerUuid));
+            if (failingMilestones.contains(milestoneId) || progressionId == null) {
+                return false;
+            }
+            completeMilestone(progressionId, milestoneId);
+            return true;
+        }, CompletableFuture.delayedExecutor(ASYNC_DELAY_MS, TimeUnit.MILLISECONDS));
     }
 
     @Override

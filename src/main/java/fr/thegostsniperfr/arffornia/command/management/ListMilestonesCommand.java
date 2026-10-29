@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import net.minecraft.commands.CommandSourceStack;
@@ -22,12 +23,12 @@ public class ListMilestonesCommand {
                             ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
                             CommandSourceStack source = context.getSource();
 
-                            source.sendSystemMessage(Component.literal("Fetching completed milestones for " + targetPlayer.getName().getString() + "..."));
+                            source.sendSystemMessage(Component.translatable("commands.arffornia.list.fetching", targetPlayer.getDisplayName()));
 
                             ArfforniaApiService.getInstance().listMilestones(targetPlayer.getUUID())
                                     .thenAccept(completedIds -> {
                                         if (completedIds == null || completedIds.isEmpty()) {
-                                            source.sendSystemMessage(Component.literal("§ePlayer " + targetPlayer.getName().getString() + " has no completed milestones."));
+                                            source.sendSystemMessage(Component.translatable("commands.arffornia.list.none", targetPlayer.getDisplayName()).withStyle(ChatFormatting.YELLOW));
                                             return;
                                         }
 
@@ -35,7 +36,7 @@ public class ListMilestonesCommand {
                                                 .map(String::valueOf)
                                                 .collect(Collectors.joining(", "));
 
-                                        source.sendSystemMessage(Component.literal("§aCompleted Milestones (" + completedIds.size() + "): §e" + idList));
+                                        source.sendSystemMessage(Component.translatable("commands.arffornia.list.result", completedIds.size(), Component.literal(idList).withStyle(ChatFormatting.YELLOW)).withStyle(ChatFormatting.GREEN));
                                     });
 
                             return 1;

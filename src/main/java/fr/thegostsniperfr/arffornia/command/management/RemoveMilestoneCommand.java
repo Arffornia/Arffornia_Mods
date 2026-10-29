@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -23,15 +24,15 @@ public class RemoveMilestoneCommand {
                                     int milestoneId = IntegerArgumentType.getInteger(context, "milestone_id");
                                     CommandSourceStack source = context.getSource();
 
-                                    source.sendSystemMessage(Component.literal("Requesting to remove milestone " + milestoneId + " from " + targetPlayer.getName().getString() + "..."));
+                                    source.sendSystemMessage(Component.translatable("commands.arffornia.remove.requesting", milestoneId, targetPlayer.getDisplayName()));
 
                                     ArfforniaApiService.getInstance().removeMilestone(targetPlayer.getUUID(), milestoneId)
                                             .thenAccept(success -> {
                                                 if (success) {
-                                                    source.sendSystemMessage(Component.literal("§aSuccessfully removed milestone."));
+                                                    source.sendSystemMessage(Component.translatable("commands.arffornia.remove.success").withStyle(ChatFormatting.GREEN));
                                                     // TODO: Send a network packet to the targetPlayer to notify their client of the change.
                                                 } else {
-                                                    source.sendSystemMessage(Component.literal("§cFailed to remove milestone. Check server logs for details."));
+                                                    source.sendSystemMessage(Component.translatable("commands.arffornia.remove.failed").withStyle(ChatFormatting.RED));
                                                 }
                                             });
 

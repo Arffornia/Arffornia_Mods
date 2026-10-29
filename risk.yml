@@ -1,5 +1,5 @@
-# Review depth by path (agent-kit templates/risk.yml schema, version 1). Read by the AI review
-# pipeline (.github/workflows/claude-review.yml, from the base branch), the `review` skill and humans.
+# Review depth by path (agent-kit templates/risk.yml schema, version 1). Read from the base branch by
+# the in-session review (`/arffornia:review`, run by the agent at the end of a task) and by humans.
 # First matching rule wins (top to bottom). Globs are relative to the repo root.
 # depth: light = skim; standard = every line, tests cover it; deep = every line, trace callers,
 #        try to break it. security: true = deep + threat review (adds the threat-model lens).

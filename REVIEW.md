@@ -1,7 +1,8 @@
 # REVIEW.md — Arffornia_Mods
 
-How to review a change in this repo, for AI reviewers (`/arffornia:review`, the
-`arffornia:reviewer` agent, `.github/workflows/claude-review.yml`) and humans.
+How to review a change in this repo, for the in-session review (`/arffornia:review`, which the
+agent-kit Stop hook asks for at the end of a task; the `arffornia:reviewer` agent on request)
+and for humans. There is no AI review in CI. Read from the base branch, never from the change.
 
 ## Output
 - First line: `Findings: N (blocking b, major m, minor k) · risk: high|medium|low`.

@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import fr.thegostsniperfr.arffornia.shop.ShopConfig;
+import fr.thegostsniperfr.arffornia.config.ServerSecretsConfig;
 
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -23,12 +23,18 @@ public class DatabaseManager {
     private final Gson gson = new Gson();
 
     public DatabaseManager() {
+        if (!ServerSecretsConfig.hasDatabaseSettings()) {
+            LOGGER.warn("No database settings in {} (dedicated server only). The shop and reward system is disabled.", ServerSecretsConfig.FILE_NAME);
+            this.dataSource = null;
+            return;
+        }
+
         HikariDataSource tempDataSource;
         try {
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl("jdbc:postgresql://" + ShopConfig.DB_HOST.get() + ":" + ShopConfig.DB_PORT.get() + "/" + ShopConfig.DB_DATABASE.get());
-            config.setUsername(ShopConfig.DB_USERNAME.get());
-            config.setPassword(ShopConfig.DB_PASSWORD.get());
+            config.setJdbcUrl("jdbc:postgresql://" + ServerSecretsConfig.dbHost() + ":" + ServerSecretsConfig.dbPort() + "/" + ServerSecretsConfig.dbDatabase());
+            config.setUsername(ServerSecretsConfig.dbUsername());
+            config.setPassword(ServerSecretsConfig.dbPassword());
             config.setMaximumPoolSize(5);
 
             tempDataSource = new HikariDataSource(config);

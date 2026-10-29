@@ -28,7 +28,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
+import fr.thegostsniperfr.arffornia.config.ServerSecretsConfig;
+
+import static fr.thegostsniperfr.arffornia.config.ApiConfig.API_BASE_URL;
 
 /**
  * Service class for handling all HTTP requests to the Arffornia web backend.
@@ -182,8 +184,13 @@ public class ArfforniaApiService {
             return CompletableFuture.completedFuture(serviceAuthToken.get());
         }
 
-        String clientId = API_CLIENT_ID.get();
-        String clientSecret = API_CLIENT_SECRET.get();
+        if (!ServerSecretsConfig.hasServiceCredentials()) {
+            Arffornia.LOGGER.error("No service account configured in {} (dedicated server only); authenticated API calls are disabled.", ServerSecretsConfig.FILE_NAME);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String clientId = ServerSecretsConfig.apiClientId();
+        String clientSecret = ServerSecretsConfig.apiClientSecret();
 
         JsonObject body = new JsonObject();
         body.addProperty("client_id", clientId);

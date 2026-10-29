@@ -6,7 +6,7 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
-import fr.thegostsniperfr.arffornia.config.ApiConfig;
+import fr.thegostsniperfr.arffornia.config.ServerSecretsConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
@@ -25,6 +25,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -66,6 +67,10 @@ public class Arffornia {
         NeoForge.EVENT_BUS.register(CustomRecipeManager.class);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
+        // Secrets are only registered (and the file only created) on a dedicated server.
+        if (ServerSecretsConfig.shouldRegister(FMLEnvironment.dist)) {
+            modContainer.registerConfig(ModConfig.Type.COMMON, ServerSecretsConfig.SPEC, ServerSecretsConfig.FILE_NAME);
+        }
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -94,7 +99,7 @@ public class Arffornia {
         }
 
 
-        if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
+        if (ServerSecretsConfig.migrateOnStartup() && !hasAttemptedMigration.getAndSet(true)) {
             Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
         }

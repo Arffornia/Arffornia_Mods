@@ -9,5 +9,8 @@
   "item.arffornia.wrench": "Wrench",
   "block.arffornia.crafter_block": "Crafter Block",
   "block.arffornia.space_elevator": "Space Elevator",
-  "creativetab.arffornia_tab": "Arffornia"
+  "creativetab.arffornia_tab": "Arffornia",
+
+  "gui.arffornia.reset_view": "Reset view",
+  "gui.arffornia.search_hint": "Search..."
 }

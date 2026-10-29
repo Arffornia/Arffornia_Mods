@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.recipe;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -22,7 +22,7 @@ public class CustomRecipeManager {
      */
     public static CompletableFuture<Void> loadRecipes() {
         Arffornia.LOGGER.info("Fetching custom recipes from Arffornia API...");
-        return ArfforniaApiService.getInstance().fetchAllCustomRecipes().thenAccept(recipes -> {
+        return ProgressionBackends.get().fetchAllCustomRecipes().thenAccept(recipes -> {
             RECIPES_BY_MILESTONE_UNLOCK_ID.clear();
             if (recipes != null && !recipes.isEmpty()) {
                 RECIPES_BY_MILESTONE_UNLOCK_ID.putAll(

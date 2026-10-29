@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia;
 
 import com.mojang.logging.LogUtils;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
@@ -76,6 +77,11 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        if (ProgressionBackends.isFake()) {
+            // Offline/test mode: no website database, so no shop rewards and no /arffornia commands.
+            LOGGER.warn("In-memory progression backend active: shop rewards and /arffornia commands are disabled.");
+            return;
+        }
         this.databaseManager = new DatabaseManager();
         this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);

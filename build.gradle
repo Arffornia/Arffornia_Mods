@@ -90,6 +90,8 @@ neoForge {
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // GameTests run against the in-memory ProgressionBackend, never the website.
+            systemProperty 'arffornia.backend', 'fake'
         }
 
         data {

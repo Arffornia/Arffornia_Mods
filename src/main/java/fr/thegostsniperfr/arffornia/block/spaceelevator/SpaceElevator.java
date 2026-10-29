@@ -3,7 +3,7 @@ package fr.thegostsniperfr.arffornia.block.spaceelevator;
 import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -142,7 +142,7 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
                     return InteractionResult.FAIL;
                 }
 
-                ArfforniaApiService.getInstance().fetchProgressionData(progressionId)
+                ProgressionBackends.get().fetchProgressionData(progressionId)
                         .thenCompose(progressionData -> {
                             if (progressionData == null) {
                                 Arffornia.LOGGER.warn("Failed to fetch progression data for ID {}", progressionId);
@@ -155,7 +155,7 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
                                 return CompletableFuture.completedFuture(new Object[]{progressionData, null});
                             }
 
-                            return ArfforniaApiService.getInstance().fetchMilestoneDetails(progressionData.currentMilestoneId())
+                            return ProgressionBackends.get().fetchMilestoneDetails(progressionData.currentMilestoneId())
                                     .thenApply(details -> new Object[]{progressionData, details});
                         })
                         .thenAcceptAsync(data -> {

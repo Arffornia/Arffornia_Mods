@@ -1,0 +1,16 @@
+{
+  "arffornia.configuration.title": "Configuration d'Arffornia",
+  "arffornia.configuration.section.arffornia.common.toml": "Configuration d'Arffornia",
+  "arffornia.configuration.section.arffornia.common.toml.title": "Configuration d'Arffornia",
+
+  "key.arffornia.open_graph": "Ouvrir le graphe de progression",
+  "key.category.arffornia": "Mod Arffornia",
+
+  "item.arffornia.wrench": "Clé",
+  "block.arffornia.crafter_block": "Bloc de fabrication",
+  "block.arffornia.space_elevator": "Ascenseur spatial",
+  "creativetab.arffornia_tab": "Arffornia",
+
+  "gui.arffornia.reset_view": "Réinitialiser la vue",
+  "gui.arffornia.search_hint": "Rechercher..."
+}

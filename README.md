@@ -35,18 +35,25 @@ The jar is written to `build/libs/arffornia.jar` (PostgreSQL driver and HikariCP
 All targets cap Gradle at 2 GB and disable the daemon; override with `GRADLE_ARGS=...`.
 
 ## Configuration
-One COMMON config file, `config/arffornia-common.toml`:
+Two config files:
+
+`config/arffornia-common.toml` (client and server, no secrets):
 
 | Section / key | Meaning |
 |---|---|
 | `api.baseUrl` | Website API base URL (prod `https://arffornia.com/api`) |
-| `api.clientId`, `api.clientSecret` | Website service-account credentials (server only; leave empty on clients) |
-| `api.migrateOnStartup` | Reverse-engineer and upload recipes for unlocked items at server start |
-| `database.host/port/database/username/password` | Website PostgreSQL, used for shop/vote rewards (server only) |
 
+`config/arffornia-server.toml` (created and read **only on a dedicated server**; clients never have it):
+
+| Section / key | Meaning |
+|---|---|
+| `api.clientId`, `api.clientSecret` | Website service-account credentials |
+| `api.migrateOnStartup` | Reverse-engineer and upload recipes for unlocked items at server start |
+| `database.host/port/database/username/password` | Website PostgreSQL, used for shop/vote rewards |
+
+With empty credentials the authenticated API calls and the shop/reward system stay disabled (logged at start).
 In production the server file is templated by
-[Arffornia_Provisioning](https://github.com/Arffornia/Arffornia_Provisioning) (`config/server/...`) and the client file
-ships with empty secrets (`config/launcher/...`). Never commit real values.
+[Arffornia_Provisioning](https://github.com/Arffornia/Arffornia_Provisioning) (`config/server/...`). Never commit real values.
 
 ## In-game commands
 `/arffornia progression ...` (admin: add/remove/list milestones, `addunlock`, set requirements, move items) and

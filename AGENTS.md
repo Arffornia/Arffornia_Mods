@@ -57,9 +57,10 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - Crafters/Elevators store the placer's active progression id at placement (async); `-1` means unlinked.
 - `space_elevator.json` needs SophisticatedStorage; FTB Teams/SophisticatedStorage are not declared in `mods.toml`.
 - `build.gradle` dev client run hardcodes a username/UUID.
-- The COMMON config is shipped to clients too: never add secrets to SERVER-type configs (they sync to clients).
+- Secrets go in `config/ServerSecretsConfig.java` (`arffornia-server.toml`, registered on `Dist.DEDICATED_SERVER` only). The COMMON
+  config is shipped to clients, and SERVER-type configs sync to clients: never put secrets in either.
 
 ## Related repos
 - `Arffornia_Website` — Laravel API and DB (`routes/api.php`), source of milestones/recipes/rewards.
-- `Arffornia_Provisioning` — server/launcher config templates (`arffornia-common.toml`) and mod list.
+- `Arffornia_Provisioning` — server/launcher config templates (`arffornia-common.toml`, `arffornia-server.toml`) and mod list.
 - `Arffornia_Proxy` — Velocity plugin forwarding votes. `Nexus_Mods` — owner's mod tooling library.

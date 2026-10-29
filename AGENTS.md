@@ -63,3 +63,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - `Arffornia_Website` — Laravel API and DB (`routes/api.php`), source of milestones/recipes/rewards.
 - `Arffornia_Provisioning` — server/launcher config templates (`arffornia-common.toml`) and mod list.
 - `Arffornia_Proxy` — Velocity plugin forwarding votes. `Nexus_Mods` — owner's mod tooling library.
+
+## AI harness (agent-kit v2)
+- `.claude/settings.json` (agent-kit plugin: hooks for fmt, `make check` and the end-of-task review gate; deny rules; sandbox), `.claude/rules/java-neoforge.md`. Harness friction or corrections → `/arffornia:harness-feedback`.
+- `REVIEW.md` + `risk.yml` drive the depth of the end-of-task review (`/arffornia:review`, in the session; no AI review in CI); `GOLDEN_PRINCIPLES.md`; `PROGRESS.md` is the session handoff.
+- Architecture guards: `src/test/java/.../architecture/ArchitectureTest.java` (runs in `make test`/`make check`);
+  pre-existing violations are frozen in `src/test/resources/archunit_store/`, which may only shrink.

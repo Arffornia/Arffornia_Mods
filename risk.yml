@@ -1,26 +1,42 @@
-# Review depth by changed paths (read by .github/workflows/claude-review.yml from the base branch).
-# Per file: a deep path is always deep; a light path carves out of standard; anything else is `default`.
-# The PR takes the highest file level; more than escalate.lines_changed changed lines raises it one level.
+# Review depth by path (agent-kit templates/risk.yml schema, version 1). Read by the AI review
+# pipeline (.github/workflows/claude-review.yml, from the base branch), the `review` skill and humans.
+# First matching rule wins (top to bottom). Globs are relative to the repo root.
+# depth: light = skim; standard = every line, tests cover it; deep = every line, trace callers,
+#        try to break it. security: true = deep + threat review (adds the threat-model lens).
+version: 1
 default: standard
-levels:
-  deep:
-    - "src/main/java/**/network/**"       # serverbound payloads: untrusted input
-    - "src/main/java/**/shop/**"          # rewards run console commands, JDBC to the website DB
-    - "src/main/java/**/api/**"           # service-account auth, HTTP to the website
-    - "src/main/java/**/config/**"
-    - "src/main/java/**/command/**"       # op-level commands
-    - "build.gradle"
-    - "settings.gradle"
-    - "gradle/**"
-    - ".github/workflows/**"
-    - "src/main/templates/**"
-  standard:
-    - "src/**"
-  light:
-    - "**/*.md"
-    - "docs/**"
-    - "src/main/resources/assets/**/lang/**"
-    - "src/main/resources/assets/**/textures/**"
-    - "src/test/**"
 escalate:
-  lines_changed: 400
+  lines_changed: 400   # a larger PR is raised one level
+
+rules:
+  - name: ci-and-build
+    depth: deep
+    security: true
+    paths: [".github/workflows/**", "build.gradle", "settings.gradle", "gradle.properties", "gradle/**", "src/main/templates/**"]
+  - name: network-payloads
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/network/**"]          # serverbound payloads: untrusted client input
+  - name: api-and-config
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/api/**", "src/main/java/**/config/**", "src/main/java/**/Config.java"]
+  - name: rewards-and-commands
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/shop/**", "src/main/java/**/command/**"]   # console commands, JDBC, op commands
+  - name: architecture-guards
+    depth: deep
+    paths: ["src/test/java/**/architecture/**", "src/test/resources/archunit_store/**", "src/test/resources/archunit.properties"]
+  - name: generated
+    depth: light
+    paths: ["src/generated/**", "gradle/wrapper/**"]
+  - name: assets
+    depth: light
+    paths: ["src/main/resources/assets/**/lang/**", "src/main/resources/assets/**/textures/**"]
+  - name: tests
+    depth: standard
+    paths: ["src/test/**"]
+  - name: docs
+    depth: light
+    paths: ["**/*.md", "docs/**", ".editorconfig", "LICENSE*"]

@@ -2,9 +2,7 @@ package fr.thegostsniperfr.arffornia.recipe;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -19,21 +17,12 @@ public class CustomRecipeManager {
     private static final Map<Integer, ArfforniaApiDtos.CustomRecipe> RECIPES_BY_MILESTONE_UNLOCK_ID = new ConcurrentHashMap<>();
 
     /**
-     * This event fires once the server is fully started and after migration is complete.
-     * This is the definitive time to load the custom recipes.
-     */
-    @SubscribeEvent
-    public static void onServerStarted(ServerStartedEvent event) {
-        loadRecipes();
-    }
-
-    /**
      * Fetches custom recipes from the API and caches them.
-     * This is called on server start and after a successful migration.
+     * Called once, asynchronously, from {@code Arffornia.onServerStarted}, and again after a migration run.
      */
     public static CompletableFuture<Void> loadRecipes() {
         Arffornia.LOGGER.info("Fetching custom recipes from Arffornia API...");
-        return ArfforniaApiService.getInstance().fetchAllCustomRecipes().thenAccept(recipes -> {
+        return ProgressionBackends.get().fetchAllCustomRecipes().thenAccept(recipes -> {
             RECIPES_BY_MILESTONE_UNLOCK_ID.clear();
             if (recipes != null && !recipes.isEmpty()) {
                 RECIPES_BY_MILESTONE_UNLOCK_ID.putAll(
@@ -48,6 +37,11 @@ public class CustomRecipeManager {
                 Arffornia.LOGGER.warn("No custom recipes were loaded from the API.");
             }
         });
+    }
+
+    /** Adds or replaces one recipe in the server cache. Intended for GameTests only. */
+    public static void putRecipeForTesting(ArfforniaApiDtos.CustomRecipe recipe) {
+        RECIPES_BY_MILESTONE_UNLOCK_ID.put(recipe.milestoneUnlockId(), recipe);
     }
 
     @Nullable

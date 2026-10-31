@@ -1,25 +1,69 @@
+# Arffornia (NeoForge mod)
 
-Installation information
-=======
+Official mod of the Arffornia Minecraft server (MC **1.21.1**, NeoForge **21.1.x**), installed on both the server and
+the client. It implements the progression gameplay: a graph of milestones (stages, unlocks, requirements) stored and
+edited on the Arffornia website, the **Space Elevator** that completes milestones from delivered items, the FE-powered
+**Crafter** that runs the custom recipes milestones unlock, recipe banning for gated items, shop/vote reward claiming,
+FTB Teams sync, a progression graph screen (key `G`), a HUD target label and JEI integration.
+It talks to the Laravel website API (`ApiConfig.baseUrl`) over HTTP.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Architecture docs (coming soon): https://arffornia.github.io/docs/
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Requirements
+- JDK 21 (Temurin recommended). Gradle is provided by the wrapper.
+- ~2 GB of RAM for Gradle; the first build downloads and decompiles Minecraft (several minutes).
+- Optional at runtime: FTB Teams (team sync), JEI (recipe view), SophisticatedStorage (Space Elevator recipe).
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+## Quickstart
+```sh
+make check          # ./gradlew build: compile, tests, jar
+make run-client     # dev client (runs/ is git-ignored)
+make run-server     # dev dedicated server
+```
+The jar is written to `build/libs/arffornia.jar` (PostgreSQL driver and HikariCP are embedded via jarJar).
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+## Commands
+| Command | What it does |
+|---|---|
+| `make check` | `./gradlew build` (what CI runs) |
+| `make build` | Build the jar only |
+| `make test` | JUnit tests |
+| `make gametest` | `runGameTestServer`, headless GameTests |
+| `make data` | Datagen into `src/generated/resources` |
+| `make run-client` / `make run-server` | Dev runs |
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+All targets cap Gradle at 2 GB and disable the daemon; override with `GRADLE_ARGS=...`.
+
+## Configuration
+One COMMON config file, `config/arffornia-common.toml`:
+
+| Section / key | Meaning |
+|---|---|
+| `api.baseUrl` | Website API base URL (prod `https://arffornia.com/api`) |
+| `api.clientId`, `api.clientSecret` | Website service-account credentials (server only; leave empty on clients) |
+| `api.migrateOnStartup` | Reverse-engineer and upload recipes for unlocked items at server start |
+| `database.host/port/database/username/password` | Website PostgreSQL, used for shop/vote rewards (server only) |
+
+In production the server file is templated by
+[Arffornia_Provisioning](https://github.com/Arffornia/Arffornia_Provisioning) (`config/server/...`) and the client file
+ships with empty secrets (`config/launcher/...`). Never commit real values.
+
+## In-game commands
+`/arffornia progression ...` (admin: add/remove/list milestones, `addunlock`, set requirements, move items) and
+`/arffornia shop claim_reward` (players). Permissions are checked in `util/Permissions.java`.
+
+## Release process
+Bump `mod_version` in `gradle.properties`, merge to `main`, then push a tag `vX.Y.Z`. The `Build` workflow runs
+`./gradlew githubRelease`, which attaches `arffornia.jar` to a GitHub release. Provisioning downloads that asset.
+
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Security issues: [SECURITY.md](SECURITY.md).
+
+## License
+Code: [MIT](LICENSE), © Brian Perret and Arffornia contributors.
+Textures, models and other art under `src/main/resources/assets/arffornia/`: [CC BY 4.0](LICENSE-ASSETS);
+credit "Brian Perret and Arffornia contributors".
+`TEMPLATE_LICENSE.txt` is the NeoForge MDK template's MIT license; it stays because the build files derive from the MDK.
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+Minecraft mappings are covered by the [Mojang mappings license](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md).

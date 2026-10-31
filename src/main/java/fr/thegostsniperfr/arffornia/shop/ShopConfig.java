@@ -29,10 +29,10 @@ public class ShopConfig {
         builder.comment("Shop and vote reward delivery").push("rewards");
 
         ALLOWED_REWARD_COMMANDS = builder
-                .comment("Command roots (first word, without '/') that stored reward commands may use, e.g. [\"give\"].",
+                .comment("Command roots (first word, without '/') that stored reward commands may use, e.g. [\"give\", \"lp\", \"say\"].",
                         "Any other reward command is refused and logged.",
                         "Stop-gap until rewards are delivered as structured data by the website API.")
-                .defineListAllowEmpty("allowedCommands", List.of("give"), () -> "give", o -> o instanceof String str && !str.isBlank());
+                .defineListAllowEmpty("allowedCommands", List.of("give", "lp", "say"), () -> "give", o -> o instanceof String str && !str.isBlank());
 
         builder.pop();
     }

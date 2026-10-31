@@ -1,7 +1,7 @@
 package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
+import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -25,11 +25,26 @@ public record ServerboundLaunchElevatorPacket(BlockPos pos) implements CustomPac
     public static void handle(final ServerboundLaunchElevatorPacket packet, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
-                if (player.level().getBlockEntity(packet.pos()) instanceof SpaceElevatorBlockEntity be) {
-                    be.launch(player);
-                }
+                processOnServer(player, packet);
             }
         });
+    }
+
+    /**
+     * Starts a launch after validating that the player has this elevator's menu open and is close to it.
+     * Must be called on the server thread.
+     *
+     * @return true if the launch was handed to the block entity.
+     */
+    public static boolean processOnServer(ServerPlayer player, ServerboundLaunchElevatorPacket packet) {
+        if (!(player.containerMenu instanceof SpaceElevatorMenu menu)
+                || !ServerPayloadChecks.isInteractingWith(player, menu, menu.blockEntity, packet.pos())) {
+            Arffornia.LOGGER.warn("Rejected Space Elevator launch from {} at {}: menu not open or out of reach.",
+                    player.getName().getString(), packet.pos());
+            return false;
+        }
+        menu.blockEntity.launch(player);
+        return true;
     }
 
     @Override

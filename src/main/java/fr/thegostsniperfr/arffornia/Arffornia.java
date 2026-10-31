@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia;
 
 import net.minecraft.ChatFormatting;
 import com.mojang.logging.LogUtils;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
@@ -67,7 +68,6 @@ public class Arffornia {
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(Permissions.class);
         NeoForge.EVENT_BUS.register(RecipeBanManager.class);
-        NeoForge.EVENT_BUS.register(CustomRecipeManager.class);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
     }
@@ -81,6 +81,11 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        if (ProgressionBackends.isFake()) {
+            // Offline/test mode: no website database, so no shop rewards and no /arffornia commands.
+            LOGGER.warn("In-memory progression backend active: shop rewards and /arffornia commands are disabled.");
+            return;
+        }
         this.databaseManager = new DatabaseManager();
         this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
@@ -90,16 +95,16 @@ public class Arffornia {
     public void onServerStarted(ServerStartedEvent event) {
         Arffornia.LOGGER.info("Server has started. Loading initial Arffornia data...");
 
-        try {
-            CustomRecipeManager.loadRecipes().join();
-            Arffornia.LOGGER.info("Custom recipes loaded successfully.");
-        } catch (Exception e) {
-            Arffornia.LOGGER.error("Failed to load initial custom recipes. The mod may not function correctly.", e);
-        }
-
+        // Load recipes asynchronously: the server thread must never wait for the API.
+        // The migration reloads the recipes itself when it finishes.
+        CustomRecipeManager.loadRecipes().whenComplete((ignored, error) -> {
+            if (error != null) {
+                Arffornia.LOGGER.error("Failed to load initial custom recipes. The mod may not function correctly.", error);
+            }
+        });
 
         if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
-            Arffornia.LOGGER.info("Run Arffornia custom recipies migration.");
+            Arffornia.LOGGER.info("Running Arffornia custom recipe migration.");
             ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
         }
     }

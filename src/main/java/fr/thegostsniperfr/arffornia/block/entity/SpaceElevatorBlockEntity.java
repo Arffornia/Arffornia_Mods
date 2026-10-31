@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.ChatFormatting;
@@ -40,6 +40,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvider {
     public final ItemStackHandler itemHandler = new ItemStackHandler(70);
@@ -47,6 +48,9 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     @Nullable
     public ArfforniaApiDtos.MilestoneDetails cachedMilestoneDetails;
     private long linkedProgressionId = -1;
+    /** Player who placed the elevator; milestones are completed for this player. Null for elevators placed before it was recorded. */
+    @Nullable
+    private UUID ownerUuid;
     private boolean isLaunching = false;
 
     public SpaceElevatorBlockEntity(BlockPos pPos, BlockState pBlockState) {
@@ -163,14 +167,20 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             return;
         }
 
+        if (this.ownerUuid == null) {
+            adoptLegacyOwnerThenLaunch(player);
+            return;
+        }
+
         // --- TRANSACTIONAL LOGIC ---
         this.isLaunching = true;
         setChanged();
 
         final List<ItemStack> consumedItems = consumeRequirements();
         final int activeMilestoneId = details.id();
+        final UUID creditedPlayer = this.ownerUuid;
 
-        ArfforniaApiService.getInstance().addMilestone(player.getUUID(), activeMilestoneId)
+        ProgressionBackends.get().addMilestone(creditedPlayer, activeMilestoneId)
                 .thenAcceptAsync(success -> {
                     if (success) {
                         Component playerName = player.getDisplayName();
@@ -186,13 +196,41 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
                             spawnFirework();
                         }
                     } else {
-                        Arffornia.LOGGER.error("API call to complete milestone {} for player {} failed. Refunding items.", activeMilestoneId, player.getUUID());
+                        Arffornia.LOGGER.error("API call to complete milestone {} for owner {} failed. Refunding items.", activeMilestoneId, creditedPlayer);
                         player.sendSystemMessage(Component.translatable("chat.arffornia.milestone.validation_failed").withStyle(ChatFormatting.RED));
                         refundItems(player, consumedItems);
                     }
                     this.isLaunching = false;
                     setChanged();
                 }, player.getServer());
+    }
+
+    /**
+     * Elevators placed before the owner was recorded only know their linked progression. The launching player is
+     * adopted as owner only if their active progression is that linked progression; otherwise the launch is refused.
+     */
+    private void adoptLegacyOwnerThenLaunch(ServerPlayer player) {
+        if (this.linkedProgressionId == -1) {
+            Arffornia.LOGGER.warn("Space Elevator at {} has no owner and no linked progression; launch refused.", getBlockPos());
+            return;
+        }
+
+        this.isLaunching = true;
+        String playerUuid = player.getUUID().toString().replace("-", "");
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAcceptAsync(playerData -> {
+            this.isLaunching = false;
+            if (isRemoved()) {
+                return;
+            }
+            if (playerData != null && playerData.activeProgressionId() == this.linkedProgressionId) {
+                this.ownerUuid = player.getUUID();
+                setChanged();
+                launch(player);
+            } else {
+                Arffornia.LOGGER.warn("Player {} tried to launch Space Elevator at {} linked to another progression; refused.",
+                        player.getName().getString(), getBlockPos());
+            }
+        }, player.server);
     }
 
     private void refundItems(ServerPlayer player, List<ItemStack> itemsToRefund) {
@@ -244,6 +282,9 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
 
         pTag.put("inventory", itemHandler.serializeNBT(pRegistries));
         pTag.putLong("linkedProgressionId", linkedProgressionId);
+        if (ownerUuid != null) {
+            pTag.putUUID("owner", ownerUuid);
+        }
         pTag.putBoolean("isLaunching", isLaunching);
     }
 
@@ -268,13 +309,16 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             this.linkedProgressionId = pTag.getLong("linkedProgressionId");
         }
 
+        this.ownerUuid = pTag.hasUUID("owner") ? pTag.getUUID("owner") : null;
         this.isLaunching = pTag.getBoolean("isLaunching");
     }
 
     public void setOwner(Player player) {
+        this.ownerUuid = player.getUUID();
+        setChanged();
         String playerUuid = player.getUUID().toString().replace("-", "");
 
-        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAccept(playerData -> {
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAccept(playerData -> {
             if (playerData != null) {
                 this.linkedProgressionId = playerData.activeProgressionId();
                 Arffornia.LOGGER.info("Space Elevator at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);
@@ -287,6 +331,11 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
 
     public long getLinkedProgressionId() {
         return this.linkedProgressionId;
+    }
+
+    @Nullable
+    public UUID getOwnerUuid() {
+        return this.ownerUuid;
     }
 
     public boolean isLaunching() {

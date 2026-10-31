@@ -18,15 +18,11 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
 
@@ -36,11 +32,9 @@ import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
 public class ArfforniaApiService {
     private static final ArfforniaApiService INSTANCE = new ArfforniaApiService();
 
-    private final HttpClient client = HttpClient.newHttpClient();
-    private final Gson gson = new Gson();
+    private final ApiHttp http = new ApiHttp(Arffornia.LOGGER, API_BASE_URL::get, API_CLIENT_ID::get, API_CLIENT_SECRET::get);
+    private final Gson gson = http.gson();
     private final ExecutorService migrationExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Arffornia-Migration-Thread"));
-
-    private final AtomicReference<String> serviceAuthToken = new AtomicReference<>(null);
 
     private ArfforniaApiService() {
     }
@@ -56,161 +50,90 @@ public class ArfforniaApiService {
         migrationExecutor.shutdown();
     }
 
-    private HttpRequest buildRequest(URI uri, String token, String jsonBody) {
-        return HttpRequest.newBuilder()
-                .uri(uri)
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/json")
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
+    private static String compactUuid(UUID uuid) {
+        return uuid.toString().replace("-", "");
     }
 
     /**
      * Fetches the active progression ID for a specific player.
      *
      * @param playerUuid The UUID of the player.
-     * @return A CompletableFuture containing the player's data including active progression ID.
+     * @return A CompletableFuture containing the player's data including active progression ID, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.PlayerData> fetchPlayerData(String playerUuid) {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/profile/uuid/" + playerUuid))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.PlayerData.class))
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch player data from API for UUID {}: {}", playerUuid, ex.getMessage());
-                    return null;
-                });
+        return http.getJson("/profile/uuid/" + playerUuid, ArfforniaApiDtos.PlayerData.class, "player " + playerUuid);
     }
 
     /**
      * Fetches progression data, including the current target milestone.
      *
      * @param progressionId The ID of the progression.
-     * @return A CompletableFuture containing the progression data.
+     * @return A CompletableFuture containing the progression data, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId) {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/progression/" + progressionId))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionData.class))
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch progression data from API for ID {}: {}", progressionId, ex.getMessage());
-                    return null;
-                });
+        return http.getJson("/progression/" + progressionId, ArfforniaApiDtos.ProgressionData.class, "progression " + progressionId);
     }
 
     /**
      * Fetches the PROGRESSION DATA for a specific player (completed milestones, target).
      *
      * @param playerUuid The UUID of the player.
-     * @return A CompletableFuture containing the player's specific progress data.
+     * @return A CompletableFuture containing the player's specific progress data, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid) {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/stages/player/get/" + playerUuid))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.GraphData.class))
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch player graph data from API for UUID {}: {}", playerUuid, ex.getMessage());
-                    return null;
-                });
+        return http.getJson("/stages/player/get/" + playerUuid, ArfforniaApiDtos.GraphData.class, "player graph " + playerUuid);
     }
 
     /**
      * Fetches the detailed information for a single milestone asynchronously.
      *
      * @param nodeId The ID of the node to fetch.
-     * @return A CompletableFuture containing the parsed milestone details.
+     * @return A CompletableFuture containing the parsed milestone details, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId) {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/milestone/get/" + nodeId))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.MilestoneDetails.class))
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch milestone details from API for node {}: {}", nodeId, ex.getMessage());
-                    return null;
-                });
+        return http.getJson("/milestone/get/" + nodeId, ArfforniaApiDtos.MilestoneDetails.class, "milestone " + nodeId);
     }
 
     /**
      * Fetches the server's progression configuration, including the list of banned recipes.
      * This should be called once on server start or /reload.
      *
-     * @return A CompletableFuture containing the parsed progression config.
+     * @return A CompletableFuture containing the parsed progression config (empty on failure).
      */
     public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/progression/config"))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(json -> gson.fromJson(json, ArfforniaApiDtos.ProgressionConfig.class))
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch progression config from API: {}. Banning no recipes.", ex.getMessage());
-                    return new ArfforniaApiDtos.ProgressionConfig(Collections.emptyList());
+        return http.<ArfforniaApiDtos.ProgressionConfig>getJson("/progression/config", ArfforniaApiDtos.ProgressionConfig.class, "progression config")
+                .thenApply(config -> {
+                    if (config == null || config.bannedRecipes() == null) {
+                        Arffornia.LOGGER.error("Failed to fetch progression config from API. Banning no recipes.");
+                        return new ArfforniaApiDtos.ProgressionConfig(Collections.emptyList());
+                    }
+                    return config;
                 });
     }
 
     /**
-     * Retrieves an authentication token for the game server.
-     * The token is cached.
-     *
-     * @return A CompletableFuture containing the token, or null on failure.
+     * Sends an authenticated JSON POST and maps the outcome to a boolean (2xx = true).
      */
-    private CompletableFuture<String> getServiceAuthToken() {
-        if (serviceAuthToken.get() != null) {
-            return CompletableFuture.completedFuture(serviceAuthToken.get());
-        }
-
-        String clientId = API_CLIENT_ID.get();
-        String clientSecret = API_CLIENT_SECRET.get();
-
-        JsonObject body = new JsonObject();
-        body.addProperty("client_id", clientId);
-        body.addProperty("client_secret", clientSecret);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/auth/token/svc"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+    private CompletableFuture<Boolean> postAndCheckSuccess(String path, JsonObject body, String actionName, @Nullable UUID playerUuid) {
+        return http.sendAuthenticated(http.jsonPost(path, gson.toJson(body)))
                 .thenApply(response -> {
-                    if (response.statusCode() == 200) {
-                        JsonObject jsonResponse = gson.fromJson(response.body(), JsonObject.class);
-                        String token = jsonResponse.get("token").getAsString();
-                        serviceAuthToken.set(token);
-                        Arffornia.LOGGER.info("Successfully authenticated service account.");
-                        return token;
-                    } else {
-                        Arffornia.LOGGER.error("Failed to authenticate service account. Status: {}, Body: {}", response.statusCode(), response.body());
-                        return null;
+                    if (response == null) {
+                        Arffornia.LOGGER.error("API call to {} skipped for player {}: no service auth token.", actionName, playerUuid);
+                        return false;
                     }
+                    if (ApiHttp.isSuccess(response.statusCode())) {
+                        return true;
+                    }
+                    if (response.statusCode() == 302) {
+                        Arffornia.LOGGER.error("API call to {} failed for player {}. Status: 302 (Redirect). This often indicates an authentication or middleware issue on the web server. Ensure API routes return JSON errors, not redirects.", actionName, playerUuid);
+                    } else {
+                        Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
+                    }
+                    return false;
                 })
                 .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Could not connect to API to get service auth token: {}", ex.getMessage());
-                    return null;
+                    Arffornia.LOGGER.error("API call to {} failed for player {} due to a network error: {}", actionName, playerUuid, ex.getMessage());
+                    return false;
                 });
     }
 
@@ -218,57 +141,20 @@ public class ArfforniaApiService {
      * Notifies the backend that a player has joined a team.
      */
     public void sendPlayerJoinedTeam(UUID playerUuid, UUID teamUuid, String teamName) {
-        getServiceAuthToken().thenAccept(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.warn("Cannot send player-joined-team update, no auth token available.");
-                return;
-            }
-
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-            body.addProperty("team_uuid", teamUuid.toString());
-            body.addProperty("team_name", teamName);
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/join"), token, gson.toJson(body));
-
-            client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                    .thenAccept(response -> {
-                        if (response.statusCode() != 200) {
-                            Arffornia.LOGGER.error("API call to player/join failed with status: {}", response.statusCode());
-                        }
-                    })
-                    .exceptionally(ex -> {
-                        Arffornia.LOGGER.error("Failed to send player join team update network request", ex);
-                        return null;
-                    });
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.addProperty("team_uuid", teamUuid.toString());
+        body.addProperty("team_name", teamName);
+        postAndCheckSuccess("/teams/player/join", body, "player/join", playerUuid);
     }
 
     /**
      * Notifies the backend that a player has left a team.
      */
     public void sendPlayerLeftTeam(UUID playerUuid) {
-        getServiceAuthToken().thenAccept(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.warn("Cannot send player-left-team update, no auth token available.");
-                return;
-            }
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/teams/player/leave"), token, gson.toJson(body));
-
-            client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                    .thenAccept(response -> {
-                        if (response.statusCode() != 200) {
-                            Arffornia.LOGGER.error("API call to player/leave failed with status: {}", response.statusCode());
-                        }
-                    })
-                    .exceptionally(ex -> {
-                        Arffornia.LOGGER.error("Failed to send player left team update network request", ex);
-                        return null;
-                    });
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        postAndCheckSuccess("/teams/player/leave", body, "player/leave", playerUuid);
     }
 
     /**
@@ -277,86 +163,44 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the list of milestone IDs, or an empty list on failure.
      */
     public CompletableFuture<List<Integer>> listMilestones(UUID playerUuid) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) {
-                return CompletableFuture.completedFuture(Collections.emptyList());
-            }
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
 
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/list"), token, gson.toJson(body));
-
-            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenApply(response -> {
-                        if (response.statusCode() == 200) {
-                            JsonObject json = gson.fromJson(response.body(), JsonObject.class);
-                            return gson.fromJson(json.get("completed_milestones"), new com.google.gson.reflect.TypeToken<List<Integer>>() {
-                            }.getType());
-                        }
-
-                        Arffornia.LOGGER.error("API call to listMilestones failed. Status: {}, Body: {}", response.statusCode(), response.body());
-                        return Collections.<Integer>emptyList();
-                    })
-                    .exceptionally(ex -> {
-                        Arffornia.LOGGER.error("Failed to execute listMilestones network request", ex);
-                        return Collections.emptyList();
-                    });
-        });
+        return http.sendAuthenticated(http.jsonPost("/progression/list", gson.toJson(body)))
+                .thenApply(response -> {
+                    if (response != null && response.statusCode() == 200) {
+                        JsonObject json = gson.fromJson(response.body(), JsonObject.class);
+                        List<Integer> ids = gson.fromJson(json.get("completed_milestones"), new TypeToken<List<Integer>>() {
+                        }.getType());
+                        return ids != null ? ids : Collections.<Integer>emptyList();
+                    }
+                    Arffornia.LOGGER.error("API call to listMilestones failed. Status: {}", response != null ? response.statusCode() : "no token");
+                    return Collections.<Integer>emptyList();
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.error("Failed to execute listMilestones network request", ex);
+                    return Collections.emptyList();
+                });
     }
 
     /**
      * Adds a milestone to a player's active progression.
      */
     public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) return CompletableFuture.completedFuture(false);
-
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-            body.addProperty("milestone_id", milestoneId);
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/add"), token, gson.toJson(body));
-
-            return sendRequestAndCheckSuccess(request, "addMilestone", playerUuid);
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.addProperty("milestone_id", milestoneId);
+        return postAndCheckSuccess("/progression/add", body, "addMilestone", playerUuid);
     }
 
     /**
      * Removes a milestone from a player's active progression.
      */
     public CompletableFuture<Boolean> removeMilestone(UUID playerUuid, int milestoneId) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) return CompletableFuture.completedFuture(false);
-
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-            body.addProperty("milestone_id", milestoneId);
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/remove"), token, gson.toJson(body));
-
-            return sendRequestAndCheckSuccess(request, "removeMilestone", playerUuid);
-        });
-    }
-
-    private CompletableFuture<Boolean> sendRequestAndCheckSuccess(HttpRequest request, String actionName, UUID playerUuid) {
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() >= 200 && response.statusCode() <= 299) {
-                        return true;
-                    } else {
-                        if(response.statusCode() == 302) {
-                            Arffornia.LOGGER.error("API call to {} failed for player {}. Status: 302 (Redirect). This often indicates an authentication or middleware issue on the web server. Ensure API routes return JSON errors, not redirects.", actionName, playerUuid);
-                        } else {
-                            Arffornia.LOGGER.error("API call to {} failed for player {}. Status: {}, Body: {}", actionName, playerUuid, response.statusCode(), response.body());
-                        }
-                        return false;
-                    }
-                })
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("API call to {} failed for player {} due to a network error: {}", actionName, playerUuid, ex.getMessage());
-                    return false;
-                });
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.addProperty("milestone_id", milestoneId);
+        return postAndCheckSuccess("/progression/remove", body, "removeMilestone", playerUuid);
     }
 
     /**
@@ -368,20 +212,10 @@ public class ArfforniaApiService {
      * @return A CompletableFuture that resolves to true if the player exists or was created successfully.
      */
     public CompletableFuture<Boolean> ensurePlayerExists(UUID playerUuid, String playerName) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.error("Cannot ensure player exists, auth token is null.");
-                return CompletableFuture.completedFuture(false);
-            }
-
-            JsonObject body = new JsonObject();
-            body.addProperty("uuid", playerUuid.toString().replace("-", ""));
-            body.addProperty("username", playerName);
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/player/ensure-exists"), token, gson.toJson(body));
-
-            return sendRequestAndCheckSuccess(request, "ensurePlayerExists", playerUuid);
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("uuid", compactUuid(playerUuid));
+        body.addProperty("username", playerName);
+        return postAndCheckSuccess("/player/ensure-exists", body, "ensurePlayerExists", playerUuid);
     }
 
     /**
@@ -392,43 +226,21 @@ public class ArfforniaApiService {
      * @return A CompletableFuture that resolves to true on success.
      */
     public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) return CompletableFuture.completedFuture(false);
-
-            JsonObject body = new JsonObject();
-            body.addProperty("player_uuid", playerUuid.toString().replace("-", ""));
-            body.add("milestone_id", gson.toJsonTree(milestoneId));
-
-            HttpRequest request = this.buildRequest(URI.create(API_BASE_URL.get() + "/progression/set-target"), token, gson.toJson(body));
-
-            return sendRequestAndCheckSuccess(request, "setTargetMilestone", playerUuid);
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.add("milestone_id", gson.toJsonTree(milestoneId));
+        return postAndCheckSuccess("/progression/set-target", body, "setTargetMilestone", playerUuid);
     }
 
     /**
      * Fetches all custom recipes from the API.
      *
-     * @return A CompletableFuture containing the list of all custom recipes.
+     * @return A CompletableFuture containing the list of all custom recipes (empty on failure).
      */
     public CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL.get() + "/recipes"))
-                .header("Accept", "application/json")
-                .build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != 200) {
-                        Arffornia.LOGGER.error("Failed to fetch all custom recipes. Status: {}", response.statusCode());
-                        return Collections.<ArfforniaApiDtos.CustomRecipe>emptyList();
-                    }
-                    Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {}.getType();
-                    return gson.fromJson(response.body(), listType);
-                })
-                .exceptionally(ex -> {
-                    Arffornia.LOGGER.error("Failed to fetch all custom recipes from API: {}", ex.getMessage());
-                    return Collections.emptyList();
-                });
+        Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {}.getType();
+        return http.<List<ArfforniaApiDtos.CustomRecipe>>getJson("/recipes", listType, "custom recipes")
+                .thenApply(recipes -> recipes != null ? recipes : Collections.<ArfforniaApiDtos.CustomRecipe>emptyList());
     }
 
     /**
@@ -443,48 +255,25 @@ public class ArfforniaApiService {
      * @return A CompletableFuture that resolves to true on success.
      */
     public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan, List<Map<String, Object>> ingredients, List<Map<String, Object>> result) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.error("Cannot add unlock, service auth token is null.");
-                return CompletableFuture.completedFuture(false);
-            }
-
-            JsonObject body = new JsonObject();
-            body.addProperty("item_id", itemId);
-            body.addProperty("display_name", displayName);
-            body.addProperty("image_path", imagePath);
-            body.add("recipes_to_ban", gson.toJsonTree(recipesToBan));
-            body.add("ingredients", gson.toJsonTree(ingredients));
-            body.add("result", gson.toJsonTree(result));
-
-            HttpRequest request = this.buildRequest(
-                    URI.create(API_BASE_URL.get() + "/milestones/" + milestoneId + "/add-unlock-from-game"),
-                    token,
-                    gson.toJson(body)
-            );
-
-            return sendRequestAndCheckSuccess(request, "addUnlockToMilestone", null);
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("item_id", itemId);
+        body.addProperty("display_name", displayName);
+        body.addProperty("image_path", imagePath);
+        body.add("recipes_to_ban", gson.toJsonTree(recipesToBan));
+        body.add("ingredients", gson.toJsonTree(ingredients));
+        body.add("result", gson.toJsonTree(result));
+        return postAndCheckSuccess("/milestones/" + milestoneId + "/add-unlock-from-game", body, "addUnlockToMilestone", null);
     }
 
     public void runRecipeMigration(MinecraftServer server, Collection<RecipeHolder<?>> allRecipes) {
         migrationExecutor.submit(() -> {
             try {
-                String token = getServiceAuthToken().join();
-                if (token == null) {
+                // 1. Get the list of items that need a recipe from the API
+                HttpResponse<String> response = http.sendAuthenticated(http.authGet("/migration/items-to-migrate")).join();
+                if (response == null) {
                     Arffornia.LOGGER.error("Recipe Sync failed: Could not get auth token.");
                     return;
                 }
-
-                // 1. Get the list of items that need a recipe from the API
-                HttpRequest getRequest = HttpRequest.newBuilder()
-                        .uri(URI.create(API_BASE_URL.get() + "/migration/items-to-migrate"))
-                        .header("Authorization", "Bearer " + token)
-                        .header("Accept", "application/json")
-                        .GET()
-                        .build();
-
-                HttpResponse<String> response = client.send(getRequest, HttpResponse.BodyHandlers.ofString());
 
                 if (response.statusCode() != 200) {
                     Arffornia.LOGGER.error("Recipe Sync failed: Could not get item list from API. Status: {}", response.statusCode());
@@ -537,19 +326,14 @@ public class ArfforniaApiService {
                 JsonObject finalPayload = new JsonObject();
                 finalPayload.add("recipes", gson.toJsonTree(batchPayload));
 
-                HttpRequest batchRequest = this.buildRequest(
-                        URI.create(API_BASE_URL.get() + "/migration/submit-batch-recipes"),
-                        token,
-                        gson.toJson(finalPayload)
-                );
+                HttpResponse<String> batchResponse = http.sendAuthenticated(
+                        http.jsonPost("/migration/submit-batch-recipes", gson.toJson(finalPayload))).join();
 
-                HttpResponse<String> batchResponse = client.send(batchRequest, HttpResponse.BodyHandlers.ofString());
-
-                if (batchResponse.statusCode() >= 200 && batchResponse.statusCode() < 300) {
+                if (batchResponse != null && ApiHttp.isSuccess(batchResponse.statusCode())) {
                     Arffornia.LOGGER.info("Recipe Sync: Batch request successful!");
                     Arffornia.LOGGER.warn("Recipe sync on startup was successful. It is recommended to set 'migrateOnStartup' to 'false' in the config to prevent unnecessary checks on every launch.");
                 } else {
-                    Arffornia.LOGGER.error("Recipe Sync: Batch request failed. Status: {}, Body: {}", batchResponse.statusCode(), batchResponse.body());
+                    Arffornia.LOGGER.error("Recipe Sync: Batch request failed. Status: {}", batchResponse != null ? batchResponse.statusCode() : "no token");
                 }
 
             } catch (Exception e) {
@@ -569,23 +353,9 @@ public class ArfforniaApiService {
      * @return A CompletableFuture that resolves to true on success.
      */
     public CompletableFuture<Boolean> setMilestoneRequirements(int milestoneId, List<Map<String, Object>> requirements) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.error("Cannot set milestone requirements, service auth token is null.");
-                return CompletableFuture.completedFuture(false);
-            }
-
-            JsonObject body = new JsonObject();
-            body.add("requirements", gson.toJsonTree(requirements));
-
-            HttpRequest request = this.buildRequest(
-                    URI.create(API_BASE_URL.get() + "/milestones/" + milestoneId + "/set-requirements"),
-                    token,
-                    gson.toJson(body)
-            );
-
-            return sendRequestAndCheckSuccess(request, "setMilestoneRequirements", null);
-        });
+        JsonObject body = new JsonObject();
+        body.add("requirements", gson.toJsonTree(requirements));
+        return postAndCheckSuccess("/milestones/" + milestoneId + "/set-requirements", body, "setMilestoneRequirements", null);
     }
 
     /**
@@ -598,25 +368,11 @@ public class ArfforniaApiService {
      * @return A CompletableFuture that resolves to true on success.
      */
     public CompletableFuture<Boolean> moveMilestoneItem(int fromMilestoneId, int toMilestoneId, String itemId) {
-        return getServiceAuthToken().thenCompose(token -> {
-            if (token == null) {
-                Arffornia.LOGGER.error("Cannot move milestone item, service auth token is null.");
-                return CompletableFuture.completedFuture(false);
-            }
-
-            JsonObject body = new JsonObject();
-            body.addProperty("from_milestone_id", fromMilestoneId);
-            body.addProperty("to_milestone_id", toMilestoneId);
-            body.addProperty("item_id", itemId);
-
-            HttpRequest request = this.buildRequest(
-                    URI.create(API_BASE_URL.get() + "/milestone-items/move"),
-                    token,
-                    gson.toJson(body)
-            );
-
-            return sendRequestAndCheckSuccess(request, "moveMilestoneItem", null);
-        });
+        JsonObject body = new JsonObject();
+        body.addProperty("from_milestone_id", fromMilestoneId);
+        body.addProperty("to_milestone_id", toMilestoneId);
+        body.addProperty("item_id", itemId);
+        return postAndCheckSuccess("/milestone-items/move", body, "moveMilestoneItem", null);
     }
 
 }

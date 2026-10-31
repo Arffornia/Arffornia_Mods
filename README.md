@@ -60,6 +60,10 @@ Bump `mod_version` in `gradle.properties`, merge to `main`, then push a tag `vX.
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Security issues: [SECURITY.md](SECURITY.md).
 
 ## License
-`mod_license` is "All Rights Reserved" and there is no LICENSE file yet; a decision is pending in #19.
-`TEMPLATE_LICENSE.txt` is the NeoForge MDK template's license, kept until that decision.
+Code: [MIT](LICENSE), © Brian Perret and Arffornia contributors.
+Textures, models and other art under `src/main/resources/assets/arffornia/`: [CC BY 4.0](LICENSE-ASSETS);
+credit "Brian Perret and Arffornia contributors".
+`TEMPLATE_LICENSE.txt` is the NeoForge MDK template's MIT license; it stays because the build files derive from the MDK.
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 Minecraft mappings are covered by the [Mojang mappings license](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md).

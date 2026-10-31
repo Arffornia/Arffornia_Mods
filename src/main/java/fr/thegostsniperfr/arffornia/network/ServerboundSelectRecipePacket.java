@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
@@ -73,7 +73,7 @@ public record ServerboundSelectRecipePacket(BlockPos blockPos,
         }
 
         int requiredMilestoneId = recipe.milestoneId();
-        return ArfforniaApiService.getInstance().fetchProgressionData(progressionId).thenApplyAsync(progressionData -> {
+        return ProgressionBackends.get().fetchProgressionData(progressionId).thenApplyAsync(progressionData -> {
             boolean unlocked = progressionData != null && progressionData.completedMilestones() != null
                     && progressionData.completedMilestones().contains(requiredMilestoneId);
             if (!unlocked) {

@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
@@ -58,7 +58,7 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, int milestoneUnloc
             int requiredMilestoneId = recipe.milestoneId();
 
             // Verify on the server-side that the player has unlocked the required milestone.
-            ArfforniaApiService.getInstance().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
+            ProgressionBackends.get().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
                 if (progressionData == null || !progressionData.completedMilestones().contains(requiredMilestoneId)) {
                     Arffornia.LOGGER.warn("Player {} tried to use recipe from milestoneUnlockId {} without having completed the required milestoneId {}.", player.getName().getString(), packet.milestoneUnlockId, requiredMilestoneId);
                     return;

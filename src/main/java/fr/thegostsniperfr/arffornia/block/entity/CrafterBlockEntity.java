@@ -3,7 +3,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 import com.google.common.collect.Maps;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
@@ -380,7 +380,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
     public void setOwner(Player player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
-        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAccept(playerData -> {
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAccept(playerData -> {
             if (playerData != null) {
                 this.linkedProgressionId = playerData.activeProgressionId();
                 Arffornia.LOGGER.info("Crafter at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);

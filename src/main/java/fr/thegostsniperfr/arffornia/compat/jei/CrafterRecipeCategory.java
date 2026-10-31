@@ -108,10 +108,10 @@ public class CrafterRecipeCategory implements IRecipeCategory<ArfforniaApiDtos.C
         List<Component> infoLines = new ArrayList<>();
         if (recipe.time() != null && recipe.time() > 0) {
             float timeInSeconds = recipe.time() / 20.0f;
-            infoLines.add(Component.literal(String.format(Locale.US, "%.1f s", timeInSeconds)));
+            infoLines.add(Component.translatable("gui.arffornia.crafter.time", String.format(Locale.ROOT, "%.1f", timeInSeconds)));
         }
         if (recipe.energy() != null && recipe.energy() > 0) {
-            infoLines.add(Component.literal(String.format(Locale.US, "%,d FE", recipe.energy())));
+            infoLines.add(Component.translatable("gui.arffornia.energy.fe", String.format(Locale.US, "%,d", recipe.energy())));
         }
 
         if (!infoLines.isEmpty()) {

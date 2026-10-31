@@ -128,7 +128,7 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
                 long progressionId = be.getLinkedProgressionId();
 
                 if (progressionId == -1) {
-                    serverPlayer.sendSystemMessage(Component.literal("Crafter is not linked to any progression.").withStyle(ChatFormatting.RED));
+                    serverPlayer.sendSystemMessage(Component.translatable("chat.arffornia.crafter.not_linked").withStyle(ChatFormatting.RED));
                     return InteractionResult.FAIL;
                 }
 

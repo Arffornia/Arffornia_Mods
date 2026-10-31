@@ -29,7 +29,9 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
     @Override
     protected void init() {
         super.init();
-        Component buttonText = this.menu.isMilestoneCompleted ? Component.literal("Completed") : Component.literal("Launch");
+        Component buttonText = this.menu.isMilestoneCompleted
+                ? Component.translatable("gui.arffornia.space_elevator.completed")
+                : Component.translatable("gui.arffornia.space_elevator.launch");
 
         this.launchButton = this.addRenderableWidget(new Button.Builder(
                 buttonText,
@@ -62,7 +64,10 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
             int centerX = this.leftPos + this.imageWidth / 2;
             int titleY = this.topPos - 48;
 
-            Component stageComponent = Component.literal("Stage: " + (details.stageNumber() != null ? details.stageNumber() : "N/A"));
+            Component stageComponent = Component.translatable("gui.arffornia.space_elevator.stage",
+                    details.stageNumber() != null
+                            ? Component.literal(String.valueOf(details.stageNumber()))
+                            : Component.translatable("gui.arffornia.space_elevator.stage_unknown"));
             Component milestoneComponent = Component.literal(details.name()).withStyle(ChatFormatting.BOLD);
 
             pGuiGraphics.drawCenteredString(this.font, stageComponent, centerX, titleY, 0xFF_FFFFFF);
@@ -72,14 +77,14 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
 
             // Requirements
             int reqStartX = this.leftPos + 8;
-            pGuiGraphics.drawString(font, "Requirements:", reqStartX, contentStartY - 12, 4210752, false);
+            pGuiGraphics.drawString(font, Component.translatable("gui.arffornia.space_elevator.requirements"), reqStartX, contentStartY - 12, 4210752, false);
             for (int i = 0; i < Math.min(details.requirements().size(), 3); i++) {
                 renderRequirementProgress(pGuiGraphics, details.requirements().get(i), reqStartX, contentStartY + i * 18);
             }
 
             // Unlocks
             int unlockStartX = this.leftPos + 98;
-            pGuiGraphics.drawString(font, "Unlocks:", unlockStartX, contentStartY - 12, 4210752, false);
+            pGuiGraphics.drawString(font, Component.translatable("gui.arffornia.space_elevator.unlocks"), unlockStartX, contentStartY - 12, 4210752, false);
         }
 
         this.renderTooltip(pGuiGraphics, pMouseX, pMouseY);
@@ -100,7 +105,7 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
             color = 0xFF5555; // Red
         }
 
-        Component progressText = Component.literal(String.format("%d / %d", countInInventory, req.amount()));
+        Component progressText = Component.translatable("gui.arffornia.progress_count", countInInventory, req.amount());
         pGuiGraphics.drawString(this.font, progressText, x + 20, y + 4, color, false);
     }
 
@@ -109,7 +114,7 @@ public class SpaceElevatorScreen extends AbstractContainerScreen<SpaceElevatorMe
         // pGuiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 4210752, false);
 
         // Block inventory title
-        pGuiGraphics.drawString(this.font, Component.literal("Space Elevator Inventory:"), -181, 6, 0xFFFFFF, true);
+        pGuiGraphics.drawString(this.font, Component.translatable("gui.arffornia.space_elevator.inventory"), -181, 6, 0xFFFFFF, true);
 
         // Player inventory title
         pGuiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.imageHeight - 94, 4210752, false);

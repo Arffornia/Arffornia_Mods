@@ -114,6 +114,9 @@ public class ProgressionGraphScreen extends Screen {
     private int currentGraphId = -1;
     private Map<String, List<ArfforniaApiDtos.GraphDefinition>> categorizedGraphs = new LinkedHashMap<>();
 
+    /** Internal key for graphs without a category; displayed through a lang key, never shown raw. */
+    private static final String GENERAL_CATEGORY = "";
+
     public ProgressionGraphScreen() {
         super(Component.empty());
     }
@@ -180,7 +183,7 @@ public class ProgressionGraphScreen extends Screen {
                 this.graphs = playerData.graphs() != null ? playerData.graphs() : Collections.emptyList();
                 this.categorizedGraphs.clear();
                 for (var graph : this.graphs) {
-                    List<String> cats = (graph.categories() == null || graph.categories().isEmpty()) ? List.of("General") : graph.categories();
+                    List<String> cats = (graph.categories() == null || graph.categories().isEmpty()) ? List.of(GENERAL_CATEGORY) : graph.categories();
                     for (String cat : cats) {
                         this.categorizedGraphs.computeIfAbsent(cat, k -> new ArrayList<>()).add(graph);
                     }
@@ -195,7 +198,7 @@ public class ProgressionGraphScreen extends Screen {
                 this.nodes = playerData.milestones().stream()
                         .map(m -> new ProgressionNode(
                                 m.id(),
-                                "Loading...",
+                                "",
                                 "",
                                 m.x(),
                                 m.y(),
@@ -287,9 +290,9 @@ public class ProgressionGraphScreen extends Screen {
 
         if (this.status == LoadingStatus.LOADING_GRAPH || this.status == LoadingStatus.FAILED) {
             if (this.status == LoadingStatus.LOADING_GRAPH) {
-                guiGraphics.drawCenteredString(this.font, "Loading Graph...", this.width / 2, this.height / 2, INFO_TEXT_COLOR);
+                guiGraphics.drawCenteredString(this.font, Component.translatable("gui.arffornia.graph.loading"), this.width / 2, this.height / 2, INFO_TEXT_COLOR);
             } else {
-                guiGraphics.drawCenteredString(this.font, "Failed to load data. See logs for details.", this.width / 2, this.height / 2, 0xFFCC0000);
+                guiGraphics.drawCenteredString(this.font, Component.translatable("gui.arffornia.graph.load_failed"), this.width / 2, this.height / 2, 0xFFCC0000);
             }
             super.render(guiGraphics, mouseX, mouseY, partialTick);
             return;
@@ -325,7 +328,7 @@ public class ProgressionGraphScreen extends Screen {
             }
 
             guiGraphics.renderItem(categoryIconStack, 6, currentY - 2);
-            guiGraphics.drawString(this.font, entry.getKey(), 26, currentY + 3, 0xFFFFAA00);
+            guiGraphics.drawString(this.font, categoryLabel(entry.getKey()), 26, currentY + 3, 0xFFFFAA00);
             currentY += 22;
 
             // --- 2. Individual Graph Entries ---
@@ -616,7 +619,7 @@ public class ProgressionGraphScreen extends Screen {
         int currentY = panelY + padding;
 
         if (this.status == LoadingStatus.LOADING_DETAILS || this.selectedNodeDetails == null) {
-            guiGraphics.drawCenteredString(this.font, "Loading details...", panelX + panelWidth / 2, panelY + 20, 0xFF_FFFFFF);
+            guiGraphics.drawCenteredString(this.font, Component.translatable("gui.arffornia.graph.loading_details"), panelX + panelWidth / 2, panelY + 20, 0xFF_FFFFFF);
             return;
         }
 
@@ -637,23 +640,25 @@ public class ProgressionGraphScreen extends Screen {
         currentY += 8;
 
         // --- Basic Info (Stage & Points) ---
-        guiGraphics.drawString(this.font, Component.literal("Id: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.id()).withStyle(ChatFormatting.YELLOW)), panelX + padding, currentY, 0xFF_FFFFFF);
+        guiGraphics.drawString(this.font, Component.translatable("gui.arffornia.milestone.id", Component.literal(String.valueOf(this.selectedNodeDetails.id())).withStyle(ChatFormatting.YELLOW)).withStyle(ChatFormatting.GRAY), panelX + padding, currentY, 0xFF_FFFFFF);
         currentY += this.font.lineHeight;
-        guiGraphics.drawString(this.font, Component.literal("Stage: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.stageId()).withStyle(ChatFormatting.YELLOW)), panelX + padding, currentY, 0xFF_FFFFFF);
+        guiGraphics.drawString(this.font, Component.translatable("gui.arffornia.milestone.stage", Component.literal(String.valueOf(this.selectedNodeDetails.stageId())).withStyle(ChatFormatting.YELLOW)).withStyle(ChatFormatting.GRAY), panelX + padding, currentY, 0xFF_FFFFFF);
         currentY += this.font.lineHeight;
-        guiGraphics.drawString(this.font, Component.literal("Points: ").withStyle(ChatFormatting.GRAY).append(Component.literal("" + this.selectedNodeDetails.rewardProgressPoints()).withStyle(ChatFormatting.AQUA)), panelX + padding, currentY, 0xFF_FFFFFF);
+        guiGraphics.drawString(this.font, Component.translatable("gui.arffornia.milestone.points", Component.literal(String.valueOf(this.selectedNodeDetails.rewardProgressPoints())).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GRAY), panelX + padding, currentY, 0xFF_FFFFFF);
         currentY += 10;
 
         // --- Unlocked Items Section ---
         if (!this.selectedNodeDetails.unlocks().isEmpty()) {
-            guiGraphics.drawString(this.font, Component.literal("New Items:").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
+            guiGraphics.drawString(this.font, Component.translatable("gui.arffornia.milestone.new_items").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
             currentY += this.font.lineHeight + 2;
 
             for (ArfforniaApiDtos.MilestoneUnlock unlock : this.selectedNodeDetails.unlocks()) {
                 ItemStack itemStack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(unlock.itemId())));
                 guiGraphics.renderItem(itemStack, panelX + padding, currentY);
-                String price = unlock.shopPrice() != null ? " (Price: " + unlock.shopPrice() + ")" : "";
-                guiGraphics.drawString(this.font, unlock.displayName() + price, panelX + padding + 20, currentY + 4, textColor);
+                Component unlockLabel = unlock.shopPrice() != null
+                        ? Component.translatable("gui.arffornia.milestone.unlock_price", unlock.displayName(), String.valueOf(unlock.shopPrice()))
+                        : Component.literal(unlock.displayName());
+                guiGraphics.drawString(this.font, unlockLabel, panelX + padding + 20, currentY + 4, textColor);
                 currentY += 18;
             }
             currentY += 8;
@@ -661,7 +666,7 @@ public class ProgressionGraphScreen extends Screen {
 
         // --- Required Items Section ---
         if (!this.selectedNodeDetails.requirements().isEmpty()) {
-            guiGraphics.drawString(this.font, Component.literal("Required Items:").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
+            guiGraphics.drawString(this.font, Component.translatable("gui.arffornia.milestone.required_items").setStyle(Style.EMPTY.withColor(headerColor)), panelX + padding, currentY, headerColor);
             currentY += this.font.lineHeight + 2;
 
             for (ArfforniaApiDtos.MilestoneRequirement req : this.selectedNodeDetails.requirements()) {
@@ -883,7 +888,7 @@ public class ProgressionGraphScreen extends Screen {
 
         if (this.selectedNode != null) {
             this.setTargetButton = Button.builder(
-                            Component.literal("Set as Target"),
+                            Component.translatable("gui.arffornia.target.set"),
                             (button) -> this.handleSetTarget()
                     )
                     .bounds(this.width - 150, this.height - 40, 130, 20)
@@ -898,13 +903,13 @@ public class ProgressionGraphScreen extends Screen {
         if (this.setTargetButton == null || this.selectedNode == null) return;
 
         if (completedMilestones.contains(this.selectedNode.id())) {
-            this.setTargetButton.setMessage(Component.literal("✔ Completed"));
+            this.setTargetButton.setMessage(Component.translatable("gui.arffornia.target.completed"));
             this.setTargetButton.active = false;
             return;
         }
 
         if (this.currentTargetId != null && this.currentTargetId.equals(this.selectedNode.id())) {
-            this.setTargetButton.setMessage(Component.literal("✔ Targeted"));
+            this.setTargetButton.setMessage(Component.translatable("gui.arffornia.target.targeted"));
             this.setTargetButton.active = true;
             return;
         }
@@ -917,7 +922,7 @@ public class ProgressionGraphScreen extends Screen {
         ProgressionNode currentNode = nodeMap.get(this.selectedNode.id());
 
         if (currentNode.stageNumber > this.maxStageNumber) {
-            this.setTargetButton.setMessage(Component.literal("Higher Stage Locked"));
+            this.setTargetButton.setMessage(Component.translatable("gui.arffornia.target.stage_locked"));
             this.setTargetButton.active = false;
             return;
         }
@@ -933,13 +938,13 @@ public class ProgressionGraphScreen extends Screen {
                     .anyMatch(prereqId -> this.completedMilestones.contains(prereqId));
 
             if (!hasCompletedPrerequisite) {
-                this.setTargetButton.setMessage(Component.literal("Prerequisite Locked"));
+                this.setTargetButton.setMessage(Component.translatable("gui.arffornia.target.prerequisite_locked"));
                 this.setTargetButton.active = false;
                 return;
             }
         }
 
-        this.setTargetButton.setMessage(Component.literal("Set as Target"));
+        this.setTargetButton.setMessage(Component.translatable("gui.arffornia.target.set"));
         this.setTargetButton.active = true;
     }
 
@@ -970,11 +975,22 @@ public class ProgressionGraphScreen extends Screen {
         updateTargetButtonState();
     }
 
+    /** Category names come from the API; the implicit "no category" group uses a lang key. */
+    private static Component categoryLabel(String category) {
+        return GENERAL_CATEGORY.equals(category)
+                ? Component.translatable("gui.arffornia.graph.category.general")
+                : Component.literal(category);
+    }
+
     private void updateClientData() {
         if (this.currentTargetId != null && this.nodeMap.containsKey(this.currentTargetId)) {
-            ClientProgressionData.currentMilestoneTarget = this.nodeMap.get(this.currentTargetId).name();
+            String targetName = this.nodeMap.get(this.currentTargetId).name();
+            // Node names are API data; an empty name means the details are not loaded yet.
+            ClientProgressionData.currentMilestoneTarget = targetName == null || targetName.isEmpty()
+                    ? Component.translatable("gui.arffornia.loading")
+                    : Component.literal(targetName);
         } else {
-            ClientProgressionData.currentMilestoneTarget = "None";
+            ClientProgressionData.currentMilestoneTarget = Component.translatable("hud.arffornia.target.none");
         }
     }
 

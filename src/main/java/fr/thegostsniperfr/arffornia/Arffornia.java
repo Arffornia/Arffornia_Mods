@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.logging.LogUtils;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -39,6 +40,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Mod(Arffornia.MODID)
 public class Arffornia {
     public static final String MODID = "arffornia";
+
+    /** The command players type to claim shop rewards; shown as a literal argument in chat hints. */
+    public static final Component CLAIM_REWARD_COMMAND = Component.literal("/arffornia shop claim_reward");
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private DatabaseManager databaseManager;
@@ -133,8 +137,8 @@ public class Arffornia {
                             this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
                                 if (hasRewards) {
                                     player.getServer().execute(() -> {
-                                        player.sendSystemMessage(Component.literal("§aYou have pending rewards from the shop!"));
-                                        player.sendSystemMessage(Component.literal("§eType §b/arffornia shop claim_reward §eto receive them."));
+                                        player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.pending").withStyle(ChatFormatting.GREEN));
+                                        player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.claim_hint", CLAIM_REWARD_COMMAND.copy().withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.YELLOW));
                                     });
                                 }
                             });
@@ -144,7 +148,7 @@ public class Arffornia {
 
                         } else {
                             player.getServer().execute(() -> {
-                                player.sendSystemMessage(Component.literal("§cWarning: Could not synchronize your progression data. Shop and progression features may be unavailable."));
+                                player.sendSystemMessage(Component.translatable("chat.arffornia.sync_failed").withStyle(ChatFormatting.RED));
                                 LOGGER.error("Failed to ensure player {} exists in the database.", player.getName().getString());
                             });
                         }
@@ -166,19 +170,19 @@ public class Arffornia {
                 int targetId = graphData.playerProgress().currentTargetId();
                 ArfforniaApiService.getInstance().fetchMilestoneDetails(targetId).thenAccept(details -> {
                     if (details != null) {
-                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(details.name()));
+                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(Component.literal(details.name())));
                     } else {
-                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Unknown Target"));
+                        PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(Component.translatable("hud.arffornia.target.unknown")));
                         LOGGER.warn("Could not fetch details for target milestone ID {} for player {}", targetId, player.getName().getString());
                     }
                 });
             } else {
-                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("None"));
+                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(Component.translatable("hud.arffornia.target.none")));
             }
         }).exceptionally(ex -> {
             LOGGER.error("Failed to fetch graph data on player join for {}: {}", player.getName().getString(), ex.getMessage());
             player.getServer().execute(() -> {
-                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket("Error"));
+                PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(Component.translatable("hud.arffornia.target.error")));
             });
             return null;
         });

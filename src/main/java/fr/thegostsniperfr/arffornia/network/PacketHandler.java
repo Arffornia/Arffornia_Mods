@@ -8,7 +8,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = Arffornia.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class PacketHandler {
-    private static final String PROTOCOL_VERSION = "1.0";
+    // 1.1: update_target_name carries a Component (translatable fallbacks) instead of a raw String.
+    private static final String PROTOCOL_VERSION = "1.1";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {

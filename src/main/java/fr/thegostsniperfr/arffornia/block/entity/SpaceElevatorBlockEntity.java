@@ -184,10 +184,10 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
                 .thenAcceptAsync(success -> {
                     if (success) {
                         Component playerName = player.getDisplayName();
-                        Component message = Component.empty()
-                                .append(playerName)
-                                .append(Component.literal(" has completed the milestone: "))
-                                .append(Component.literal(details.name()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+                        // The milestone name comes from the API (not a language key), so it is a literal argument.
+                        Component message = Component.translatable("chat.arffornia.milestone.completed",
+                                playerName,
+                                Component.literal(details.name()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
                         player.getServer().getPlayerList().broadcastSystemMessage(message, false);
 
@@ -197,7 +197,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
                         }
                     } else {
                         Arffornia.LOGGER.error("API call to complete milestone {} for owner {} failed. Refunding items.", activeMilestoneId, creditedPlayer);
-                        player.sendSystemMessage(Component.literal("§cAn error occurred while validating the milestone. Your items have been refunded.").withStyle(ChatFormatting.RED));
+                        player.sendSystemMessage(Component.translatable("chat.arffornia.milestone.validation_failed").withStyle(ChatFormatting.RED));
                         refundItems(player, consumedItems);
                     }
                     this.isLaunching = false;

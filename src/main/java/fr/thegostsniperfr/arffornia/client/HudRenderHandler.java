@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.client;
 
+import net.minecraft.network.chat.Component;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,7 +16,7 @@ public class HudRenderHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.screen == null) {
             GuiGraphics guiGraphics = event.getGuiGraphics();
-            String textToDisplay = "Milestone: " + ClientProgressionData.currentMilestoneTarget;
+            Component textToDisplay = Component.translatable("hud.arffornia.target", ClientProgressionData.currentMilestoneTarget);
 
             int screenWidth = guiGraphics.guiWidth();
             int textWidth = mc.font.width(textToDisplay);

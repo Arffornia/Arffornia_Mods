@@ -1,0 +1,42 @@
+# Review depth by path (agent-kit templates/risk.yml schema, version 1). Read from the base branch by
+# the in-session review (`/arffornia:review`, run by the agent at the end of a task) and by humans.
+# First matching rule wins (top to bottom). Globs are relative to the repo root.
+# depth: light = skim; standard = every line, tests cover it; deep = every line, trace callers,
+#        try to break it. security: true = deep + threat review (adds the threat-model lens).
+version: 1
+default: standard
+escalate:
+  lines_changed: 400   # a larger PR is raised one level
+
+rules:
+  - name: ci-and-build
+    depth: deep
+    security: true
+    paths: [".github/workflows/**", "build.gradle", "settings.gradle", "gradle.properties", "gradle/**", "src/main/templates/**"]
+  - name: network-payloads
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/network/**"]          # serverbound payloads: untrusted client input
+  - name: api-and-config
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/api/**", "src/main/java/**/config/**", "src/main/java/**/Config.java"]
+  - name: rewards-and-commands
+    depth: deep
+    security: true
+    paths: ["src/main/java/**/shop/**", "src/main/java/**/command/**"]   # console commands, JDBC, op commands
+  - name: architecture-guards
+    depth: deep
+    paths: ["src/test/java/**/architecture/**", "src/test/resources/archunit_store/**", "src/test/resources/archunit.properties"]
+  - name: generated
+    depth: light
+    paths: ["src/generated/**", "gradle/wrapper/**"]
+  - name: assets
+    depth: light
+    paths: ["src/main/resources/assets/**/lang/**", "src/main/resources/assets/**/textures/**"]
+  - name: tests
+    depth: standard
+    paths: ["src/test/**"]
+  - name: docs
+    depth: light
+    paths: ["**/*.md", "docs/**", ".editorconfig", "LICENSE*"]

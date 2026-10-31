@@ -3,7 +3,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 import com.google.common.collect.Maps;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
@@ -21,6 +21,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,6 +33,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     public static final int INPUT_SLOTS = 9;
@@ -71,7 +74,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
             be.maxProgress = currentRecipe.time() != null && currentRecipe.time() > 0 ? currentRecipe.time() : 200;
             int totalEnergyCost = currentRecipe.energy() != null ? currentRecipe.energy() : 0;
 
-            int energyPerTick = totalEnergyCost > 0 ? (int) Math.floor((double) totalEnergyCost / be.maxProgress) : 0;
+            int energyPerTick = energyPerTick(totalEnergyCost, be.maxProgress);
 
             if (be.energyStorage.getEnergyStored() >= energyPerTick) {
                 be.energyStorage.extractEnergy(energyPerTick, false);
@@ -116,11 +119,60 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         this.clientEnergy = energy;
     }
 
+    /**
+     * Energy drawn per tick so that a craft of {@code ticks} ticks consumes at least {@code totalEnergy} FE.
+     * Rounds up: a recipe whose energy is lower than its duration still costs 1 FE per tick.
+     */
+    public static int energyPerTick(int totalEnergy, int ticks) {
+        if (totalEnergy <= 0) {
+            return 0;
+        }
+        if (ticks <= 0) {
+            return totalEnergy;
+        }
+        return (int) ((totalEnergy + (long) ticks - 1) / ticks);
+    }
+
+    /**
+     * Resolves an item id from a backend recipe. Returns null for missing, malformed or unknown ids (for example a
+     * tag ingredient, which has no item id); the recipe is then treated as unusable.
+     */
+    @Nullable
+    static Item resolveItem(@Nullable String itemId) {
+        if (itemId == null || itemId.isBlank()) {
+            return null;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(itemId);
+        if (id == null) {
+            return null;
+        }
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+        return item == Items.AIR ? null : item;
+    }
+
+    /** Recipe ids already reported as unusable, to log each one only once. */
+    private static final Set<Integer> REPORTED_UNUSABLE_RECIPES = ConcurrentHashMap.newKeySet();
+
+    private static void reportUnusable(ArfforniaApiDtos.CustomRecipe recipe, String reason) {
+        if (REPORTED_UNUSABLE_RECIPES.add(recipe.id())) {
+            Arffornia.LOGGER.error("Crafter recipe {} (unlock {}) is unusable: {}. Tag ingredients are not supported yet.",
+                    recipe.id(), recipe.milestoneUnlockId(), reason);
+        }
+    }
+
     private boolean canCraft(ArfforniaApiDtos.CustomRecipe recipe) {
+        if (recipe.ingredients() == null || recipe.result() == null) {
+            reportUnusable(recipe, "missing ingredients or result");
+            return false;
+        }
         Map<Item, Integer> requiredItems = Maps.newHashMap();
         for (ArfforniaApiDtos.RecipeIngredient ingredient : recipe.ingredients()) {
             if (ingredient != null) {
-                Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
+                Item item = resolveItem(ingredient.item());
+                if (item == null) {
+                    reportUnusable(recipe, "ingredient without a valid item id (" + ingredient.item() + ")");
+                    return false;
+                }
                 requiredItems.merge(item, ingredient.count(), Integer::sum);
             }
         }
@@ -148,7 +200,11 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         for (int i = 0; i < recipe.result().size(); i++) {
             if (i >= OUTPUT_SLOTS) break;
             ArfforniaApiDtos.RecipeResult result = recipe.result().get(i);
-            Item resultItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(result.item()));
+            Item resultItem = result != null ? resolveItem(result.item()) : null;
+            if (resultItem == null) {
+                reportUnusable(recipe, "result without a valid item id");
+                return false;
+            }
             ItemStack resultStack = new ItemStack(resultItem, result.count());
             ItemStack outputStack = this.itemHandler.getStackInSlot(INPUT_SLOTS + i);
 
@@ -171,7 +227,10 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
                 continue;
             }
 
-            Item requiredItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
+            Item requiredItem = resolveItem(ingredient.item());
+            if (requiredItem == null) {
+                continue; // canCraft() already rejected this recipe
+            }
             int amountToConsume = ingredient.count();
             for (int i = 0; i < INPUT_SLOTS; i++) {
                 if (amountToConsume <= 0) break;
@@ -187,7 +246,11 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         for (int i = 0; i < recipe.result().size(); i++) {
             if (i >= OUTPUT_SLOTS) break;
             ArfforniaApiDtos.RecipeResult result = recipe.result().get(i);
-            ItemStack resultStack = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(result.item())), result.count());
+            Item resultItem = result != null ? resolveItem(result.item()) : null;
+            if (resultItem == null) {
+                continue; // canCraft() already rejected this recipe
+            }
+            ItemStack resultStack = new ItemStack(resultItem, result.count());
             this.itemHandler.insertItem(INPUT_SLOTS + i, resultStack, false);
         }
     }
@@ -380,7 +443,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
     public void setOwner(Player player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
-        ArfforniaApiService.getInstance().fetchPlayerData(playerUuid).thenAccept(playerData -> {
+        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAccept(playerData -> {
             if (playerData != null) {
                 this.linkedProgressionId = playerData.activeProgressionId();
                 Arffornia.LOGGER.info("Crafter at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);

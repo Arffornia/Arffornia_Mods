@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -18,15 +19,15 @@ public class AddMilestoneCommand {
                                     ServerPlayer target = EntityArgument.getPlayer(context, "player");
                                     int milestoneId = IntegerArgumentType.getInteger(context, "milestone_id");
 
-                                    context.getSource().sendSystemMessage(Component.literal("Adding milestone " + milestoneId + " to " + target.getName().getString() + "..."));
+                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.adding", milestoneId, target.getDisplayName()));
 
                                     ArfforniaApiService.getInstance().addMilestone(target.getUUID(), milestoneId)
                                             .thenAccept(success -> {
                                                 if (success) {
-                                                    context.getSource().sendSystemMessage(Component.literal("§aSuccessfully added milestone."));
+                                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.success").withStyle(ChatFormatting.GREEN));
                                                     // TODO: Send packet to player to update GUI
                                                 } else {
-                                                    context.getSource().sendSystemMessage(Component.literal("§cFailed to add milestone. Check server logs."));
+                                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.failed").withStyle(ChatFormatting.RED));
                                                 }
                                             });
                                     return 1;

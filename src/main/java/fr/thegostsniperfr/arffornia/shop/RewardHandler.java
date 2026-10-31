@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.shop;
 
+import net.minecraft.ChatFormatting;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
 import fr.thegostsniperfr.arffornia.shop.internal.PendingReward;
@@ -96,7 +97,7 @@ public class RewardHandler {
         executor.submit(() -> {
             Integer userId = userIdCache.get(player.getUUID());
             if (userId == null || userId == -1) {
-                player.sendSystemMessage(Component.literal("§cYour account is not linked to the web database."));
+                player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.not_linked").withStyle(ChatFormatting.RED));
                 return;
             }
 
@@ -106,7 +107,7 @@ public class RewardHandler {
                 List<PendingReward> allPendingRewards = dbManager.fetchAndLockAllRewardsForUser(userId, conn);
 
                 if (allPendingRewards.isEmpty()) {
-                    player.sendSystemMessage(Component.literal("§eYou have no pending rewards to claim."));
+                    player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.none").withStyle(ChatFormatting.YELLOW));
                     conn.rollback();
                     return;
                 }
@@ -124,8 +125,14 @@ public class RewardHandler {
                         claimedRewardIds.add(reward.id());
 
                         commandsToExecute.add(() -> {
+                            RewardCommandFilter filter = new RewardCommandFilter(ShopConfig.ALLOWED_REWARD_COMMANDS.get());
                             reward.commands().forEach(command -> {
                                 String finalCommand = command.replace("{player}", player.getName().getString());
+                                if (!filter.isAllowed(finalCommand)) {
+                                    Arffornia.LOGGER.warn("Refused reward command for reward {} (player {}): its root is not in rewards.allowedCommands {}. Command: {}",
+                                            reward.id(), player.getName().getString(), filter.allowedRoots(), finalCommand);
+                                    return;
+                                }
                                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), finalCommand);
                             });
                         });
@@ -136,7 +143,7 @@ public class RewardHandler {
                 }
 
                 if (claimedRewardIds.isEmpty()) {
-                    player.sendSystemMessage(Component.literal("§cYour inventory is full. Please make space to claim your items."));
+                    player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.inventory_full").withStyle(ChatFormatting.RED));
                     conn.rollback();
                     return;
                 }
@@ -148,15 +155,15 @@ public class RewardHandler {
                 Arffornia.LOGGER.info("Successfully claimed {} rewards for player {}", claimedRewardIds.size(), player.getName().getString());
 
                 if (rewardsLeftOver) {
-                    player.sendSystemMessage(Component.literal("§aYou have claimed some of your rewards!"));
-                    player.sendSystemMessage(Component.literal("§eYour inventory is now full. Make more space and type §b/claim_reward §eagain."));
+                    player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.partial").withStyle(ChatFormatting.GREEN));
+                    player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.partial_hint", Arffornia.CLAIM_REWARD_COMMAND.copy().withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.YELLOW));
                 } else {
-                    player.sendSystemMessage(Component.literal("§aAll your pending rewards have been claimed successfully!"));
+                    player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.all_claimed").withStyle(ChatFormatting.GREEN));
                 }
 
             } catch (SQLException e) {
                 Arffornia.LOGGER.error("Database transaction failed for player {}", player.getName().getString(), e);
-                player.sendSystemMessage(Component.literal("§cAn error occurred while claiming your rewards. Please try again later."));
+                player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.error").withStyle(ChatFormatting.RED));
             }
         });
     }

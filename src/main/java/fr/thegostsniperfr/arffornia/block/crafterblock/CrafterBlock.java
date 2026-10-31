@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
@@ -128,11 +128,11 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
                 long progressionId = be.getLinkedProgressionId();
 
                 if (progressionId == -1) {
-                    serverPlayer.sendSystemMessage(Component.literal("Crafter is not linked to any progression.").withStyle(ChatFormatting.RED));
+                    serverPlayer.sendSystemMessage(Component.translatable("chat.arffornia.crafter.not_linked").withStyle(ChatFormatting.RED));
                     return InteractionResult.FAIL;
                 }
 
-                ArfforniaApiService.getInstance().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
+                ProgressionBackends.get().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
                     // Check whether the block has been destroyed during the API fetch
                     if (!(pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity)) {
                         return;

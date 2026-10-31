@@ -1,4 +1,2 @@
-fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket handles a serverbound payload without calling ServerPayloadChecks
 fr.thegostsniperfr.arffornia.network.ServerboundPlaceRecipePacket handles a serverbound payload without calling ServerPayloadChecks
-fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket handles a serverbound payload without calling ServerPayloadChecks
 fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket handles a serverbound payload without calling ServerPayloadChecks

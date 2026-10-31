@@ -27,6 +27,18 @@ repositories {
         }
     }
 
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "FTB"
+                url = uri("https://maven.ftb.dev/releases")
+            }
+        }
+        filter {
+            includeGroup "dev.ftb.mods"
+        }
+    }
+
     maven {
         name = "BlameJared"
         url = "https://maven.blamejared.com/"
@@ -90,6 +102,8 @@ neoForge {
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // GameTests run against the in-memory ProgressionBackend, never the website.
+            systemProperty 'arffornia.backend', 'fake'
         }
 
         data {
@@ -125,6 +139,8 @@ dependencies {
 
     implementation "curse.maven:ftb-teams-404468:6119437"
     implementation "curse.maven:architectury-api-419699:5786327"
+    // FTB Teams requires FTB Library at runtime. Dev runs only (not bundled); without it no dev run (incl. GameTests) starts.
+    localRuntime("dev.ftb.mods:ftb-library-neoforge:2101.1.7") { transitive = false }
 
     jarJar(implementation("org.postgresql:postgresql:42.7.3")) {
         version {

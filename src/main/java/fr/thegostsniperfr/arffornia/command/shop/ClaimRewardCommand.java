@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.shop;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -33,11 +34,11 @@ public class ClaimRewardCommand {
     private static int claimForSelf(CommandContext<CommandSourceStack> context, RewardHandler rewardHandler) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         if (isOnCooldown(player.getUUID())) {
-            context.getSource().sendFailure(Component.literal("§cPlease wait before using this command again."));
+            context.getSource().sendFailure(Component.translatable("commands.arffornia.claim_reward.cooldown"));
             return 0;
         }
 
-        context.getSource().sendSuccess(() -> Component.literal("§aChecking for pending rewards..."), false);
+        context.getSource().sendSuccess(() -> Component.translatable("commands.arffornia.claim_reward.checking").withStyle(ChatFormatting.GREEN), false);
         rewardHandler.claimRewardsForPlayer(player);
         setCooldown(player.getUUID());
         return 1;
@@ -47,7 +48,7 @@ public class ClaimRewardCommand {
         Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, "targets");
         for (ServerPlayer player : targets) {
             rewardHandler.claimRewardsForPlayer(player);
-            context.getSource().sendSuccess(() -> Component.literal("§aTriggered reward claim for " + player.getName().getString()), true);
+            context.getSource().sendSuccess(() -> Component.translatable("commands.arffornia.claim_reward.triggered", player.getDisplayName()).withStyle(ChatFormatting.GREEN), true);
         }
         return targets.size();
     }

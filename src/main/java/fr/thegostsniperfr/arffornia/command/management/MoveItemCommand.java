@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
@@ -22,25 +23,25 @@ public class MoveItemCommand {
                                     ItemStack heldItemStack = player.getMainHandItem();
 
                                     if (heldItemStack.isEmpty()) {
-                                        context.getSource().sendFailure(Component.literal("§cYou must hold the item you want to move."));
+                                        context.getSource().sendFailure(Component.translatable("commands.arffornia.moveitem.no_item"));
                                         return 0;
                                     }
 
                                     if (fromId == toId) {
-                                        context.getSource().sendFailure(Component.literal("§cSource and destination milestones cannot be the same."));
+                                        context.getSource().sendFailure(Component.translatable("commands.arffornia.moveitem.same_milestone"));
                                         return 0;
                                     }
 
                                     String itemId = BuiltInRegistries.ITEM.getKey(heldItemStack.getItem()).toString();
 
-                                    context.getSource().sendSystemMessage(Component.literal("§eAttempting to move item '" + itemId + "' from milestone " + fromId + " to " + toId + "..."));
+                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.moveitem.moving", itemId, fromId, toId).withStyle(ChatFormatting.YELLOW));
 
                                     ArfforniaApiService.getInstance().moveMilestoneItem(fromId, toId, itemId)
                                             .thenAcceptAsync(success -> {
                                                 if (success) {
-                                                    context.getSource().sendSystemMessage(Component.literal("§aSuccessfully moved item."));
+                                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.moveitem.success").withStyle(ChatFormatting.GREEN));
                                                 } else {
-                                                    context.getSource().sendFailure(Component.literal("§cFailed to move item. Check API and server logs. The item might not exist on the source milestone."));
+                                                    context.getSource().sendFailure(Component.translatable("commands.arffornia.moveitem.failed"));
                                                 }
                                             }, player.getServer());
 

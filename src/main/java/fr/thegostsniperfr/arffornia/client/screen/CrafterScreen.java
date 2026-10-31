@@ -38,6 +38,7 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private static final ResourceLocation PROGRESS_ARROW_TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/progress_arrow.png");
     private static final ResourceLocation RECIPE_BG = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background.png");
     private static final ResourceLocation RECIPE_BG_SELECTED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background_selected.png");
+    static final String RECIPE_TYPE_KEY_PREFIX = "gui.arffornia.recipe_type.";
     private static final Pattern MOD_ID_PATTERN = Pattern.compile("@(\\w*)");
 
     private static final int RECIPE_ROWS = 7;
@@ -76,7 +77,7 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         this.searchBox.setBordered(false);
         this.searchBox.setVisible(true);
         this.searchBox.setTextColor(0xFFFFFF);
-        this.searchBox.setHint(Component.literal("Search...").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY));
+        this.searchBox.setHint(Component.translatable("gui.arffornia.search_hint").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY));
         this.addWidget(this.searchBox);
         this.setInitialFocus(this.searchBox);
 
@@ -124,12 +125,12 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         this.renderTooltip(pGuiGraphics, pMouseX, pMouseY);
     }
 
-    private static String formatEnergy(int energy) {
+    private static Component formatEnergy(int energy) {
         if (energy >= 1_000) {
-            return String.format(Locale.US, "%.2f kFE", energy / 1_000.0);
+            return Component.translatable("gui.arffornia.energy.kfe", String.format(Locale.ROOT, "%.2f", energy / 1_000.0));
         }
 
-        return energy + " FE";
+        return Component.translatable("gui.arffornia.energy.fe", energy);
     }
 
     public int getScaledEnergy() {
@@ -194,13 +195,13 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         }
 
         if (isMouseOver(mouseX, mouseY, leftPos + 80 + 158, topPos + 13, 12, 60)) {
-            String energyText = formatEnergy(this.menu.getEnergy());
-            String capacityText = formatEnergy(this.menu.getCapacity());
-            guiGraphics.renderTooltip(this.font, Component.literal(energyText + " / " + capacityText), mouseX, mouseY);
+            Component energyText = formatEnergy(this.menu.getEnergy());
+            Component capacityText = formatEnergy(this.menu.getCapacity());
+            guiGraphics.renderTooltip(this.font, Component.translatable("gui.arffornia.energy.tooltip", energyText, capacityText), mouseX, mouseY);
         }
 
         int totalPages = Math.max(1, (int) Math.ceil((double) filteredRecipes.size() / recipesPerPage));
-        String pageText = (currentPage + 1) + "/" + totalPages;
+        Component pageText = Component.translatable("gui.arffornia.page", currentPage + 1, totalPages);
         guiGraphics.drawCenteredString(this.font, pageText, x + 43, y + 5, 0x404040);
     }
 
@@ -254,11 +255,15 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         this.nextPageButton.active = (currentPage + 1) * recipesPerPage < filteredRecipes.size();
     }
 
+    /**
+     * Recipe types come from the API (ids of other mods' recipe types). Known ones have a lang key
+     * {@code gui.arffornia.recipe_type.<namespace>.<path>}; unknown ones fall back to a name derived from the id.
+     */
     private MutableComponent formatRecipeName(String type) {
         String[] parts = type.split(":");
         if (parts.length == 2) {
             String name = parts[1].replace("_recipe", "").replace("_", " ");
-            return Component.literal(StringUtils.capitalize(name));
+            return Component.translatableWithFallback(RECIPE_TYPE_KEY_PREFIX + parts[0] + "." + parts[1], StringUtils.capitalize(name));
         }
         return Component.literal(type);
     }

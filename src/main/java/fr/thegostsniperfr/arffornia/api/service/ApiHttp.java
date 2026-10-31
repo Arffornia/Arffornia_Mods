@@ -73,7 +73,20 @@ public final class ApiHttp {
      * Public GET returning the parsed body, or {@code null} on network error, non-2xx status or invalid JSON.
      */
     public <T> CompletableFuture<T> getJson(String path, Type type, String what) {
-        return send(request(path).GET().build())
+        return getJson(path, type, what, null);
+    }
+
+    /**
+     * Same as {@link #getJson(String, Type, String)}, with an {@code Accept-Language} header when
+     * {@code acceptLanguage} is not null (BCP 47 tag, e.g. {@code fr-FR}).
+     */
+    @SuppressWarnings("unchecked")
+    public <T> CompletableFuture<T> getJson(String path, Type type, String what, String acceptLanguage) {
+        HttpRequest.Builder builder = request(path);
+        if (acceptLanguage != null) {
+            builder.header("Accept-Language", acceptLanguage);
+        }
+        return send(builder.GET().build())
                 .thenApply(response -> {
                     if (!isSuccess(response.statusCode())) {
                         logger.error("API GET {} for {} failed with status {}", path, what, response.statusCode());

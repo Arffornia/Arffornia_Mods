@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.api.ApiText;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.command.management.AddUnlockCommand;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
@@ -81,7 +82,17 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the player's specific progress data, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid) {
-        return http.getJson("/stages/player/get/" + playerUuid, ArfforniaApiDtos.GraphData.class, "player graph " + playerUuid);
+        return fetchPlayerGraphData(playerUuid, null);
+    }
+
+    /**
+     * Same as {@link #fetchPlayerGraphData(String)}, asking the API for text in the player's language.
+     *
+     * @param minecraftLanguage the player's game language (e.g. {@code fr_fr}), or null for the API default.
+     */
+    public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid, @Nullable String minecraftLanguage) {
+        return http.getJson("/stages/player/get/" + playerUuid, ArfforniaApiDtos.GraphData.class, "player graph " + playerUuid,
+                ApiText.toLanguageTag(minecraftLanguage));
     }
 
     /**
@@ -91,7 +102,17 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the parsed milestone details, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId) {
-        return http.getJson("/milestone/get/" + nodeId, ArfforniaApiDtos.MilestoneDetails.class, "milestone " + nodeId);
+        return fetchMilestoneDetails(nodeId, null);
+    }
+
+    /**
+     * Same as {@link #fetchMilestoneDetails(int)}, asking the API for text in the player's language.
+     *
+     * @param minecraftLanguage the player's game language (e.g. {@code fr_fr}), or null for the API default.
+     */
+    public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId, @Nullable String minecraftLanguage) {
+        return http.getJson("/milestone/get/" + nodeId, ArfforniaApiDtos.MilestoneDetails.class, "milestone " + nodeId,
+                ApiText.toLanguageTag(minecraftLanguage));
     }
 
     /**

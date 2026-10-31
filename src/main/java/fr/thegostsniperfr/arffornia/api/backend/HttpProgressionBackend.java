@@ -34,6 +34,11 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     }
 
     @Override
+    public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int milestoneId, String minecraftLanguage) {
+        return api.fetchMilestoneDetails(milestoneId, minecraftLanguage);
+    }
+
+    @Override
     public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
         return api.addMilestone(playerUuid, milestoneId);
     }

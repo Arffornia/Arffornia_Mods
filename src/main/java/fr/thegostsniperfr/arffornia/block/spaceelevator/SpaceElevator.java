@@ -155,7 +155,7 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
                                 return CompletableFuture.completedFuture(new Object[]{progressionData, null});
                             }
 
-                            return ProgressionBackends.get().fetchMilestoneDetails(progressionData.currentMilestoneId())
+                            return ProgressionBackends.get().fetchMilestoneDetails(progressionData.currentMilestoneId(), serverPlayer.clientInformation().language())
                                     .thenApply(details -> new Object[]{progressionData, details});
                         })
                         .thenAcceptAsync(data -> {

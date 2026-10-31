@@ -27,6 +27,11 @@ public interface ProgressionBackend {
     /** Milestone details (requirements, unlocks), or null on failure. */
     CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int milestoneId);
 
+    /** Same as {@link #fetchMilestoneDetails(int)}, with text in the given game language (e.g. {@code fr_fr}) when the backend supports it. */
+    default CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int milestoneId, String minecraftLanguage) {
+        return fetchMilestoneDetails(milestoneId);
+    }
+
     /** Completes a milestone in the player's active progression. */
     CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId);
 

@@ -165,10 +165,12 @@ public class Arffornia {
     private void updateAndSendPlayerTarget(ServerPlayer player) {
         String playerUuid = player.getUUID().toString().replace("-", "");
 
-        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid).thenAccept(graphData -> {
+        String language = player.clientInformation().language();
+
+        ArfforniaApiService.getInstance().fetchPlayerGraphData(playerUuid, language).thenAccept(graphData -> {
             if (graphData != null && graphData.playerProgress() != null && graphData.playerProgress().currentTargetId() != null) {
                 int targetId = graphData.playerProgress().currentTargetId();
-                ArfforniaApiService.getInstance().fetchMilestoneDetails(targetId).thenAccept(details -> {
+                ArfforniaApiService.getInstance().fetchMilestoneDetails(targetId, language).thenAccept(details -> {
                     if (details != null) {
                         PacketDistributor.sendToPlayer(player, new ClientboundUpdateTargetNamePacket(Component.literal(details.name())));
                     } else {

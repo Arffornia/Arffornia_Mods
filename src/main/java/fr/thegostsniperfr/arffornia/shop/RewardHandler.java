@@ -124,8 +124,14 @@ public class RewardHandler {
                         claimedRewardIds.add(reward.id());
 
                         commandsToExecute.add(() -> {
+                            RewardCommandFilter filter = new RewardCommandFilter(ShopConfig.ALLOWED_REWARD_COMMANDS.get());
                             reward.commands().forEach(command -> {
                                 String finalCommand = command.replace("{player}", player.getName().getString());
+                                if (!filter.isAllowed(finalCommand)) {
+                                    Arffornia.LOGGER.warn("Refused reward command for reward {} (player {}): its root is not in rewards.allowedCommands {}. Command: {}",
+                                            reward.id(), player.getName().getString(), filter.allowedRoots(), finalCommand);
+                                    return;
+                                }
                                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), finalCommand);
                             });
                         });

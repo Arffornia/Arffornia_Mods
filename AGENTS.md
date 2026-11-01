@@ -21,7 +21,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 | `compat/` | Capabilities, FTB Teams events, JEI plugin |
 | `src/main/resources/` | lang, models, blockstates, loot tables, recipes, tags |
 | `src/main/templates/META-INF/neoforge.mods.toml` | Mod metadata (expanded from `gradle.properties`) |
-| `.github/workflows/` | `ci.yml` (PR build), `build.yml` (tag release), `security.yml` (Trivy) |
+| `.github/workflows/` | `ci.yml` (PR build), `build.yml` (tag release), `prerelease.yml` (`edge` and `pr-<n>` test pre-releases), `security.yml` (Trivy) |
 
 ## Commands
 - `make check` (= `./gradlew build`), `make test`, `make gametest` (`runGameTestServer`), `make data`, `make run-client`.

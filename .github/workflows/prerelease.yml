@@ -1,0 +1,94 @@
+# Pre-release jars for test environments (spec 016, Arffornia/docs). Players never get them:
+# the prod pack asks for `releases/latest`, which never returns a pre-release, and the guard
+# step below fails the run if `latest` ever stops being a v* release.
+#
+# - push to main: refresh the rolling `edge` pre-release (staging and the test slot use it);
+# - pull_request from this repository: `pr-<n>` pre-release (a playtest slot uses it);
+# - pull_request closed: delete `pr-<n>` and its tag.
+# Fork PRs never get a release. Stable releases stay in build.yml (tags v*), unchanged.
+name: Pre-release jars
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prerelease-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+
+jobs:
+  publish:
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Build the jar
+        run: make build
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          jar=build/libs/arffornia.jar
+          test -f "$jar"
+          if [ -n "$PR_URL" ]; then src="$PR_URL"; else src="main"; fi
+          notes="Test build of ${src} at ${SHA} ($(date -u +%Y-%m-%dT%H:%MZ)). Not for players: the pack uses the latest v* release."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$jar" --clobber
+            gh release edit "$TAG" --prerelease --latest=false --notes "$notes"
+          else
+            gh release create "$TAG" "$jar" --prerelease --latest=false --target "$SHA" \
+              --title "$TAG (test build)" --notes "$notes"
+          fi
+          echo "Published \`$TAG\` from \`${SHA}\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guard, players still get a stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+          echo "releases/latest is ${latest}"
+          if ! [[ "$latest" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::releases/latest is '${latest}', not a v* release: players would get a test jar."
+            exit 1
+          fi
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete pr-<n>
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          else
+            echo "no $TAG release"
+          fi

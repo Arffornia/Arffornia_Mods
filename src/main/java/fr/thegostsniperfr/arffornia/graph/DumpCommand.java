@@ -29,16 +29,16 @@ public final class DumpCommand {
     private static int run(CommandSourceStack source, String dir) {
         Path target = source.getServer().getServerDirectory().resolve(dir).normalize();
         if (!target.startsWith(source.getServer().getServerDirectory().normalize())) {
-            source.sendFailure(Component.literal("The dump folder must stay inside the server folder."));
+            source.sendFailure(Component.translatable("commands.arffornia.dump.outside_server"));
             return 0;
         }
         try {
             RecipeGraphDump.Result result = RecipeGraphDump.write(source.getServer(), target);
-            source.sendSuccess(() -> Component.literal(result.recipes() + " recipes, " + result.items() + " items, "
-                    + result.tags() + " tags written to " + target), true);
+            source.sendSuccess(() -> Component.translatable("commands.arffornia.dump.done",
+                    result.recipes(), result.items(), result.tags(), target.toString()), true);
             return result.recipes();
         } catch (IOException e) {
-            source.sendFailure(Component.literal("Dump failed: " + e.getMessage()));
+            source.sendFailure(Component.translatable("commands.arffornia.dump.failed", String.valueOf(e.getMessage())));
             return 0;
         }
     }

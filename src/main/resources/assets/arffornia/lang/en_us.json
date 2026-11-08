@@ -117,5 +117,8 @@
   "commands.arffornia.setrequirements.empty": "Your inventory is empty. No requirements were set.",
   "commands.arffornia.setrequirements.sending": "Sending %s unique items (%s total) as new requirements for milestone %s...",
   "commands.arffornia.setrequirements.success": "Successfully updated the requirements for milestone %s.",
-  "commands.arffornia.setrequirements.failed": "Failed to update the requirements. Check the server logs."
+  "commands.arffornia.setrequirements.failed": "Failed to update the requirements. Check the server logs.",
+  "commands.arffornia.dump.outside_server": "The dump folder must stay inside the server folder.",
+  "commands.arffornia.dump.done": "%s recipes, %s items and %s tags written to %s",
+  "commands.arffornia.dump.failed": "Dump failed: %s"
 }

@@ -124,7 +124,7 @@ public class Arffornia {
     /**
      * Fired when a player joins the server.
      * 1. Ensure the player exists in the backend database.
-     * 2. Once confirmed, proceed with caching their ID and checking for shop rewards.
+     * 2. Once confirmed, cache their ID, resync their FTB team and check for shop rewards.
      * 3. Fetch and send the current milestone target to the client.
      */
     @SubscribeEvent
@@ -134,6 +134,9 @@ public class Arffornia {
                     .thenAccept(success -> {
                         if (success) {
                             this.rewardHandler.addPlayerToCache(player);
+                            if (ModList.get().isLoaded("ftbteams")) {
+                                player.getServer().execute(() -> FTBTeamsEventHandler.syncCurrentTeam(player.getUUID()));
+                            }
                             this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
                                 if (hasRewards) {
                                     player.getServer().execute(() -> {

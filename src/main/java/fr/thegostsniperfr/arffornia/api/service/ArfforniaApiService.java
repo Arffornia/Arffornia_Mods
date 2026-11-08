@@ -19,11 +19,13 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 
 import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
 
@@ -136,7 +138,11 @@ public class ArfforniaApiService {
      * Sends an authenticated JSON POST and maps the outcome to a boolean (2xx = true).
      */
     private CompletableFuture<Boolean> postAndCheckSuccess(String path, JsonObject body, String actionName, @Nullable UUID playerUuid) {
-        return http.sendAuthenticated(http.jsonPost(path, gson.toJson(body)))
+        return sendAndCheckSuccess(http.jsonPost(path, gson.toJson(body)), actionName, playerUuid);
+    }
+
+    private CompletableFuture<Boolean> sendAndCheckSuccess(Function<String, HttpRequest> request, String actionName, @Nullable UUID playerUuid) {
+        return http.sendAuthenticated(request)
                 .thenApply(response -> {
                     if (response == null) {
                         Arffornia.LOGGER.error("API call to {} skipped for player {}: no service auth token.", actionName, playerUuid);
@@ -159,23 +165,16 @@ public class ArfforniaApiService {
     }
 
     /**
-     * Notifies the backend that a player has joined a team.
+     * Tells the backend which party team the player was in at {@code observedAtMillis} (null = no party).
+     * The backend ignores observations older than the last one it applied, so calls may arrive in any order.
      */
-    public void sendPlayerJoinedTeam(UUID playerUuid, UUID teamUuid, String teamName) {
+    public void syncPlayerTeam(UUID playerUuid, @Nullable UUID teamUuid, @Nullable String teamName, long observedAtMillis) {
         JsonObject body = new JsonObject();
         body.addProperty("player_uuid", compactUuid(playerUuid));
-        body.addProperty("team_uuid", teamUuid.toString());
+        body.addProperty("team_uuid", teamUuid != null ? teamUuid.toString() : null);
         body.addProperty("team_name", teamName);
-        postAndCheckSuccess("/teams/player/join", body, "player/join", playerUuid);
-    }
-
-    /**
-     * Notifies the backend that a player has left a team.
-     */
-    public void sendPlayerLeftTeam(UUID playerUuid) {
-        JsonObject body = new JsonObject();
-        body.addProperty("player_uuid", compactUuid(playerUuid));
-        postAndCheckSuccess("/teams/player/leave", body, "player/leave", playerUuid);
+        body.addProperty("observed_at", observedAtMillis);
+        sendAndCheckSuccess(http.jsonPut("/teams/player/sync", gson.toJson(body)), "teams/player/sync", playerUuid);
     }
 
     /**

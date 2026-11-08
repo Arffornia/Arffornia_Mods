@@ -142,6 +142,15 @@ public final class ApiHttp {
                 .build();
     }
 
+    /** Builds an authenticated JSON PUT for {@code path}. */
+    public Function<String, HttpRequest> jsonPut(String path, String jsonBody) {
+        return bearer -> request(path)
+                .header("Authorization", "Bearer " + bearer)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+    }
+
     /** Builds an authenticated GET for {@code path}. */
     public Function<String, HttpRequest> authGet(String path) {
         return bearer -> request(path)

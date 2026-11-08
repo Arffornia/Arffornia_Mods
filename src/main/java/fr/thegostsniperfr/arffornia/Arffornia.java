@@ -8,6 +8,7 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
+import fr.thegostsniperfr.arffornia.graph.RecipeGraphDump;
 import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
@@ -35,6 +36,8 @@ import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Mod(Arffornia.MODID)
@@ -93,6 +96,18 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
+        String dumpDir = System.getProperty(RecipeGraphDump.STARTUP_PROPERTY);
+        if (dumpDir != null) {
+            // Headless extraction for the graph tool: dump everything, then stop without touching the API.
+            try {
+                RecipeGraphDump.write(event.getServer(), Path.of(dumpDir));
+            } catch (IOException e) {
+                LOGGER.error("Recipe graph dump failed", e);
+            }
+            event.getServer().halt(false);
+            return;
+        }
+
         Arffornia.LOGGER.info("Server has started. Loading initial Arffornia data...");
 
         // Load recipes asynchronously: the server thread must never wait for the API.

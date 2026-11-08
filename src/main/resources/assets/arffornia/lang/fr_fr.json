@@ -117,5 +117,8 @@
   "commands.arffornia.setrequirements.empty": "Votre inventaire est vide. Aucun objet requis n'a été défini.",
   "commands.arffornia.setrequirements.sending": "Envoi de %s objets distincts (%s au total) comme nouveaux objets requis du jalon %s...",
   "commands.arffornia.setrequirements.success": "Objets requis du jalon %s mis à jour.",
-  "commands.arffornia.setrequirements.failed": "Impossible de mettre à jour les objets requis. Consultez les journaux du serveur."
+  "commands.arffornia.setrequirements.failed": "Impossible de mettre à jour les objets requis. Consultez les journaux du serveur.",
+  "commands.arffornia.dump.outside_server": "Le dossier d'export doit rester dans le dossier du serveur.",
+  "commands.arffornia.dump.done": "%s recettes, %s objets et %s tags écrits dans %s",
+  "commands.arffornia.dump.failed": "Échec de l'export : %s"
 }

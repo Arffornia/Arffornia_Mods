@@ -40,7 +40,7 @@ public abstract class MultiblockMasterBlock extends MachineBlock {
     @Override
     protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
         if (params.getOptionalParameter(LootContextParams.BLOCK_ENTITY) instanceof MultiblockMachineBlockEntity machine) {
-            return machine.original().getDrops(params);
+            return Multiblocks.dropsOf(machine.original(), params);
         }
         return List.of();
     }
@@ -53,7 +53,8 @@ public abstract class MultiblockMasterBlock extends MachineBlock {
 
     @Override
     protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        float own = super.getDestroyProgress(state, player, level, pos);
         return level.getBlockEntity(pos) instanceof MultiblockMachineBlockEntity machine
-                ? machine.original().getDestroyProgress(player, level, pos) : super.getDestroyProgress(state, player, level, pos);
+                ? Multiblocks.destroyProgress(machine.original(), player, level, pos, own) : own;
     }
 }

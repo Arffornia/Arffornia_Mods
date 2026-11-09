@@ -57,7 +57,7 @@ public class MultiblockPartBlock extends BaseEntityBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part) {
+        if (level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part && part.machine() != null) {
             BlockPos master = part.master();
             return level.getBlockState(master).useWithoutItem(level, player, hit.withPosition(master));
         }
@@ -78,7 +78,7 @@ public class MultiblockPartBlock extends BaseEntityBlock {
     @Override
     protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
         if (params.getOptionalParameter(LootContextParams.BLOCK_ENTITY) instanceof MultiblockPartBlockEntity part) {
-            return part.original().getDrops(params);
+            return Multiblocks.dropsOf(part.original(), params);
         }
         return List.of();
     }
@@ -91,7 +91,8 @@ public class MultiblockPartBlock extends BaseEntityBlock {
 
     @Override
     protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        float own = super.getDestroyProgress(state, player, level, pos);
         return level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part
-                ? part.original().getDestroyProgress(player, level, pos) : super.getDestroyProgress(state, player, level, pos);
+                ? Multiblocks.destroyProgress(part.original(), player, level, pos, own) : own;
     }
 }

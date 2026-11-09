@@ -13,7 +13,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -21,6 +26,7 @@ import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -76,6 +82,19 @@ public final class Multiblocks {
         return Result.FORMED;
     }
 
+    /** Only a player on the progression a structure belongs to may change its ports. */
+    public static boolean mayConfigure(ServerPlayer player, MultiblockPartBlockEntity part) {
+        MultiblockMachineBlockEntity machine = part.machine();
+        if (machine == null) {
+            return false;
+        }
+        if (Progressions.activeProgressionOf(player) != machine.linkedProgressionId()) {
+            player.sendSystemMessage(Component.translatable("chat.arffornia.multiblock.not_yours").withStyle(ChatFormatting.RED));
+            return false;
+        }
+        return MachineProgressions.checkServing(player, machine.linkedProgressionId());
+    }
+
     private static void form(ServerLevel level, MultiblockDefinition definition, Formation formation, long progressionId) {
         BlockState trigger = level.getBlockState(formation.trigger());
         for (BlockPos pos : formation.positions()) {
@@ -94,5 +113,27 @@ public final class Multiblocks {
             machine.formed(trigger, formation, progressionId);
             level.sendBlockUpdated(formation.trigger(), master, master, Block.UPDATE_CLIENTS);
         }
+        // Neighbours may have cached "no capability" while the parts were being placed, before the master existed.
+        formation.positions().forEach(level::invalidateCapabilities);
+    }
+
+    /**
+     * What a formed block drops: the block it replaced, under that block's own tool rule, so a pickaxe-only casing
+     * does not drop to a bare hand once formed.
+     */
+    static List<ItemStack> dropsOf(BlockState original, LootParams.Builder params) {
+        if (original.isAir()) {
+            return List.of();
+        }
+        ItemStack tool = params.getOptionalParameter(LootContextParams.TOOL);
+        if (original.requiresCorrectToolForDrops() && (tool == null || !tool.isCorrectToolForDrops(original))) {
+            return List.of();
+        }
+        return original.getDrops(params);
+    }
+
+    /** How fast a formed block breaks: like the block it replaced, or like itself before the client knows that block. */
+    static float destroyProgress(BlockState original, Player player, BlockGetter level, BlockPos pos, float fallback) {
+        return original.isAir() ? fallback : original.getDestroyProgress(player, level, pos);
     }
 }

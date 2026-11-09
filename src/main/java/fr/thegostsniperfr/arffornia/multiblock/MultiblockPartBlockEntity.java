@@ -9,6 +9,10 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,6 +44,9 @@ public class MultiblockPartBlockEntity extends BlockEntity {
         this.port = original.getBlock() instanceof PortBlock portBlock ? portBlock.kind() : null;
         this.sides = port != null ? new SideConfig(port.sideCycle()) : null;
         setChanged();
+        if (level != null) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
     }
 
     public BlockState original() {
@@ -71,28 +78,33 @@ public class MultiblockPartBlockEntity extends BlockEntity {
         return Optional.of(mode);
     }
 
+    /** A port is reached through its faces only: a query without a face gets nothing, so a switched-off face cannot be bypassed. */
     public SideMode side(@Nullable Direction face) {
-        if (port == null || sides == null) {
+        if (face == null || sides == null) {
             return SideMode.NONE;
         }
-        return face == null ? port.sideCycle().getFirst() : sides.get(face);
+        return sides.get(face);
     }
 
     @Nullable
     public IItemHandler items(@Nullable Direction face) {
-        MultiblockMachineBlockEntity machine = machine();
-        return machine != null && port != null ? machine.portItems(port, side(face)) : null;
+        SideMode mode = side(face);
+        return port != null && port.carriesItems() && mode != SideMode.NONE ? new PortItemHandler(this, mode) : null;
     }
 
     @Nullable
     public IEnergyStorage energy(@Nullable Direction face) {
-        MultiblockMachineBlockEntity machine = machine();
-        return machine != null && port != null ? machine.portEnergy(port, side(face)) : null;
+        SideMode mode = side(face);
+        return port != null && port.carriesEnergy() && mode != SideMode.NONE ? new PortEnergyStorage(this, mode) : null;
     }
 
+    /** The master this part belongs to, when it is loaded and still lists this part. */
     @Nullable
     public MultiblockMachineBlockEntity machine() {
-        return level != null && level.getBlockEntity(master) instanceof MultiblockMachineBlockEntity machine ? machine : null;
+        if (level == null || !level.isLoaded(master)) {
+            return null;
+        }
+        return level.getBlockEntity(master) instanceof MultiblockMachineBlockEntity machine && machine.parts().contains(worldPosition) ? machine : null;
     }
 
     @Override
@@ -103,6 +115,19 @@ public class MultiblockPartBlockEntity extends BlockEntity {
         if (sides != null) {
             tag.put("sides", sides.save());
         }
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        tag.put("original", NbtUtils.writeBlockState(original));
+        tag.put("master", NbtUtils.writeBlockPos(master));
+        return tag;
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     @Override

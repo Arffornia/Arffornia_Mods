@@ -6,6 +6,7 @@ import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterPartBlock;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevator;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevatorPartBlock;
 import fr.thegostsniperfr.arffornia.item.ModItems;
+import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlock;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -24,6 +25,8 @@ public class ModBlocks {
 
     public static final DeferredBlock<Block> SPACE_ELEVATOR = registerBlock("space_elevator", SpaceElevator::new);
     public static final DeferredBlock<Block> SPACE_ELEVATOR_PART_BLOCK = BLOCKS.register("space_elevator_part_block", SpaceElevatorPartBlock::new);
+
+    public static final DeferredBlock<MultiblockPartBlock> MULTIBLOCK_PART = BLOCKS.register("multiblock_part", () -> new MultiblockPartBlock());
 
 
     private static <T extends Block> DeferredBlock<T> registerBlock(String name, Supplier<T> block) {

@@ -135,5 +135,16 @@
   "gui.arffornia.machine.status.output_full": "Sortie pleine",
   "gui.arffornia.machine.status.locked": "Verrouillé",
   "gui.arffornia.machine.status.stopped": "Arrêtée",
-  "gui.arffornia.machine.status.not_formed": "Non assemblée"
+  "gui.arffornia.machine.status.not_formed": "Non assemblée",
+  "block.arffornia.multiblock_part": "Pièce de machine",
+  "chat.arffornia.multiblock.formed": "%s assemblée.",
+  "chat.arffornia.multiblock.incomplete": "%s incomplète : %s blocs manquants ou incorrects. Regardez le contrôleur avec la clé pour les voir.",
+  "chat.arffornia.multiblock.locked": "Votre progression n'a pas encore débloqué : %s.",
+  "chat.arffornia.multiblock.port_side": "Port, face %s : %s",
+  "gui.arffornia.machine.face.down": "dessous",
+  "gui.arffornia.machine.face.up": "dessus",
+  "gui.arffornia.machine.face.north": "nord",
+  "gui.arffornia.machine.face.south": "sud",
+  "gui.arffornia.machine.face.west": "ouest",
+  "gui.arffornia.machine.face.east": "est"
 }

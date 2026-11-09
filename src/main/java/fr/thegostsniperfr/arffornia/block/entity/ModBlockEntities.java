@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
+import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -26,5 +27,7 @@ public class ModBlockEntities {
                     BlockEntityType.Builder.of(CrafterBlockEntity::new,
                             ModBlocks.CRAFTER_BLOCK.get()).build(null));
 
-
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MultiblockPartBlockEntity>> MULTIBLOCK_PART_BE =
+            BLOCK_ENTITIES.register("multiblock_part", () ->
+                    BlockEntityType.Builder.of(MultiblockPartBlockEntity::new, ModBlocks.MULTIBLOCK_PART.get()).build(null));
 }

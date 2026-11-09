@@ -13,7 +13,7 @@ and for humans. There is no AI review in CI. Read from the base branch, never fr
 ## Depth by risk (`risk.yml` drives the CI depth)
 | Risk | Paths | Depth |
 |---|---|---|
-| High | `network/` payload handlers, `shop/` (rewards, JDBC), `api/` (auth, HTTP), `command/`, config, `build.gradle`, workflows | Every line, trace callers, try to break it from a modified client |
+| High | `network/` payload handlers, `shop/` (rewards, claim ledger), `api/` (auth, HTTP), `command/`, config, `build.gradle`, workflows | Every line, trace callers, try to break it from a modified client |
 | Medium | block entities, menus, recipes, compat, client screens | Every line, check GameTests/unit tests cover it |
 | Low | lang files, textures, docs, tests only | Skim |
 

@@ -7,6 +7,8 @@ import java.util.function.ToIntFunction;
 
 /** Chooses which pending rewards to claim now, so that what is claimed is deliverable and fits the inventory. */
 public final class RewardPlanner {
+    /** A reward bigger than the main inventory is claimed when the inventory is empty; the overflow drops at the player's feet. */
+    public static final int INVENTORY_SLOTS = 36;
 
     public record Plan(List<PendingReward> toClaim, List<PendingReward> undeliverable, boolean leftForLater) {
     }
@@ -25,7 +27,7 @@ public final class RewardPlanner {
                 undeliverable.add(reward);
                 continue;
             }
-            int needed = reward.contents().stream().mapToInt(slotsNeeded).sum();
+            int needed = Math.min(INVENTORY_SLOTS, reward.contents().stream().mapToInt(slotsNeeded).sum());
             if (needed > slotsLeft) {
                 leftForLater = true;
                 continue;

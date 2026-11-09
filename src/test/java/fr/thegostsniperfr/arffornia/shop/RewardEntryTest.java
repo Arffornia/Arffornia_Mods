@@ -6,7 +6,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RewardEntryTest {
 
@@ -42,11 +44,22 @@ class RewardEntryTest {
             "{\"type\":\"permission\",\"node\":\"a b\"}",
             "{\"type\":\"permission\",\"node\":\"x.y\",\"value\":\"true\"}",
             "{\"type\":\"rank\",\"group\":\"admin; op\"}",
+            "{\"type\":\"permission\",\"node\":\"group.admin\"}",
+            "{\"type\":\"permission\",\"node\":\"prefix.100.owner\"}",
+            "{\"type\":\"permission\",\"node\":\"meta.x.y\"}",
             "{\"type\":\"lucky_box\",\"box\":\"arffornia:streak\",\"count\":65}",
             "{\"item\":\"minecraft:diamond\",\"count\":1}",
             "[1]"
     })
     void invalidEntriesAreUnsupported(String json) {
         assertInstanceOf(RewardEntry.Unsupported.class, parse(json));
+    }
+
+    @Test
+    void allowedPrefixesMatchWholeNodeSegments() {
+        assertTrue(RewardEntry.isNodeUnder("cosmetic.pet.kitten", "cosmetic."));
+        assertTrue(RewardEntry.isNodeUnder("cosmetic.pet.kitten", "cosmetic"));
+        assertFalse(RewardEntry.isNodeUnder("cosmetics_admin.all", "cosmetic"));
+        assertFalse(RewardEntry.isNodeUnder("minecraft.command.op", "cosmetic."));
     }
 }

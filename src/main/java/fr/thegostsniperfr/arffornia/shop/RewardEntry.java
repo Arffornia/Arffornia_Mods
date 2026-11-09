@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 public sealed interface RewardEntry {
     Pattern RESOURCE_ID = Pattern.compile("^[a-z0-9_.-]+:[a-z0-9_./-]+$");
     Pattern PERMISSION_NODE = Pattern.compile("^[a-z0-9_-]+(\\.[a-z0-9_-]+)*$");
+    /** LuckPerms parses these prefixes as groups or meta, not as plain permissions. */
+    Pattern SPECIAL_NODE = Pattern.compile("^(group|prefix|suffix|meta|weight|displayname)\\..*");
     Pattern GROUP = Pattern.compile("^[a-z0-9_-]{1,36}$");
     int MAX_ITEM_COUNT = 2304;
     int MAX_BOX_COUNT = 64;
@@ -32,6 +34,12 @@ public sealed interface RewardEntry {
 
     /** A type this mod version does not know (added later on the website), or an entry that failed validation. */
     record Unsupported(String type, String reason) implements RewardEntry {
+    }
+
+    /** True when {@code node} is {@code prefix} or below it; {@code cosmetic} does not cover {@code cosmetics_admin}. */
+    static boolean isNodeUnder(String node, String prefix) {
+        String base = prefix.endsWith(".") ? prefix.substring(0, prefix.length() - 1) : prefix;
+        return node.equals(base) || node.startsWith(base + ".");
     }
 
     static RewardEntry parse(@Nullable JsonElement element) {
@@ -54,7 +62,7 @@ public sealed interface RewardEntry {
             case "permission" -> {
                 String node = string(json, "node");
                 Boolean value = json.has("value") ? bool(json, "value") : Boolean.TRUE;
-                yield matches(PERMISSION_NODE, node) && value != null
+                yield matches(PERMISSION_NODE, node) && !SPECIAL_NODE.matcher(node).matches() && value != null
                         ? new Permission(node, value)
                         : new Unsupported(type, "invalid node");
             }

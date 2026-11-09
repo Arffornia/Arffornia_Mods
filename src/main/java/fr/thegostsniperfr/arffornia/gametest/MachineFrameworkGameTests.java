@@ -84,6 +84,14 @@ public final class MachineFrameworkGameTests {
     }
 
     @GameTest(template = PLATFORM)
+    public static void progressOfALongRecipeStaysWithinTheSyncedRange(GameTestHelper helper) {
+        int scaled = MachineData.scaledProgress(60_000, 100_000);
+
+        helper.assertTrue(scaled == 600, "60% should sync as 600 thousandths, got " + scaled);
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
     public static void sideConfigCyclesOnlyThroughAllowedModes(GameTestHelper helper) {
         SideConfig config = new SideConfig(List.of(SideMode.INPUT, SideMode.NONE));
 

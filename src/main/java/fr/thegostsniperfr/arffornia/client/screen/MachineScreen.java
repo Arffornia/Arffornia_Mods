@@ -70,11 +70,10 @@ public class MachineScreen extends AbstractContainerScreen<MachineMenu> {
     }
 
     private void renderArrow(GuiGraphics graphics, int x, int y) {
-        int max = menu.data().get(MachineData.MAX_PROGRESS);
         int progress = menu.data().get(MachineData.PROGRESS);
         graphics.fill(x, y + 6, x + ARROW_WIDTH - 6, y + 10, SLOT);
-        if (max > 0 && progress > 0) {
-            int width = Math.min(ARROW_WIDTH, (int) Math.ceil(ARROW_WIDTH * (double) progress / max));
+        if (progress > 0) {
+            int width = Math.min(ARROW_WIDTH, (int) Math.ceil(ARROW_WIDTH * (double) progress / MachineData.PROGRESS_SCALE));
             graphics.blitSprite(ARROW_SPRITE, ARROW_WIDTH, ARROW_HEIGHT, 0, 0, x, y, width, ARROW_HEIGHT);
         }
     }

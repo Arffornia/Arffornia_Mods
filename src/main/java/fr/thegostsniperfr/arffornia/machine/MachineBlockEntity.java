@@ -39,8 +39,7 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
         @Override
         public int get(int index) {
             return switch (index) {
-                case MachineData.PROGRESS -> processor.progress();
-                case MachineData.MAX_PROGRESS -> processor.maxProgress();
+                case MachineData.PROGRESS -> MachineData.scaledProgress(processor.progress(), processor.maxProgress());
                 case MachineData.ENERGY_LOW -> MachineData.low(energy.getEnergyStored());
                 case MachineData.ENERGY_HIGH -> MachineData.high(energy.getEnergyStored());
                 case MachineData.CAPACITY_LOW -> MachineData.low(energy.getMaxEnergyStored());

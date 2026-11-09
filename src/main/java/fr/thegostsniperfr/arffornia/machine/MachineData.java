@@ -6,16 +6,21 @@ import net.minecraft.world.inventory.ContainerData;
  * The numbers a machine screen shows. Menus sync data slots as 16-bit shorts, so energy values travel as two halves.
  */
 public final class MachineData {
+    /** Craft progress in thousandths, so recipes longer than a short's range still draw a correct arrow. */
     public static final int PROGRESS = 0;
-    public static final int MAX_PROGRESS = 1;
-    public static final int ENERGY_LOW = 2;
-    public static final int ENERGY_HIGH = 3;
-    public static final int CAPACITY_LOW = 4;
-    public static final int CAPACITY_HIGH = 5;
-    public static final int STATUS = 6;
-    public static final int COUNT = 7;
+    public static final int ENERGY_LOW = 1;
+    public static final int ENERGY_HIGH = 2;
+    public static final int CAPACITY_LOW = 3;
+    public static final int CAPACITY_HIGH = 4;
+    public static final int STATUS = 5;
+    public static final int COUNT = 6;
+    public static final int PROGRESS_SCALE = 1000;
 
     private MachineData() {
+    }
+
+    public static int scaledProgress(int progress, int maxProgress) {
+        return maxProgress > 0 ? (int) Math.min(PROGRESS_SCALE, (long) progress * PROGRESS_SCALE / maxProgress) : 0;
     }
 
     public static int low(int value) {

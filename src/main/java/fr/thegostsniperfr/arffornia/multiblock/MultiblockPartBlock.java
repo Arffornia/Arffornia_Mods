@@ -67,7 +67,7 @@ public class MultiblockPartBlock extends BaseEntityBlock {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part) {
-            MultiblockMachineBlockEntity machine = part.machine();
+            MultiblockMachineBlockEntity machine = part.owner();
             if (machine != null) {
                 machine.disassemble(pos);
             }
@@ -87,6 +87,12 @@ public class MultiblockPartBlock extends BaseEntityBlock {
     public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
         return level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part
                 ? part.original().getCloneItemStack(target, level, pos, player) : ItemStack.EMPTY;
+    }
+
+    @Override
+    public boolean canHarvestBlock(BlockState state, BlockGetter level, BlockPos pos, Player player) {
+        return level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part
+                ? Multiblocks.canHarvest(part.original(), level, pos, player) : super.canHarvestBlock(state, level, pos, player);
     }
 
     @Override

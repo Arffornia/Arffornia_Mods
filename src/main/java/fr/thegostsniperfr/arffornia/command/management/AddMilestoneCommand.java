@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -23,9 +24,9 @@ public class AddMilestoneCommand {
 
                                     ArfforniaApiService.getInstance().addMilestone(target.getUUID(), milestoneId)
                                             .thenAccept(success -> {
+                                                target.server.execute(() -> Progressions.refreshPlayer(target));
                                                 if (success) {
                                                     context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.success").withStyle(ChatFormatting.GREEN));
-                                                    // TODO: Send packet to player to update GUI
                                                 } else {
                                                     context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.failed").withStyle(ChatFormatting.RED));
                                                 }

@@ -10,16 +10,25 @@ import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
 import fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket;
 import fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket;
+import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -27,9 +36,10 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -90,28 +100,59 @@ public final class ArfforniaGameTests {
         CustomRecipeManager.putRecipeForTesting(recipe);
     }
 
-    /** Places a Crafter owned (linked) by {@code owner}, whose progression is {@code progressionId}. */
+    /** The server already knows this progression (as after a login or a refresh), with these milestones completed. */
+    private static void knowProgression(GameTestHelper helper, long progressionId, Integer... completed) {
+        fake().createProgression(progressionId);
+        Progressions.store(helper.getLevel().getServer(), new ProgressionSnapshot(progressionId, Set.of(completed), null, false));
+    }
+
+    /** Completes a milestone on the website and in the server's copy. */
+    private static void unlock(GameTestHelper helper, long progressionId, int milestoneId) {
+        fake().completeMilestone(progressionId, milestoneId);
+        MinecraftServer server = helper.getLevel().getServer();
+        ProgressionSnapshot current = Progressions.find(server, progressionId).orElseThrow();
+        Set<Integer> completed = new HashSet<>(current.completedMilestones());
+        completed.add(milestoneId);
+        Progressions.store(server, new ProgressionSnapshot(progressionId, completed, current.currentMilestoneId(), current.retired()));
+    }
+
+    /** The player's active progression as last synced from the website. */
+    private static void setActiveProgression(ServerPlayer player, long progressionId) {
+        player.setData(ModAttachments.ACTIVE_PROGRESSION, progressionId);
+    }
+
+    /** {@code owner}, whose active progression is {@code progressionId}, places a Crafter. */
     private static CrafterBlockEntity placeCrafter(GameTestHelper helper, ServerPlayer owner, long progressionId) {
-        fake().linkPlayer(owner.getUUID(), progressionId);
-        placeTwoBlockMachine(helper, ModBlocks.CRAFTER_BLOCK.get().defaultBlockState(), ModBlocks.CRAFTER_PART_BLOCK.get().defaultBlockState());
+        knowProgression(helper, progressionId);
+        setActiveProgression(owner, progressionId);
+        placeMachine(helper, owner, ModBlocks.CRAFTER_BLOCK.get());
         CrafterBlockEntity be = (CrafterBlockEntity) helper.getBlockEntity(MACHINE);
-        be.setOwner(owner); // completes synchronously with the in-memory backend
         helper.assertTrue(be.getLinkedProgressionId() == progressionId, "Crafter should be linked to progression " + progressionId);
         return be;
     }
 
     private static SpaceElevatorBlockEntity placeElevator(GameTestHelper helper, ServerPlayer owner, long progressionId) {
-        fake().linkPlayer(owner.getUUID(), progressionId);
-        placeTwoBlockMachine(helper, ModBlocks.SPACE_ELEVATOR.get().defaultBlockState(), ModBlocks.SPACE_ELEVATOR_PART_BLOCK.get().defaultBlockState());
+        knowProgression(helper, progressionId);
+        setActiveProgression(owner, progressionId);
+        placeMachine(helper, owner, ModBlocks.SPACE_ELEVATOR.get());
         SpaceElevatorBlockEntity be = (SpaceElevatorBlockEntity) helper.getBlockEntity(MACHINE);
-        be.setOwner(owner);
-        helper.assertTrue(owner.getUUID().equals(be.getOwnerUuid()), "Elevator should record its owner");
+        helper.assertTrue(be.getLinkedProgressionId() == progressionId, "Elevator should be linked to progression " + progressionId);
         return be;
     }
 
-    private static void placeTwoBlockMachine(GameTestHelper helper, BlockState master, BlockState part) {
-        helper.setBlock(MACHINE, master);
-        helper.setBlock(MACHINE.above(), part);
+    /** Places the master block as a player would: the block's own placement hook adds the part block and links it. */
+    private static void placeMachine(GameTestHelper helper, ServerPlayer placer, Block block) {
+        BlockState state = block.defaultBlockState();
+        helper.setBlock(MACHINE, state);
+        block.setPlacedBy(helper.getLevel(), helper.absolutePos(MACHINE), state, placer, new ItemStack(block));
+    }
+
+    private static CrafterBlockEntity readyToCraft(GameTestHelper helper, ServerPlayer owner, long progressionId, int recipeId) {
+        CrafterBlockEntity be = placeCrafter(helper, owner, progressionId);
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        ((IEnergyStorage) be.energyStorage).receiveEnergy(1000, false);
+        be.setSelectedRecipe(recipeId);
+        return be;
     }
 
     private static CrafterMenu openCrafter(ServerPlayer player, CrafterBlockEntity be) {
@@ -140,6 +181,7 @@ public final class ArfforniaGameTests {
         // energy < time: before the ceil fix this recipe cost 0 FE.
         registerRecipe(recipe(id, id, 10, 20));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
+        unlock(helper, id, id);
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
         ((IEnergyStorage) be.energyStorage).receiveEnergy(1000, false);
         be.setSelectedRecipe(id);
@@ -156,6 +198,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         registerRecipe(recipe(id, id, 400, 20));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
+        unlock(helper, id, id);
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
         be.setSelectedRecipe(id);
 
@@ -172,6 +215,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         registerRecipe(recipe(id, id, 0, 5));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
+        unlock(helper, id, id);
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
         be.itemHandler.setStackInSlot(CrafterBlockEntity.INPUT_SLOTS, new ItemStack(Items.STONE, 64));
         be.setSelectedRecipe(id);
@@ -190,6 +234,7 @@ public final class ArfforniaGameTests {
                 List.of(new ArfforniaApiDtos.RecipeIngredient(null, 1)),
                 List.of(new ArfforniaApiDtos.RecipeResult("minecraft:stone", 1)), 0, 5, id, id));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
+        unlock(helper, id, id);
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
         be.setSelectedRecipe(id);
 
@@ -237,12 +282,13 @@ public final class ArfforniaGameTests {
         registerRecipe(recipe(id, id, 0, 20));
         FakePlayer player = playerNearMachine(helper, "p" + id);
         CrafterBlockEntity be = placeCrafter(helper, player, id);
-        fake().completeMilestone(id, id);
+        unlock(helper, id, id);
         openCrafter(player, be);
 
-        ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id))
-                .thenAccept(ok -> helper.assertTrue(ok, "Selection should be accepted"));
-        helper.succeedWhen(() -> helper.assertTrue(Integer.valueOf(id).equals(be.getSelectedRecipeMilestoneUnlockId()), "Recipe should be selected"));
+        helper.assertTrue(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id)),
+                "Selection should be accepted");
+        helper.assertTrue(Integer.valueOf(id).equals(be.getSelectedRecipeMilestoneUnlockId()), "Recipe should be selected");
+        helper.succeed();
     }
 
     @GameTest(template = PLATFORM)
@@ -253,13 +299,10 @@ public final class ArfforniaGameTests {
         CrafterBlockEntity be = placeCrafter(helper, player, id);
         openCrafter(player, be); // milestone NOT completed
 
-        List<Boolean> results = Collections.synchronizedList(new ArrayList<>());
-        ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id)).thenAccept(results::add);
-        helper.runAfterDelay(5, () -> {
-            helper.assertTrue(results.equals(List.of(false)), "Selection must be rejected, got " + results);
-            helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
-            helper.succeed();
-        });
+        helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id)),
+                "Selection must be rejected");
+        helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
+        helper.succeed();
     }
 
     @GameTest(template = PLATFORM)
@@ -268,15 +311,12 @@ public final class ArfforniaGameTests {
         registerRecipe(recipe(id, id, 0, 20));
         FakePlayer player = playerNearMachine(helper, "p" + id);
         CrafterBlockEntity be = placeCrafter(helper, player, id);
-        fake().completeMilestone(id, id); // unlocked, but the menu is not open
+        unlock(helper, id, id); // unlocked, but the menu is not open
 
-        List<Boolean> results = Collections.synchronizedList(new ArrayList<>());
-        ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id)).thenAccept(results::add);
-        helper.runAfterDelay(5, () -> {
-            helper.assertTrue(results.equals(List.of(false)), "Selection must be rejected, got " + results);
-            helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
-            helper.succeed();
-        });
+        helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), id)),
+                "Selection must be rejected");
+        helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
+        helper.succeed();
     }
 
     @GameTest(template = PLATFORM)
@@ -285,23 +325,20 @@ public final class ArfforniaGameTests {
         registerRecipe(recipe(id, id, 0, 20));
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         CrafterBlockEntity be = placeCrafter(helper, owner, id);
-        fake().completeMilestone(id, id);
+        unlock(helper, id, id);
         FakePlayer far = player(helper, "far" + id, new Vec3(2.5, 1, 40.5));
         openCrafter(far, be);
 
-        List<Boolean> results = Collections.synchronizedList(new ArrayList<>());
-        ServerboundSelectRecipePacket.processOnServer(far, new ServerboundSelectRecipePacket(be.getBlockPos(), id)).thenAccept(results::add);
-        helper.runAfterDelay(5, () -> {
-            helper.assertTrue(results.equals(List.of(false)), "Remote selection must be rejected, got " + results);
-            helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
-            helper.succeed();
-        });
+        helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(far, new ServerboundSelectRecipePacket(be.getBlockPos(), id)),
+                "Remote selection must be rejected");
+        helper.assertTrue(be.getSelectedRecipeMilestoneUnlockId() == null, "No recipe must be selected");
+        helper.succeed();
     }
 
     // ---- Space Elevator ---------------------------------------------------------------------------------------
 
     @GameTest(template = PLATFORM)
-    public static void elevatorLaunchCreditsOwner(GameTestHelper helper) {
+    public static void elevatorLaunchCreditsItsProgression(GameTestHelper helper) {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
@@ -309,15 +346,16 @@ public final class ArfforniaGameTests {
         be.setCachedMilestoneDetails(milestone(id, 3));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 5));
 
-        // A teammate (different player, own progression) launches the owner's elevator.
+        // Another player, on another progression, launches the elevator.
         FakePlayer teammate = playerNearMachine(helper, "mate" + id);
-        fake().linkPlayer(teammate.getUUID(), id + 500_000L);
+        knowProgression(helper, id + 500_000L);
+        setActiveProgression(teammate, id + 500_000L);
         openElevator(teammate, be);
 
         helper.assertTrue(ServerboundLaunchElevatorPacket.processOnServer(teammate, new ServerboundLaunchElevatorPacket(be.getBlockPos())),
                 "Launch from the open menu nearby should be accepted");
         helper.succeedWhen(() -> {
-            helper.assertTrue(fake().isCompleted(id, id), "Milestone should be completed in the owner's progression");
+            helper.assertTrue(fake().isCompleted(id, id), "Milestone should be completed in the elevator's progression");
             helper.assertFalse(fake().isCompleted(id + 500_000L, id), "The launcher's own progression must not be credited");
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Requirements should be consumed, left=" + be.countItems(Items.IRON_INGOT));
             helper.assertFalse(be.isLaunching(), "Launch should be finished");
@@ -396,4 +434,119 @@ public final class ArfforniaGameTests {
         });
     }
 
+    // ---- Machines belong to the progression they were placed for (#18) ----------------------------------------
+
+    @GameTest(template = PLATFORM)
+    public static void placementLinksToThePlacersCurrentProgressionWithoutNetwork(GameTestHelper helper) {
+        int id = nextId();
+        FakePlayer placer = playerNearMachine(helper, "p" + id);
+        // The website has never heard of this player: only the state synced earlier is available.
+        Progressions.store(helper.getLevel().getServer(), new ProgressionSnapshot(id, Set.of(), null, false));
+        setActiveProgression(placer, id);
+
+        placeMachine(helper, placer, ModBlocks.CRAFTER_BLOCK.get());
+
+        CrafterBlockEntity be = (CrafterBlockEntity) helper.getBlockEntity(MACHINE);
+        helper.assertTrue(be.getLinkedProgressionId() == id, "Crafter should be linked in the same tick, got " + be.getLinkedProgressionId());
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void placementIsRefusedWhileThePlacersProgressionIsUnknown(GameTestHelper helper) {
+        FakePlayer placer = playerNearMachine(helper, "unsynced" + nextId());
+        BlockPos pos = helper.absolutePos(MACHINE);
+        ItemStack stack = new ItemStack(ModBlocks.CRAFTER_BLOCK.get());
+        placer.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockPlaceContext context = new BlockPlaceContext(placer, InteractionHand.MAIN_HAND, stack,
+                new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos.below(), false));
+
+        helper.assertTrue(ModBlocks.CRAFTER_BLOCK.get().getStateForPlacement(context) == null, "Crafter must not be placed unlinked");
+        helper.assertTrue(ModBlocks.SPACE_ELEVATOR.get().getStateForPlacement(context) == null, "Elevator must not be placed unlinked");
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 100)
+    public static void teamSwitchKeepsTheMachineOnItsProgression(GameTestHelper helper) {
+        int id = nextId();
+        long teamProgression = id + 600_000L;
+        registerRecipe(recipe(id, id, 0, 10));
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        CrafterBlockEntity be = readyToCraft(helper, owner, id, id);
+        unlock(helper, id, id);
+        // The player joins a team: the website now reports the team progression, where nothing is unlocked.
+        fake().createProgression(teamProgression).linkPlayer(owner.getUUID(), teamProgression);
+
+        Progressions.refreshPlayer(owner);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(Progressions.activeProgressionOf(owner) == teamProgression, "Player should now be on the team progression");
+            helper.assertTrue(be.getLinkedProgressionId() == id, "Crafter must stay on the progression it was placed for");
+            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should keep crafting for its progression");
+        });
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 100)
+    public static void retiredProgressionStopsTheCrafter(GameTestHelper helper) {
+        int id = nextId();
+        registerRecipe(recipe(id, id, 0, 20));
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        CrafterBlockEntity be = readyToCraft(helper, owner, id, id);
+        unlock(helper, id, id);
+        openCrafter(owner, be);
+        // Its team became empty and was soft-deleted on the website.
+        fake().retire(id);
+
+        Progressions.refreshProgression(helper.getLevel().getServer(), id);
+
+        helper.runAfterDelay(60, () -> {
+            helper.assertTrue(Progressions.find(helper.getLevel().getServer(), id).orElseThrow().retired(), "Progression should be known as retired");
+            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).isEmpty(), "A retired progression's Crafter must not craft");
+            helper.assertTrue(be.itemHandler.getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
+            helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(owner, new ServerboundSelectRecipePacket(be.getBlockPos(), id)),
+                    "Recipe selection must be rejected");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void retiredProgressionStopsTheElevator(GameTestHelper helper) {
+        int id = nextId();
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
+        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 1));
+        openElevator(owner, be);
+        Progressions.store(helper.getLevel().getServer(), new ProgressionSnapshot(id, Set.of(), null, true));
+
+        ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos()));
+
+        helper.runAfterDelay(5, () -> {
+            helper.assertFalse(be.isLaunching(), "No launch for a retired progression");
+            helper.assertTrue(be.countItems(Items.IRON_INGOT) == 1, "Items must not be consumed");
+            helper.assertTrue(fake().addMilestoneCalls().stream().noneMatch(c -> c.milestoneId() == id), "The website must not be called");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 100)
+    public static void machineFromAnOlderSaveFetchesItsProgressionOnLoad(GameTestHelper helper) {
+        int id = nextId();
+        registerRecipe(recipe(id, id, 0, 10));
+        fake().createProgression(id).completeMilestone(id, id);
+        helper.setBlock(MACHINE, ModBlocks.CRAFTER_BLOCK.get().defaultBlockState());
+        CrafterBlockEntity be = (CrafterBlockEntity) helper.getBlockEntity(MACHINE);
+        var registries = helper.getLevel().registryAccess();
+        var tag = be.saveWithoutMetadata(registries);
+        tag.putLong("linkedProgressionId", id);
+        be.loadWithComponents(tag, registries);
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.setSelectedRecipe(id);
+
+        be.onLoad();
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(Progressions.find(helper.getLevel().getServer(), id).isPresent(), "Progression should be fetched");
+            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should craft once its progression is known");
+        });
+    }
 }

@@ -13,6 +13,8 @@ import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
+import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
@@ -38,6 +40,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Mod(Arffornia.MODID)
@@ -64,6 +67,7 @@ public class Arffornia {
         ModCreativeTabs.register(modEventBus);
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
+        ModAttachments.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
 
@@ -109,6 +113,7 @@ public class Arffornia {
         }
 
         Arffornia.LOGGER.info("Server has started. Loading initial Arffornia data...");
+        Progressions.refreshAll(event.getServer());
 
         // Load recipes asynchronously: the server thread must never wait for the API.
         // The migration reloads the recipes itself when it finishes.
@@ -144,14 +149,20 @@ public class Arffornia {
      */
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            Progressions.sendCachedState(player);
+        }
         if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer player) {
             ArfforniaApiService.getInstance().ensurePlayerExists(player.getUUID(), player.getName().getString())
                     .thenAccept(success -> {
                         if (success) {
                             this.rewardHandler.addPlayerToCache(player);
-                            if (ModList.get().isLoaded("ftbteams")) {
-                                player.getServer().execute(() -> FTBTeamsEventHandler.syncCurrentTeam(player.getUUID()));
-                            }
+                            player.getServer().execute(() -> {
+                                CompletableFuture<Boolean> teamSynced = ModList.get().isLoaded("ftbteams")
+                                        ? FTBTeamsEventHandler.syncCurrentTeam(player.getUUID())
+                                        : CompletableFuture.completedFuture(true);
+                                teamSynced.thenAcceptAsync(ignored -> Progressions.refreshPlayer(player), player.server);
+                            });
                             this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
                                 if (hasRewards) {
                                     player.getServer().execute(() -> {

@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -28,9 +29,9 @@ public class RemoveMilestoneCommand {
 
                                     ArfforniaApiService.getInstance().removeMilestone(targetPlayer.getUUID(), milestoneId)
                                             .thenAccept(success -> {
+                                                targetPlayer.server.execute(() -> Progressions.refreshPlayer(targetPlayer));
                                                 if (success) {
                                                     source.sendSystemMessage(Component.translatable("commands.arffornia.remove.success").withStyle(ChatFormatting.GREEN));
-                                                    // TODO: Send a network packet to the targetPlayer to notify their client of the change.
                                                 } else {
                                                     source.sendSystemMessage(Component.translatable("commands.arffornia.remove.failed").withStyle(ChatFormatting.RED));
                                                 }

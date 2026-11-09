@@ -33,7 +33,8 @@ public class ArfforniaApiDtos {
     public record ProgressionData(
             int id,
             @SerializedName("completed_milestones") List<Integer> completedMilestones,
-            @SerializedName("current_milestone_id") @Nullable Integer currentMilestoneId
+            @SerializedName("current_milestone_id") @Nullable Integer currentMilestoneId,
+            boolean retired
     ) {
     }
 

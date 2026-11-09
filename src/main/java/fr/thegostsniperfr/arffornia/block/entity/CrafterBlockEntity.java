@@ -3,7 +3,8 @@ package fr.thegostsniperfr.arffornia.block.entity;
 import com.google.common.collect.Maps;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -48,7 +50,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     public final IItemHandler automationInputHandler = createInputItemHandler();
     public final IItemHandler automationOutputDownHandler = createOutputItemHandler(0);
     public final IItemHandler automationOutputEastHandler = createOutputItemHandler(1);
-    private long linkedProgressionId = -1;
+    private long linkedProgressionId = ModAttachments.NO_PROGRESSION;
     @Nullable
     private Integer selectedRecipeMilestoneUnlockId = null;
     private int progress = 0;
@@ -69,7 +71,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         boolean hasWork = false;
         ArfforniaApiDtos.CustomRecipe currentRecipe = be.getSelectedRecipe();
 
-        if (currentRecipe != null && be.canCraft(currentRecipe)) {
+        if (currentRecipe != null && be.isUnlocked(currentRecipe) && be.canCraft(currentRecipe)) {
             hasWork = true;
             be.maxProgress = currentRecipe.time() != null && currentRecipe.time() > 0 ? currentRecipe.time() : 200;
             int totalEnergyCost = currentRecipe.energy() != null ? currentRecipe.energy() : 0;
@@ -158,6 +160,11 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
             Arffornia.LOGGER.error("Crafter recipe {} (unlock {}) is unusable: {}. Tag ingredients are not supported yet.",
                     recipe.id(), recipe.milestoneUnlockId(), reason);
         }
+    }
+
+    private boolean isUnlocked(ArfforniaApiDtos.CustomRecipe recipe) {
+        return level != null && level.getServer() != null
+                && Progressions.isUnlocked(level.getServer(), linkedProgressionId, recipe.milestoneId());
     }
 
     private boolean canCraft(ArfforniaApiDtos.CustomRecipe recipe) {
@@ -441,17 +448,17 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         return saveWithoutMetadata(pRegistries);
     }
 
-    public void setOwner(Player player) {
-        String playerUuid = player.getUUID().toString().replace("-", "");
-        ProgressionBackends.get().fetchPlayerData(playerUuid).thenAccept(playerData -> {
-            if (playerData != null) {
-                this.linkedProgressionId = playerData.activeProgressionId();
-                Arffornia.LOGGER.info("Crafter at {} linked to progression ID {}", getBlockPos(), this.linkedProgressionId);
-                setChanged();
-            } else {
-                Arffornia.LOGGER.error("Failed to get player data for {} to link Crafter.", player.getName().getString());
-            }
-        });
+    public void linkToProgression(long progressionId) {
+        this.linkedProgressionId = progressionId;
+        setChanged();
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof ServerLevel serverLevel) {
+            Progressions.ensureKnown(serverLevel.getServer(), linkedProgressionId);
+        }
     }
 
     public int getEnergy() {

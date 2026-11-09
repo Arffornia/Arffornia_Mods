@@ -74,7 +74,10 @@
   "hud.arffornia.target.error": "Indisponible",
 
   "chat.arffornia.sync_failed": "Attention : impossible de synchroniser vos données de progression. La boutique et la progression peuvent être indisponibles.",
-  "chat.arffornia.crafter.not_linked": "Ce bloc de fabrication n'est lié à aucune progression.",
+  "chat.arffornia.machine.not_linked": "Cette machine n'appartient à aucune progression. Ramassez-la et reposez-la.",
+  "chat.arffornia.machine.retired": "La progression de cette machine appartient à une équipe qui n'existe plus. Ramassez-la et reposez-la.",
+  "chat.arffornia.machine.loading": "La progression de cette machine est en cours de chargement. Réessayez dans un instant.",
+  "chat.arffornia.machine.no_progression": "Votre progression n'est pas encore chargée : cette machine ne peut pas être posée. Réessayez dans un instant.",
   "chat.arffornia.milestone.completed": "%s a terminé le jalon : %s",
   "chat.arffornia.milestone.validation_failed": "Une erreur est survenue lors de la validation du jalon. Vos objets ont été rendus.",
   "chat.arffornia.rewards.pending": "Vous avez des récompenses de la boutique en attente !",

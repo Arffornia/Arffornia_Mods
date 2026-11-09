@@ -21,7 +21,7 @@ public interface ProgressionBackend {
     /** Player data (active progression id) by UUID without dashes, or null on failure. */
     CompletableFuture<ArfforniaApiDtos.PlayerData> fetchPlayerData(String compactPlayerUuid);
 
-    /** Progression (completed milestones, current target), or null on failure. */
+    /** Progression (completed milestones, current target, retired), or null on failure. */
     CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId);
 
     /** Milestone details (requirements, unlocks), or null on failure. */
@@ -32,8 +32,8 @@ public interface ProgressionBackend {
         return fetchMilestoneDetails(milestoneId);
     }
 
-    /** Completes a milestone in the player's active progression. */
-    CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId);
+    /** Completes a milestone in a given progression (false when it is unknown or retired). */
+    CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId);
 
     /** Sets (or clears, with null) the player's target milestone. */
     CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId);

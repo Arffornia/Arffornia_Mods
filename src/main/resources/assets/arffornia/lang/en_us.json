@@ -74,7 +74,10 @@
   "hud.arffornia.target.error": "Unavailable",
 
   "chat.arffornia.sync_failed": "Warning: could not synchronize your progression data. Shop and progression features may be unavailable.",
-  "chat.arffornia.crafter.not_linked": "This Crafter is not linked to any progression.",
+  "chat.arffornia.machine.not_linked": "This machine belongs to no progression. Pick it up and place it again.",
+  "chat.arffornia.machine.retired": "This machine's progression belongs to a team that no longer exists. Pick it up and place it again.",
+  "chat.arffornia.machine.loading": "This machine's progression is loading. Try again in a moment.",
+  "chat.arffornia.machine.no_progression": "Your progression is not loaded yet: this machine cannot be placed. Try again in a moment.",
   "chat.arffornia.milestone.completed": "%s has completed the milestone: %s",
   "chat.arffornia.milestone.validation_failed": "An error occurred while validating the milestone. Your items have been refunded.",
   "chat.arffornia.rewards.pending": "You have pending rewards from the shop!",

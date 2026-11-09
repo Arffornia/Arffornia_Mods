@@ -16,15 +16,15 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * In-memory backend for GameTests and offline dev runs ({@code -Darffornia.backend=fake}).
- * Reads complete immediately; {@link #addMilestone} completes after a short delay, like a network call.
+ * Reads complete immediately; {@link #addMilestoneToProgression} completes after a short delay, like a network call.
  * State is shared, so tests should use distinct ids.
  */
 public final class InMemoryProgressionBackend implements ProgressionBackend {
     /** Delay applied to write calls to mimic network latency. */
     private static final long ASYNC_DELAY_MS = 50;
 
-    /** A recorded {@link #addMilestone} call. */
-    public record AddMilestoneCall(UUID playerUuid, int milestoneId) {
+    /** A recorded {@link #addMilestoneToProgression} call. */
+    public record AddMilestoneCall(long progressionId, int milestoneId) {
     }
 
     private final Map<String, Long> activeProgressionByPlayer = new ConcurrentHashMap<>();
@@ -35,6 +35,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final List<String> bannedRecipes = new CopyOnWriteArrayList<>();
     private final List<AddMilestoneCall> addMilestoneCalls = new CopyOnWriteArrayList<>();
     private final Set<Integer> failingMilestones = ConcurrentHashMap.newKeySet();
+    private final Set<Long> retiredProgressions = ConcurrentHashMap.newKeySet();
 
     public static String compact(UUID uuid) {
         return uuid.toString().replace("-", "");
@@ -45,6 +46,11 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     /** Links a player to a progression (their "active progression"). */
     public InMemoryProgressionBackend linkPlayer(UUID player, long progressionId) {
         activeProgressionByPlayer.put(compact(player), progressionId);
+        completedByProgression.computeIfAbsent(progressionId, id -> ConcurrentHashMap.newKeySet());
+        return this;
+    }
+
+    public InMemoryProgressionBackend createProgression(long progressionId) {
         completedByProgression.computeIfAbsent(progressionId, id -> ConcurrentHashMap.newKeySet());
         return this;
     }
@@ -64,7 +70,13 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return this;
     }
 
-    /** Makes {@link #addMilestone} report failure for this milestone id (per id, so parallel tests do not interfere). */
+    /** Marks a progression as retired, as when its team is soft-deleted on the website. */
+    public InMemoryProgressionBackend retire(long progressionId) {
+        retiredProgressions.add(progressionId);
+        return this;
+    }
+
+    /** Makes {@link #addMilestoneToProgression} report failure for this milestone id (per id, so parallel tests do not interfere). */
     public InMemoryProgressionBackend failAddMilestoneFor(int milestoneId) {
         failingMilestones.add(milestoneId);
         return this;
@@ -93,7 +105,8 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
             return CompletableFuture.completedFuture(null);
         }
         return CompletableFuture.completedFuture(
-                new ArfforniaApiDtos.ProgressionData((int) progressionId, new ArrayList<>(completed), null));
+                new ArfforniaApiDtos.ProgressionData((int) progressionId, new ArrayList<>(completed), null,
+                        retiredProgressions.contains(progressionId)));
     }
 
     @Override
@@ -105,11 +118,11 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
      * Completes asynchronously after a short delay, like the real HTTP call, so callers' in-flight guards are exercised.
      */
     @Override
-    public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
-        addMilestoneCalls.add(new AddMilestoneCall(playerUuid, milestoneId));
+    public CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId) {
+        addMilestoneCalls.add(new AddMilestoneCall(progressionId, milestoneId));
         return CompletableFuture.supplyAsync(() -> {
-            Long progressionId = activeProgressionByPlayer.get(compact(playerUuid));
-            if (failingMilestones.contains(milestoneId) || progressionId == null) {
+            if (failingMilestones.contains(milestoneId) || retiredProgressions.contains(progressionId)
+                    || !completedByProgression.containsKey(progressionId)) {
                 return false;
             }
             completeMilestone(progressionId, milestoneId);

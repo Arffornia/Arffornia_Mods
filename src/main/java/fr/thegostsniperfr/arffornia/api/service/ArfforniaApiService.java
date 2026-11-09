@@ -31,6 +31,10 @@ public class ArfforniaApiService {
         return INSTANCE;
     }
 
+    public ApiHttp http() {
+        return http;
+    }
+
     private static String compactUuid(UUID uuid) {
         return uuid.toString().replace("-", "");
     }

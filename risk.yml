@@ -24,7 +24,7 @@ rules:
   - name: rewards-and-commands
     depth: deep
     security: true
-    paths: ["src/main/java/**/shop/**", "src/main/java/**/command/**"]   # console commands, JDBC, op commands
+    paths: ["src/main/java/**/shop/**", "src/main/java/**/command/**"]   # reward delivery, LuckPerms grants, op commands
   - name: architecture-guards
     depth: deep
     paths: ["src/test/java/**/architecture/**", "src/test/resources/archunit_store/**", "src/test/resources/archunit.properties"]

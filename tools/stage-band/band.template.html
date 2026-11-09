@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Arffornia stage band</title>
+<style>
+@font-face { font-family: "Montserrat"; font-weight: 100 900; src: url(data:font/woff2;base64,__MONTSERRAT__) format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 700; src: url(data:font/ttf;base64,__CHAKRA700__) format("truetype"); }
+:root {
+  color-scheme: dark;
+  --bg: #09070a; --canvas: #120e17; --surface: #1d1626; --raised: #261d31; --line: #3d2f4e; --line-soft: #2a2135;
+  --text: #ece6f5; --muted: #b3a7c2; --faint: #7d6e93; --col: #ffffff; --glass: rgba(9, 7, 10, .72);
+  --orange: #ff7300; --teal: #2fd1c1; --on-accent: #09070a;
+  --display: "Chakra Petch", "Montserrat", sans-serif; --body: "Montserrat", system-ui, sans-serif;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--body); overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top { display: flex; gap: 14px; align-items: stretch; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { display: grid; align-content: center; gap: 2px; margin-right: 8px; }
+.brand b { font: 700 22px/1 var(--display); letter-spacing: .08em; color: var(--orange); }
+.brand span { font: 600 11px var(--body); letter-spacing: .16em; text-transform: uppercase; color: var(--teal); }
+.widget { flex: 1 1 280px; min-width: 0; background: var(--raised); border-radius: 10px; padding: 10px 14px; display: grid; gap: 6px; }
+.widget h2 { margin: 0; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font: 600 12px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.widget h2 strong { font: 700 18px var(--display); letter-spacing: .04em; text-transform: none; color: var(--text); }
+.bar { position: relative; height: 8px; border-radius: 999px; background: var(--line-soft); }
+.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--orange); }
+.bar > .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--orange); border-radius: 1px; }
+.hint { font-size: 12px; color: var(--muted); }
+.hint b { color: var(--orange); font-weight: 600; }
+.phases { display: flex; gap: 3px; }
+.phases i { flex: 1; height: 14px; border-radius: 3px; background: var(--line-soft); }
+.phases i.done { background: var(--teal); }
+.phases i.current { background: var(--orange); }
+.deliveries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.delivery { display: grid; grid-template-columns: 28px 1fr; gap: 2px 8px; align-items: center; min-width: 0; }
+.delivery img { grid-row: span 2; width: 28px; height: 28px; image-rendering: pixelated; }
+.delivery .count { font: 600 12px var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.delivery.full .bar > i { background: var(--teal); }
+main { position: relative; min-height: 0; background: var(--canvas); }
+svg { width: 100%; height: 100%; display: block; }
+.col { fill: var(--col); opacity: .03; }
+.col.current { opacity: .07; }
+.col-label { font: 700 13px var(--display); letter-spacing: .14em; fill: var(--faint); }
+.col-label.current { fill: var(--orange); }
+.edge { fill: none; stroke: var(--line); stroke-width: 2; marker-end: url(#arrow); }
+.edge.done { stroke: var(--teal); opacity: .6; marker-end: url(#arrow-done); }
+.junction { fill: var(--line); }
+.junction.done { fill: var(--teal); opacity: .6; }
+.node .frame { fill: var(--raised); stroke: var(--line); stroke-width: 2; }
+.node.done .frame { stroke: var(--teal); }
+.node.available .frame { stroke: var(--orange); }
+.node.available { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 115, 0, .35)); } 50% { filter: drop-shadow(0 0 9px rgba(255, 115, 0, .85)); } }
+.node.locked image { filter: grayscale(1); opacity: .4; }
+.node.locked .frame { fill: var(--surface); stroke-dasharray: 4 3; }
+.node .badge { fill: var(--teal); }
+.node .badge-mark { fill: none; stroke: var(--on-accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.node .caption { font: 500 10px var(--body); fill: var(--muted); }
+.legend { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 14px; font-size: 12px; color: var(--muted); background: var(--glass); padding: 6px 10px; border-radius: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; border: 2px solid; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>ARFFORNIA</b><span>Progression</span></div>
+    <section class="widget">
+      <h2><span id="stage-title"></span> <strong id="stage-count"></strong></h2>
+      <div class="bar" id="stage-bar"><i></i><span class="tick"></span></div>
+      <div class="hint" id="stage-hint"></div>
+    </section>
+    <section class="widget">
+      <h2>Ascenseur orbital <strong id="elev-phase"></strong></h2>
+      <div class="phases" id="phases"></div>
+      <div class="deliveries" id="deliveries"></div>
+      <div class="hint" id="elev-hint"></div>
+    </section>
+  </header>
+  <main>
+    <svg id="graph" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#3d2f4e"/></marker>
+        <marker id="arrow-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#2fd1c1"/></marker>
+      </defs>
+      <g id="world"></g>
+    </svg>
+    <div class="legend"><span><i style="border-color:var(--teal)"></i>Fait</span><span><i style="border-color:var(--orange)"></i>Disponible</span><span><i style="border-color:var(--line);border-style:dashed"></i>Verrouillé</span></div>
+  </main>
+</div>
+<script>
+(() => {
+  const B = __BAND__;
+  const ICONS = __ICONS__;
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent.appendChild(e); return e; };
+  const fmt = (n) => n.toLocaleString("fr-FR");
+
+  const s = B.header.stage, need = Math.ceil(s.total * s.threshold), left = need - s.done;
+  document.getElementById("stage-title").textContent = `Stage ${s.n}`;
+  document.getElementById("stage-count").textContent = `${s.done} / ${s.total} milestones`;
+  document.querySelector("#stage-bar > i").style.width = `${100 * s.done / s.total}%`;
+  document.querySelector("#stage-bar > .tick").style.left = `${100 * s.threshold}%`;
+  document.getElementById("stage-hint").innerHTML = left > 0
+    ? `Encore <b>${left} milestone${left > 1 ? "s" : ""}</b> pour le seuil de ${Math.round(s.threshold * 100)} %, puis l'ascenseur ouvre le stage ${s.n + 1}`
+    : `Seuil de ${Math.round(s.threshold * 100)} % atteint : termine l'ascenseur pour ouvrir le stage ${s.n + 1}`;
+  const e = B.header.elevator;
+  document.getElementById("elev-phase").textContent = `Phase ${e.phase} / ${e.phases}`;
+  document.getElementById("phases").innerHTML = Array.from({ length: e.phases }, (_, i) => `<i class="${i + 1 < e.phase ? "done" : i + 1 === e.phase ? "current" : ""}"></i>`).join("");
+  document.getElementById("deliveries").innerHTML = e.deliveries.map((d) => `<div class="delivery${d.have >= d.need ? " full" : ""}"><img alt="" src="${ICONS[d.i]}"><span class="count">${fmt(d.have)} / ${fmt(d.need)}</span><div class="bar"><i style="width:${Math.min(100, 100 * d.have / d.need)}%"></i></div></div>`).join("");
+  document.getElementById("elev-hint").textContent = `Avec le seuil du stage ${e.phase}, elle ouvre le stage ${e.phase + 1}`;
+
+  const svg = document.getElementById("graph"), world = document.getElementById("world");
+  const b = B.bounds, N = B.node;
+  svg.setAttribute("viewBox", `${b.x0 - 8} ${b.y0 - 8} ${b.x1 - b.x0 + 16} ${b.y1 - b.y0 + 16}`);
+  const cols = el("g", {}, world), edges = el("g", {}, world), nodes = el("g", {}, world);
+  for (const c of B.cols) {
+    el("rect", { class: "col" + (c.current ? " current" : ""), x: c.x, y: c.y, width: c.w, height: c.h, rx: 10 }, cols);
+    el("text", { class: "col-label" + (c.current ? " current" : ""), x: c.x + c.w / 2, y: c.y + 24, "text-anchor": "middle" }, cols).textContent = c.label;
+  }
+  for (const ed of [...B.edges].sort((a, z) => a.done - z.done)) el("path", { class: "edge" + (ed.done ? " done" : ""), d: ed.d }, edges);
+  for (const j of B.junctions) el("circle", { class: "junction" + (j.done ? " done" : ""), cx: j.x, cy: j.y, r: 3 }, edges);
+  for (const n of B.nodes) {
+    const g = el("g", { class: `node ${n.state}`, transform: `translate(${n.x} ${n.y})` }, nodes);
+    el("title", {}, g).textContent = n.t;
+    el("rect", { class: "frame", width: N, height: N, rx: 9 }, g);
+    if (n.icon && ICONS[n.icon]) el("image", { href: ICONS[n.icon], x: 8, y: 8, width: 28, height: 28 }, g);
+    if (n.state === "done") {
+      el("circle", { class: "badge", cx: N - 2, cy: 2, r: 8 }, g);
+      el("path", { class: "badge-mark", d: `M${N - 6} 2 l3 3 l5 -6` }, g);
+    }
+    el("text", { class: "caption", x: N / 2, y: N + 14, "text-anchor": "middle" }, g).textContent = n.caption;
+  }
+  document.fonts.ready.then(() => { document.title = "arffornia-band-ready"; });
+})();
+</script>
+</body>
+</html>

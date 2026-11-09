@@ -1,0 +1,49 @@
+// Stage band (spec 018 prototype). Colours are the dark tokens of Arffornia_Assets ui/tokens (ArfTokens),
+// plus the graph-template values that the tokens do not carry yet (canvas, surface, line-soft, faint).
+// Sizes are CSS pixels: the screen draws the page at one unit per physical pixel, like the web page.
+
+.page { background: #ff09070a; flex-direction: column; }
+
+.header { background: #ff1d1626; flex-direction: row; padding-vertical: 12; padding-horizontal: 16; gap-all: 14; }
+.separator { height: 1; background: #ff3d2f4e; }
+.brand { width: 150; flex-direction: column; justify-content: center; gap-all: 4; margin-right: 8; }
+.brand-title { height: 22; font: arffornia:chakra_petch_bold_22; font-size: 22; text-color: #ffff7300; text-shadow: false; }
+.brand-sub { height: 12; font: arffornia:montserrat_semibold_11; font-size: 11; text-color: #ff2fd1c1; text-shadow: false; }
+
+.widget { flex: 1; background: sdf(#ff261d31, 10); padding-vertical: 10; padding-horizontal: 14; gap-all: 6; justify-content: space-between; flex-direction: column; }
+.widget-head { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+.widget-label { flex: 1; height: 20; font: arffornia:montserrat_semibold_12; font-size: 12; text-color: #ffb3a7c2; text-shadow: false; }
+.widget-value { flex: 1; height: 20; horizontal-align: right; font: arffornia:chakra_petch_bold_18; font-size: 18; text-color: #ffece6f5; text-shadow: false; }
+.hint { height: 15; font: arffornia:montserrat_medium_12; font-size: 12; text-color: #ffb3a7c2; text-shadow: false; }
+.bar { height: 8; }
+
+.phases { flex-direction: row; gap-all: 3; }
+.phase { flex: 1; height: 14; background: sdf(#ff2a2135, 3); }
+.phase-done { background: sdf(#ff2fd1c1, 3); }
+.phase-current { background: sdf(#ffff7300, 3); }
+
+.deliveries { flex-direction: row; gap-all: 10; }
+.delivery { flex: 1; flex-direction: row; gap-all: 8; align-items: center; }
+.delivery-icon { width: 28; height: 28; }
+.delivery-body { flex: 1; flex-direction: column; gap-all: 3; }
+.count { height: 14; font: arffornia:montserrat_semibold_12; font-size: 12; text-color: #ffece6f5; text-shadow: false; }
+
+.canvas { flex: 1; background: #ff120e17; }
+
+.node { width: 44; height: 44; }
+.node-done { background: sdf(#ff261d31, 9, 2, #ff2fd1c1); }
+.node-available { background: sdf(#ff261d31, 9, 2, #ffff7300); }
+.node-locked { background: sdf(#ff1d1626, 9); }
+.node-icon { width: 28; height: 28; left: 8; top: 8; }
+.badge { width: 16; height: 16; left: 34; top: -6; background: sdf(#ff2fd1c1, 8); }
+.caption { width: 124; left: -40; top: 49; font: arffornia:montserrat_medium_10; font-size: 10; text-color: #ffb3a7c2; text-shadow: false; horizontal-align: center; }
+.col-label { font: arffornia:chakra_petch_bold_13; font-size: 13; text-color: #ff7d6e93; text-shadow: false; horizontal-align: center; }
+.col-label-current { text-color: #ffff7300; }
+
+.legend { width: 290; background: sdf(#b809070a, 8); flex-direction: row; gap-all: 14; padding-vertical: 6; padding-horizontal: 10; }
+.legend-item { flex-direction: row; gap-all: 6; align-items: center; }
+.legend-swatch { width: 10; height: 10; }
+.legend-done { background: sdf(#00000000, 3, 2, #ff2fd1c1); }
+.legend-available { background: sdf(#00000000, 3, 2, #ffff7300); }
+.legend-locked { background: sdf(#00000000, 3, 2, #ff3d2f4e); }
+.legend-text { width: 62; font: arffornia:montserrat_medium_12; font-size: 12; text-color: #ffb3a7c2; text-shadow: false; }

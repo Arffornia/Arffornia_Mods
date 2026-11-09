@@ -120,5 +120,23 @@
   "commands.arffornia.setrequirements.failed": "Failed to update the requirements. Check the server logs.",
   "commands.arffornia.dump.outside_server": "The dump folder must stay inside the server folder.",
   "commands.arffornia.dump.done": "%s recipes, %s items and %s tags written to %s",
-  "commands.arffornia.dump.failed": "Dump failed: %s"
+  "commands.arffornia.dump.failed": "Dump failed: %s",
+
+  "screen.arffornia.band.native": "Progression (native prototype)",
+  "screen.arffornia.band.web": "Progression (web prototype)",
+  "screen.arffornia.band.raw": "%s",
+  "screen.arffornia.band.brand": "ARFFORNIA",
+  "screen.arffornia.band.brand_sub": "PROGRESSION",
+  "screen.arffornia.band.stage": "STAGE %s",
+  "screen.arffornia.band.milestones": "%s / %s milestones",
+  "screen.arffornia.band.milestone_one": "%s milestone",
+  "screen.arffornia.band.milestone_many": "%s milestones",
+  "screen.arffornia.band.hint_left": "%s more for the %s %% threshold, then the elevator opens stage %s",
+  "screen.arffornia.band.hint_reached": "%s %% threshold reached: finish the elevator to open stage %s",
+  "screen.arffornia.band.elevator": "ORBITAL ELEVATOR",
+  "screen.arffornia.band.phase": "Phase %s / %s",
+  "screen.arffornia.band.elevator_hint": "With the stage %s threshold, it opens stage %s",
+  "screen.arffornia.band.legend.done": "Done",
+  "screen.arffornia.band.legend.available": "Available",
+  "screen.arffornia.band.legend.locked": "Locked"
 }

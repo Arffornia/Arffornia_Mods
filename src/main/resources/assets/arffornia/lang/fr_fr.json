@@ -120,5 +120,23 @@
   "commands.arffornia.setrequirements.failed": "Impossible de mettre à jour les objets requis. Consultez les journaux du serveur.",
   "commands.arffornia.dump.outside_server": "Le dossier d'export doit rester dans le dossier du serveur.",
   "commands.arffornia.dump.done": "%s recettes, %s objets et %s tags écrits dans %s",
-  "commands.arffornia.dump.failed": "Échec de l'export : %s"
+  "commands.arffornia.dump.failed": "Échec de l'export : %s",
+
+  "screen.arffornia.band.native": "Progression (prototype natif)",
+  "screen.arffornia.band.web": "Progression (prototype web)",
+  "screen.arffornia.band.raw": "%s",
+  "screen.arffornia.band.brand": "ARFFORNIA",
+  "screen.arffornia.band.brand_sub": "PROGRESSION",
+  "screen.arffornia.band.stage": "STAGE %s",
+  "screen.arffornia.band.milestones": "%s / %s milestones",
+  "screen.arffornia.band.milestone_one": "%s milestone",
+  "screen.arffornia.band.milestone_many": "%s milestones",
+  "screen.arffornia.band.hint_left": "Encore %s pour le seuil de %s %%, puis l'ascenseur ouvre le stage %s",
+  "screen.arffornia.band.hint_reached": "Seuil de %s %% atteint : termine l'ascenseur pour ouvrir le stage %s",
+  "screen.arffornia.band.elevator": "ASCENSEUR ORBITAL",
+  "screen.arffornia.band.phase": "Phase %s / %s",
+  "screen.arffornia.band.elevator_hint": "Avec le seuil du stage %s, elle ouvre le stage %s",
+  "screen.arffornia.band.legend.done": "Fait",
+  "screen.arffornia.band.legend.available": "Disponible",
+  "screen.arffornia.band.legend.locked": "Verrouillé"
 }

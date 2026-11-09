@@ -54,7 +54,8 @@ public final class CrafterRecipes {
             return Optional.empty();
         }
         try {
-            return Optional.of(Integer.parseInt(stage.substring(prefix.length())));
+            int milestoneId = Integer.parseInt(stage.substring(prefix.length()));
+            return stage.equals(milestoneStage(milestoneId)) ? Optional.of(milestoneId) : Optional.empty();
         } catch (NumberFormatException e) {
             return Optional.empty();
         }

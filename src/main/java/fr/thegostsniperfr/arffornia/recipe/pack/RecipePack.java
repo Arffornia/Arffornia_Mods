@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 public final class RecipePack {
     public static final String ID = "arffornia/progression";
-    private static final PackSelectionConfig SELECTION = new PackSelectionConfig(true, Pack.Position.TOP, false);
+    private static final PackSelectionConfig SELECTION = new PackSelectionConfig(true, Pack.Position.TOP, true);
 
     private RecipePack() {
     }

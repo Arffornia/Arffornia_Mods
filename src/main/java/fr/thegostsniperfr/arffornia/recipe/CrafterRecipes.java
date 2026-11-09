@@ -43,8 +43,21 @@ public final class CrafterRecipes {
     public static boolean isUnlocked(MinecraftServer server, long progressionId, MachineRecipe recipe) {
         return Progressions.find(server, progressionId)
                 .filter(snapshot -> !snapshot.retired())
-                .map(snapshot -> recipe.isUnlockedBy(stagesOfMilestones(snapshot.completedMilestones())))
+                .map(snapshot -> recipe.stage().isEmpty() || milestoneOfStage(recipe.stage().get())
+                        .map(snapshot::isCompleted).orElse(false))
                 .orElse(false);
+    }
+
+    static Optional<Integer> milestoneOfStage(String stage) {
+        String prefix = Arffornia.MODID + ":milestone/";
+        if (!stage.startsWith(prefix)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Integer.parseInt(stage.substring(prefix.length())));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
     public static Set<String> unlockedStages(MinecraftServer server, long progressionId) {

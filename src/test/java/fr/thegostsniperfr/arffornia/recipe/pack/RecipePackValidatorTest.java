@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -83,9 +84,17 @@ class RecipePackValidatorTest {
     }
 
     @Test
+    void validate_rejects_whenPackCarriesFilesOtherThanRecipes() throws Exception {
+        Map<String, String> files = validPack();
+        files.put("data/minecraft/tags/function/load.json", "{\"values\":[\"evil:run\"]}");
+
+        assertThrows(RecipePackValidator.InvalidPackException.class, () -> RecipePackValidator.validate(zip(files)));
+    }
+
+    @Test
     void validate_rejects_whenDownloadIsTruncated() throws Exception {
         byte[] pack = zip(validPack());
-        byte[] truncated = java.util.Arrays.copyOf(pack, pack.length / 2);
+        byte[] truncated = Arrays.copyOf(pack, pack.length / 2);
 
         assertThrows(RecipePackValidator.InvalidPackException.class, () -> RecipePackValidator.validate(truncated));
     }

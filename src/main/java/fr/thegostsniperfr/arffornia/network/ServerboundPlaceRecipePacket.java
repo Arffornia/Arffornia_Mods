@@ -66,12 +66,20 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation r
         return true;
     }
 
+    /**
+     * Fills the grid from the player's inventory plus what the grid already holds. Nothing moves unless every
+     * ingredient can be served; leftovers from the old grid go back to the player.
+     */
     private static boolean placeRecipe(ServerPlayer player, CrafterBlockEntity be, MachineRecipe recipe) {
         Inventory inventory = player.getInventory();
-        List<ItemStack> simulated = new ArrayList<>();
-        for (ItemStack stack : inventory.items) {
-            simulated.add(stack.copy());
+        List<ItemStack> grid = new ArrayList<>();
+        for (int slot = 0; slot < CrafterBlockEntity.INPUT_SLOTS; slot++) {
+            grid.add(be.itemHandler.getStackInSlot(slot).copy());
         }
+
+        List<ItemStack> simulated = new ArrayList<>();
+        inventory.items.forEach(stack -> simulated.add(stack.copy()));
+        grid.forEach(stack -> simulated.add(stack.copy()));
         for (SizedIngredient ingredient : recipe.ingredients()) {
             if (take(simulated, ingredient).isEmpty()) {
                 return false;
@@ -79,16 +87,15 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation r
         }
 
         for (int slot = 0; slot < CrafterBlockEntity.INPUT_SLOTS; slot++) {
-            ItemStack previous = be.itemHandler.getStackInSlot(slot);
-            if (!previous.isEmpty()) {
-                be.itemHandler.setStackInSlot(slot, ItemStack.EMPTY);
-                ItemHandlerHelper.giveItemToPlayer(player, previous);
-            }
+            be.itemHandler.setStackInSlot(slot, ItemStack.EMPTY);
         }
-        List<ItemStack> ingredients = recipe.ingredients().stream().map(ingredient -> take(inventory.items, ingredient)).toList();
-        for (int slot = 0; slot < ingredients.size(); slot++) {
-            be.itemHandler.setStackInSlot(slot, ingredients.get(slot));
+        List<ItemStack> pool = new ArrayList<>(inventory.items);
+        pool.addAll(grid);
+        List<ItemStack> placed = recipe.ingredients().stream().map(ingredient -> take(pool, ingredient)).toList();
+        for (int slot = 0; slot < placed.size(); slot++) {
+            be.itemHandler.setStackInSlot(slot, placed.get(slot));
         }
+        grid.stream().filter(stack -> !stack.isEmpty()).forEach(stack -> ItemHandlerHelper.giveItemToPlayer(player, stack));
         inventory.setChanged();
         return true;
     }

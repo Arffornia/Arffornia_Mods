@@ -18,6 +18,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.crafting.SizedIngredient;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -41,7 +42,7 @@ public record MachineRecipe(ResourceLocation machine, Optional<String> stage, Li
             ResourceLocation.CODEC.fieldOf("machine").forGetter(MachineRecipe::machine),
             ExtraCodecs.NON_EMPTY_STRING.optionalFieldOf("stage").forGetter(MachineRecipe::stage),
             ExtraCodecs.nonEmptyList(SizedIngredient.NESTED_CODEC.listOf()).fieldOf("ingredients").forGetter(MachineRecipe::ingredients),
-            ExtraCodecs.nonEmptyList(ItemStack.CODEC.listOf()).fieldOf("results").forGetter(MachineRecipe::results),
+            ExtraCodecs.nonEmptyList(ItemStack.STRICT_CODEC.listOf()).fieldOf("results").forGetter(MachineRecipe::results),
             ExtraCodecs.NON_NEGATIVE_INT.optionalFieldOf("energy", 0).forGetter(MachineRecipe::energy),
             ExtraCodecs.POSITIVE_INT.optionalFieldOf("time", DEFAULT_TIME).forGetter(MachineRecipe::time)
     ).apply(instance, MachineRecipe::new));
@@ -62,15 +63,20 @@ public record MachineRecipe(ResourceLocation machine, Optional<String> stage, Li
 
     /**
      * How many items to take from each slot to satisfy every ingredient, or empty when the slots fall short.
-     * Ingredients are served in order and a slot's items are never counted twice.
+     * A slot's items are never counted twice. Ingredients matching the fewest slots are served first, so a tag
+     * ingredient does not eat the items a specific ingredient needs.
      */
     public Optional<int[]> allocate(List<ItemStack> slots) {
         int[] available = new int[slots.size()];
         for (int i = 0; i < available.length; i++) {
             available[i] = slots.get(i).getCount();
         }
+        List<SizedIngredient> mostSpecificFirst = ingredients.stream()
+                .sorted(Comparator.comparingLong(ingredient -> slots.stream()
+                        .filter(stack -> !stack.isEmpty() && ingredient.ingredient().test(stack)).count()))
+                .toList();
         int[] taken = new int[slots.size()];
-        for (SizedIngredient ingredient : ingredients) {
+        for (SizedIngredient ingredient : mostSpecificFirst) {
             int needed = ingredient.count();
             for (int slot = 0; slot < available.length && needed > 0; slot++) {
                 ItemStack stack = slots.get(slot);

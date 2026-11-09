@@ -5,9 +5,11 @@ import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -37,6 +39,7 @@ public final class RecipePackUpdater {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
     private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
+    private static volatile Optional<String> loadedSha = Optional.empty();
 
     private static boolean probeArmed;
     private static long lastTickStart;
@@ -70,15 +73,30 @@ public final class RecipePackUpdater {
             return CompletableFuture.completedFuture(Outcome.of(Status.BUSY, "an update is already running"));
         }
         Path target = RecipePack.file();
-        return CompletableFuture.supplyAsync(() -> localSha(target))
-                .thenCompose(localSha -> download(uri(), localSha))
+        return download(uri(), loadedSha)
                 .thenApply(download -> store(download, target))
                 .thenComposeAsync(download -> download.status() == Status.UPDATED
-                        ? reload(server).thenApply(timing -> new Outcome(Status.UPDATED, download.summary().sha256(),
-                                download.summary().recipeFiles(), timing[0], timing[1]))
+                        ? reload(server).thenApply(timing -> {
+                            loadedSha = Optional.of(download.summary().sha256());
+                            return new Outcome(Status.UPDATED, download.summary().sha256(),
+                                    download.summary().recipeFiles(), timing[0], timing[1]);
+                        })
                         : CompletableFuture.completedFuture(Outcome.of(download.status(), download.detail())), server)
                 .exceptionally(error -> Outcome.of(Status.FAILED, rootCause(error).toString()))
                 .whenComplete((outcome, error) -> RUNNING.set(false));
+    }
+
+    /** Records the pack the server loaded at start, so later updates compare against what is live. */
+    public static void rememberLoadedPack() {
+        loadedSha = localSha(RecipePack.file());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        RUNNING.set(false);
+        probeArmed = false;
+        probeResult = null;
+        loadedSha = Optional.empty();
     }
 
     private static Optional<String> localSha(Path file) {
@@ -93,16 +111,24 @@ public final class RecipePackUpdater {
     private static CompletableFuture<Download> download(URI uri, Optional<String> localSha) {
         HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).header("Accept", "application/zip").GET();
         localSha.ifPresent(sha -> request.header("If-None-Match", "\"" + sha + "\""));
-        return CLIENT.sendAsync(request.build(), HttpResponse.BodyHandlers.ofByteArray()).thenApply(response -> {
+        return CLIENT.sendAsync(request.build(), HttpResponse.BodyHandlers.ofInputStream()).thenApply(response -> {
             if (response.statusCode() == 304) {
+                closeQuietly(response.body());
                 return new Download(Status.UNCHANGED, "not modified", null, null);
             }
             if (response.statusCode() != 200) {
+                closeQuietly(response.body());
                 return new Download(Status.FAILED, "HTTP " + response.statusCode() + " from " + uri, null, null);
+            }
+            byte[] body;
+            try (InputStream in = response.body()) {
+                body = in.readNBytes(RecipePackValidator.MAX_BYTES + 1);
+            } catch (IOException e) {
+                return new Download(Status.FAILED, "download interrupted: " + e, null, null);
             }
             RecipePackValidator.Summary summary;
             try {
-                summary = RecipePackValidator.validate(response.body());
+                summary = RecipePackValidator.validate(body);
             } catch (RecipePackValidator.InvalidPackException e) {
                 return new Download(Status.FAILED, "invalid datapack: " + e.getMessage(), null, null);
             }
@@ -113,8 +139,16 @@ public final class RecipePackUpdater {
             if (localSha.isPresent() && localSha.get().equals(summary.sha256())) {
                 return new Download(Status.UNCHANGED, "same content", null, null);
             }
-            return new Download(Status.UPDATED, null, response.body(), summary);
+            return new Download(Status.UPDATED, null, body, summary);
         });
+    }
+
+    private static void closeQuietly(InputStream body) {
+        try {
+            body.close();
+        } catch (IOException e) {
+            Arffornia.LOGGER.debug("Closing the datapack response failed: {}", e.toString());
+        }
     }
 
     static String etagSha(String etag) {

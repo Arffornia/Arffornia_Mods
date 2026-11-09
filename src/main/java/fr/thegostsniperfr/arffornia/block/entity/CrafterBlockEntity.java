@@ -154,6 +154,9 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         for (int i = 0; i < recipe.results().size(); i++) {
             ItemStack result = recipe.results().get(i);
             ItemStack output = this.itemHandler.getStackInSlot(INPUT_SLOTS + i);
+            if (result.getCount() > Math.min(result.getMaxStackSize(), this.itemHandler.getSlotLimit(INPUT_SLOTS + i))) {
+                return false;
+            }
             if (!output.isEmpty() && (!ItemStack.isSameItemSameComponents(output, result)
                     || output.getCount() + result.getCount() > output.getMaxStackSize())) {
                 return false;

@@ -90,6 +90,7 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        RecipePackUpdater.rememberLoadedPack();
         if (!Files.isRegularFile(RecipePack.file())) {
             LOGGER.error("No recipe datapack at {}: Crafter recipes and recipe bans are not applied until one is downloaded.", RecipePack.file());
         }

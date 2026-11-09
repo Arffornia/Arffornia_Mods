@@ -5,18 +5,18 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
-import java.io.ByteArrayInputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Enumeration;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.zip.ZipFile;
 
 /**
  * Structural checks on a downloaded recipe datapack, so a truncated or broken download never replaces the last good
@@ -25,6 +25,8 @@ import java.util.zip.ZipInputStream;
 public final class RecipePackValidator {
     public static final int MAX_BYTES = 32 * 1024 * 1024;
     public static final int MAX_ENTRIES = 20_000;
+    public static final int MAX_ENTRY_BYTES = 1024 * 1024;
+    private static final Pattern RECIPE_FILE = Pattern.compile("data/[a-z0-9_.-]+/recipe/[a-z0-9_./-]+\\.json");
 
     public record Summary(String sha256, int recipeFiles) {
     }
@@ -38,52 +40,74 @@ public final class RecipePackValidator {
     private RecipePackValidator() {
     }
 
+    /** Validates through the zip central directory, the same view Minecraft's pack reader uses. */
     public static Summary validate(byte[] zip) throws InvalidPackException {
         if (zip.length == 0 || zip.length > MAX_BYTES) {
             throw new InvalidPackException("size " + zip.length + " bytes is outside 1.." + MAX_BYTES);
         }
+        Path temp = null;
+        try {
+            temp = Files.createTempFile("arffornia-recipe-pack", ".zip");
+            Files.write(temp, zip);
+            return new Summary(sha256(zip), checkEntries(temp));
+        } catch (IOException e) {
+            throw new InvalidPackException("not a readable zip: " + e.getMessage());
+        } finally {
+            if (temp != null) {
+                try {
+                    Files.deleteIfExists(temp);
+                } catch (IOException ignored) {
+                    // a leftover temp file is harmless
+                }
+            }
+        }
+    }
+
+    private static int checkEntries(Path file) throws IOException, InvalidPackException {
         boolean hasMeta = false;
         int recipeFiles = 0;
-        int entries = 0;
-        Set<String> names = new HashSet<>();
-        try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip), StandardCharsets.UTF_8)) {
-            ZipEntry entry;
-            while ((entry = in.getNextEntry()) != null) {
-                if (++entries > MAX_ENTRIES) {
-                    throw new InvalidPackException("more than " + MAX_ENTRIES + " entries");
-                }
+        try (ZipFile zip = new ZipFile(file.toFile(), StandardCharsets.UTF_8)) {
+            if (zip.size() > MAX_ENTRIES) {
+                throw new InvalidPackException("more than " + MAX_ENTRIES + " entries");
+            }
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
                 String name = entry.getName();
-                if (name.startsWith("/") || name.contains("..") || name.contains("\\")) {
+                if (name.startsWith("/") || name.contains("..") || name.contains("\\") || name.contains("//")) {
                     throw new InvalidPackException("illegal entry name " + name);
-                }
-                if (!names.add(name)) {
-                    throw new InvalidPackException("duplicate entry " + name);
                 }
                 if (entry.isDirectory()) {
                     continue;
                 }
+                if (!name.equals("pack.mcmeta") && !RECIPE_FILE.matcher(name).matches()) {
+                    throw new InvalidPackException("only pack.mcmeta and data/<namespace>/recipe/**.json are allowed, got " + name);
+                }
+                if (entry.getSize() > MAX_ENTRY_BYTES) {
+                    throw new InvalidPackException(name + " is larger than " + MAX_ENTRY_BYTES + " bytes");
+                }
+                JsonElement json;
+                try (InputStream in = zip.getInputStream(entry)) {
+                    byte[] content = in.readNBytes(MAX_ENTRY_BYTES + 1);
+                    if (content.length > MAX_ENTRY_BYTES) {
+                        throw new InvalidPackException(name + " is larger than " + MAX_ENTRY_BYTES + " bytes");
+                    }
+                    json = parseJson(new String(content, StandardCharsets.UTF_8), name);
+                }
                 if (name.equals("pack.mcmeta")) {
-                    checkPackMeta(parseJson(in, name), name);
+                    checkPackMeta(json, name);
                     hasMeta = true;
-                } else if (name.endsWith(".json")) {
-                    if (!name.startsWith("data/")) {
-                        throw new InvalidPackException("JSON file outside data/: " + name);
-                    }
-                    if (!parseJson(in, name).isJsonObject()) {
-                        throw new InvalidPackException(name + " is not a JSON object");
-                    }
-                    if (name.matches("data/[^/]+/recipe/.+")) {
-                        recipeFiles++;
-                    }
+                } else if (!json.isJsonObject()) {
+                    throw new InvalidPackException(name + " is not a JSON object");
+                } else {
+                    recipeFiles++;
                 }
             }
-        } catch (IOException e) {
-            throw new InvalidPackException("not a readable zip: " + e.getMessage());
         }
         if (!hasMeta) {
             throw new InvalidPackException("pack.mcmeta is missing");
         }
-        return new Summary(sha256(zip), recipeFiles);
+        return recipeFiles;
     }
 
     public static String sha256(byte[] bytes) {
@@ -94,9 +118,9 @@ public final class RecipePackValidator {
         }
     }
 
-    private static JsonElement parseJson(ZipInputStream in, String name) throws InvalidPackException {
+    private static JsonElement parseJson(String content, String name) throws InvalidPackException {
         try {
-            return JsonParser.parseReader(new InputStreamReader(new NonClosingStream(in), StandardCharsets.UTF_8));
+            return JsonParser.parseString(content);
         } catch (JsonParseException e) {
             throw new InvalidPackException(name + " is not valid JSON: " + e.getMessage());
         }
@@ -109,15 +133,5 @@ public final class RecipePackValidator {
             return;
         }
         throw new InvalidPackException(name + " has no pack.pack_format");
-    }
-
-    private static final class NonClosingStream extends FilterInputStream {
-        NonClosingStream(ZipInputStream in) {
-            super(in);
-        }
-
-        @Override
-        public void close() {
-        }
     }
 }

@@ -80,7 +80,7 @@
   "chat.arffornia.machine.no_progression": "Votre progression n'est pas encore chargée : cette machine ne peut pas être posée. Réessayez dans un instant.",
   "chat.arffornia.milestone.completed": "%s a terminé le jalon : %s",
   "chat.arffornia.milestone.validation_failed": "Une erreur est survenue lors de la validation du jalon. Vos objets ont été rendus.",
-  "chat.arffornia.rewards.pending": "Vous avez des récompenses de la boutique en attente !",
+  "chat.arffornia.rewards.pending": "Vous avez des récompenses en attente !",
   "chat.arffornia.rewards.claim_hint": "Tapez %s pour les recevoir.",
   "chat.arffornia.rewards.not_linked": "Votre compte n'est pas lié à la base de données du site.",
   "chat.arffornia.rewards.none": "Vous n'avez aucune récompense en attente.",
@@ -89,6 +89,9 @@
   "chat.arffornia.rewards.partial_hint": "Votre inventaire est maintenant plein. Libérez de la place et tapez à nouveau %s.",
   "chat.arffornia.rewards.all_claimed": "Toutes vos récompenses en attente ont été récupérées !",
   "chat.arffornia.rewards.error": "Une erreur est survenue lors de la récupération de vos récompenses. Réessayez plus tard.",
+  "chat.arffornia.rewards.busy": "Vos récompenses sont déjà en cours de récupération, patientez.",
+  "chat.arffornia.rewards.unsupported": "Certaines récompenses ne peuvent pas encore être livrées sur ce serveur. Elles restent en attente.",
+  "chat.arffornia.rewards.streak": "Série de connexions : jour %s ! Une récompense vous attend.",
 
   "commands.arffornia.claim_reward.cooldown": "Veuillez patienter avant de réutiliser cette commande.",
   "commands.arffornia.claim_reward.checking": "Recherche de récompenses en attente...",

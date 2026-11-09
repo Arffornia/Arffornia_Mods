@@ -134,30 +134,13 @@ configurations {
 
 dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
-    implementation 'org.postgresql:postgresql:42.7.3'
-    implementation 'com.zaxxer:HikariCP:5.1.0'
 
     implementation "curse.maven:ftb-teams-404468:6119437"
     implementation "curse.maven:architectury-api-419699:5786327"
     // FTB Teams requires FTB Library at runtime. Dev runs only (not bundled); without it no dev run (incl. GameTests) starts.
     localRuntime("dev.ftb.mods:ftb-library-neoforge:2101.1.7") { transitive = false }
 
-    jarJar(implementation("org.postgresql:postgresql:42.7.3")) {
-        version {
-            strictly '[42.0,43.0)'
-            prefer '42.7.3'
-        }
-    }
-
-    jarJar(implementation("com.zaxxer:HikariCP:5.1.0")) {
-        version {
-            strictly '[5.0,6.0)'
-            prefer '5.1.0'
-        }
-    }
-
-    additionalRuntimeClasspath "org.postgresql:postgresql:42.7.3"
-    additionalRuntimeClasspath "com.zaxxer:HikariCP:5.1.0"
+    compileOnly 'net.luckperms:api:5.4'
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

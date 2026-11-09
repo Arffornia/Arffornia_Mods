@@ -19,7 +19,7 @@ import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
-import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
+import fr.thegostsniperfr.arffornia.shop.HttpRewardsClient;
 import fr.thegostsniperfr.arffornia.util.Permissions;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -51,7 +51,6 @@ public class Arffornia {
     public static final Component CLAIM_REWARD_COMMAND = Component.literal("/arffornia shop claim_reward");
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
     private static final AtomicBoolean hasAttemptedMigration = new AtomicBoolean(false);
 
@@ -89,12 +88,11 @@ public class Arffornia {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         if (ProgressionBackends.isFake()) {
-            // Offline/test mode: no website database, so no shop rewards and no /arffornia commands.
+            // Offline/test mode: no website, so no shop rewards and no /arffornia commands.
             LOGGER.warn("In-memory progression backend active: shop rewards and /arffornia commands are disabled.");
             return;
         }
-        this.databaseManager = new DatabaseManager();
-        this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
+        this.rewardHandler = new RewardHandler(new HttpRewardsClient(ArfforniaApiService.getInstance().http(), LOGGER), event.getServer());
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
     }
 
@@ -131,20 +129,13 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
-        if (this.databaseManager != null) {
-            this.databaseManager.close();
-        }
-
-        if (this.rewardHandler != null) {
-            this.rewardHandler.shutdown();
-        }
         ArfforniaApiService.getInstance().shutdown();
     }
 
     /**
      * Fired when a player joins the server.
      * 1. Ensure the player exists in the backend database.
-     * 2. Once confirmed, cache their ID, resync their FTB team and check for shop rewards.
+     * 2. Once confirmed, resync their FTB team, record the daily streak and check for rewards.
      * 3. Fetch and send the current milestone target to the client.
      */
     @SubscribeEvent
@@ -156,21 +147,13 @@ public class Arffornia {
             ArfforniaApiService.getInstance().ensurePlayerExists(player.getUUID(), player.getName().getString())
                     .thenAccept(success -> {
                         if (success) {
-                            this.rewardHandler.addPlayerToCache(player);
                             player.getServer().execute(() -> {
                                 CompletableFuture<Boolean> teamSynced = ModList.get().isLoaded("ftbteams")
                                         ? FTBTeamsEventHandler.syncCurrentTeam(player.getUUID())
                                         : CompletableFuture.completedFuture(true);
                                 teamSynced.thenAcceptAsync(ignored -> Progressions.refreshPlayer(player), player.server);
                             });
-                            this.rewardHandler.hasPendingRewards(player).thenAccept(hasRewards -> {
-                                if (hasRewards) {
-                                    player.getServer().execute(() -> {
-                                        player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.pending").withStyle(ChatFormatting.GREEN));
-                                        player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.claim_hint", CLAIM_REWARD_COMMAND.copy().withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.YELLOW));
-                                    });
-                                }
-                            });
+                            this.rewardHandler.onPlayerJoined(player);
 
                             // Fetch and send the current milestone target to the player
                             updateAndSendPlayerTarget(player);
@@ -219,11 +202,4 @@ public class Arffornia {
         });
     }
 
-
-    @SubscribeEvent
-    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (this.rewardHandler != null && event.getEntity() instanceof ServerPlayer) {
-            this.rewardHandler.removePlayerFromCache((ServerPlayer) event.getEntity());
-        }
-    }
 }

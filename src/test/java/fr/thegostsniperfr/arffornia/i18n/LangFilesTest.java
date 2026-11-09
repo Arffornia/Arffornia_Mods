@@ -141,7 +141,7 @@ class LangFilesTest {
         referenced.addAll(matches(LANG_KEY_LITERAL));
         matches(BLOCK_REGISTRATION).forEach(id -> referenced.add("block.arffornia." + id));
         matches(ITEM_REGISTRATION).forEach(id -> referenced.add("item.arffornia." + id));
-        // Keys built from a prefix constant (e.g. "gui.arffornia.recipe_type.") are dynamic and have a fallback.
+        // Keys built from a prefix constant are dynamic and have a fallback.
         referenced.removeIf(key -> key.endsWith("."));
 
         assertTrue(referenced.size() > 50, "suspiciously few keys found: " + referenced);

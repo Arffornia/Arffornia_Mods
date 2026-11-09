@@ -6,25 +6,11 @@ import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.ApiText;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.command.management.AddUnlockCommand;
-import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Type;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
@@ -37,20 +23,12 @@ public class ArfforniaApiService {
 
     private final ApiHttp http = new ApiHttp(Arffornia.LOGGER, API_BASE_URL::get, API_CLIENT_ID::get, API_CLIENT_SECRET::get);
     private final Gson gson = http.gson();
-    private final ExecutorService migrationExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Arffornia-Migration-Thread"));
 
     private ArfforniaApiService() {
     }
 
     public static ArfforniaApiService getInstance() {
         return INSTANCE;
-    }
-
-    /**
-     * Shuts down the migration executor service. Should be called on server stop.
-     */
-    public void shutdown() {
-        migrationExecutor.shutdown();
     }
 
     private static String compactUuid(UUID uuid) {
@@ -115,23 +93,6 @@ public class ArfforniaApiService {
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int nodeId, @Nullable String minecraftLanguage) {
         return http.getJson("/milestone/get/" + nodeId, ArfforniaApiDtos.MilestoneDetails.class, "milestone " + nodeId,
                 ApiText.toLanguageTag(minecraftLanguage));
-    }
-
-    /**
-     * Fetches the server's progression configuration, including the list of banned recipes.
-     * This should be called once on server start or /reload.
-     *
-     * @return A CompletableFuture containing the parsed progression config (empty on failure).
-     */
-    public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
-        return http.<ArfforniaApiDtos.ProgressionConfig>getJson("/progression/config", ArfforniaApiDtos.ProgressionConfig.class, "progression config")
-                .thenApply(config -> {
-                    if (config == null || config.bannedRecipes() == null) {
-                        Arffornia.LOGGER.error("Failed to fetch progression config from API. Banning no recipes.");
-                        return new ArfforniaApiDtos.ProgressionConfig(Collections.emptyList());
-                    }
-                    return config;
-                });
     }
 
     /**
@@ -263,17 +224,6 @@ public class ArfforniaApiService {
     }
 
     /**
-     * Fetches all custom recipes from the API.
-     *
-     * @return A CompletableFuture containing the list of all custom recipes (empty on failure).
-     */
-    public CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes() {
-        Type listType = new TypeToken<ArrayList<ArfforniaApiDtos.CustomRecipe>>() {}.getType();
-        return http.<List<ArfforniaApiDtos.CustomRecipe>>getJson("/recipes", listType, "custom recipes")
-                .thenApply(recipes -> recipes != null ? recipes : Collections.<ArfforniaApiDtos.CustomRecipe>emptyList());
-    }
-
-    /**
      * Adds an item unlock to a specific milestone via the API.
      * This is an admin-only action.
      *
@@ -293,85 +243,6 @@ public class ArfforniaApiService {
         body.add("ingredients", gson.toJsonTree(ingredients));
         body.add("result", gson.toJsonTree(result));
         return postAndCheckSuccess("/milestones/" + milestoneId + "/add-unlock-from-game", body, "addUnlockToMilestone", null);
-    }
-
-    public void runRecipeMigration(MinecraftServer server, Collection<RecipeHolder<?>> allRecipes) {
-        migrationExecutor.submit(() -> {
-            try {
-                // 1. Get the list of items that need a recipe from the API
-                HttpResponse<String> response = http.sendAuthenticated(http.authGet("/migration/items-to-migrate")).join();
-                if (response == null) {
-                    Arffornia.LOGGER.error("Recipe Sync failed: Could not get auth token.");
-                    return;
-                }
-
-                if (response.statusCode() != 200) {
-                    Arffornia.LOGGER.error("Recipe Sync failed: Could not get item list from API. Status: {}", response.statusCode());
-                    return;
-                }
-
-                Type listType = new TypeToken<List<String>>() {}.getType();
-                List<String> itemsToMigrate = gson.fromJson(response.body(), listType);
-
-                if (itemsToMigrate == null || itemsToMigrate.isEmpty()) {
-                    Arffornia.LOGGER.info("Recipe Sync: No items require a recipe sync from the API.");
-                    return;
-                }
-                Arffornia.LOGGER.info("Recipe Sync: Found {} items to sync. Preparing batch payload...", itemsToMigrate.size());
-
-                List<Map<String, Object>> batchPayload = new ArrayList<>();
-                RegistryAccess registryAccess = server.registryAccess();
-
-                // 2. Find the vanilla recipe for each item
-                for (String itemId : itemsToMigrate) {
-                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
-                    if (item == Items.AIR) {
-                        Arffornia.LOGGER.warn("Recipe Sync: Skipping unknown item_id '{}'", itemId);
-                        continue;
-                    }
-
-                    Optional<RecipeHolder<?>> recipeHolderOpt = AddUnlockCommand.findBestCraftingRecipeFor(allRecipes, new ItemStack(item), server.overworld());
-
-                    if (recipeHolderOpt.isEmpty()) {
-                        Arffornia.LOGGER.warn("Recipe Sync: No vanilla crafting recipe found for '{}'. It might be from a different recipe type (smelting, etc.) or added by a mod in a non-standard way.", itemId);
-                        continue;
-                    }
-
-                    Map<String, Object> recipePayload = AddUnlockCommand.convertRecipeToPayload(recipeHolderOpt.get().value(), registryAccess);
-                    if (recipePayload != null) {
-                        recipePayload.put("item_id", itemId); // Add the item_id for the backend to identify the unlock
-                        batchPayload.add(recipePayload);
-                    } else {
-                        Arffornia.LOGGER.warn("Recipe Sync: Unsupported recipe type for '{}'", itemId);
-                    }
-                }
-
-                if (batchPayload.isEmpty()) {
-                    Arffornia.LOGGER.info("Recipe Sync complete. No valid vanilla recipes found for the requested items.");
-                    return;
-                }
-
-                // 3. Send the batch of found recipes to the API
-                Arffornia.LOGGER.info("Recipe Sync: Sending batch of {} recipes to the API...", batchPayload.size());
-                JsonObject finalPayload = new JsonObject();
-                finalPayload.add("recipes", gson.toJsonTree(batchPayload));
-
-                HttpResponse<String> batchResponse = http.sendAuthenticated(
-                        http.jsonPost("/migration/submit-batch-recipes", gson.toJson(finalPayload))).join();
-
-                if (batchResponse != null && ApiHttp.isSuccess(batchResponse.statusCode())) {
-                    Arffornia.LOGGER.info("Recipe Sync: Batch request successful!");
-                    Arffornia.LOGGER.warn("Recipe sync on startup was successful. It is recommended to set 'migrateOnStartup' to 'false' in the config to prevent unnecessary checks on every launch.");
-                } else {
-                    Arffornia.LOGGER.error("Recipe Sync: Batch request failed. Status: {}", batchResponse != null ? batchResponse.statusCode() : "no token");
-                }
-
-            } catch (Exception e) {
-                Arffornia.LOGGER.error("A critical error occurred during the recipe sync process.", e);
-            } finally {
-                CustomRecipeManager.loadRecipes().join();
-            }
-        });
     }
 
     /**

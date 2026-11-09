@@ -1,6 +1,5 @@
 Method <fr.thegostsniperfr.arffornia.Arffornia.updateAndSendPlayerTarget(net.minecraft.server.level.ServerPlayer)> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (Arffornia.java:175)
 Method <fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity.launch(net.minecraft.server.level.ServerPlayer)> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (SpaceElevatorBlockEntity.java:190)
-Method <fr.thegostsniperfr.arffornia.client.screen.CrafterScreen.formatRecipeName(java.lang.String)> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (CrafterScreen.java:268)
 Method <fr.thegostsniperfr.arffornia.client.screen.CrafterScreen.init()> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (CrafterScreen.java:84)
 Method <fr.thegostsniperfr.arffornia.client.screen.CrafterScreen.init()> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (CrafterScreen.java:91)
 Method <fr.thegostsniperfr.arffornia.client.screen.ProgressionGraphScreen.categoryLabel(java.lang.String)> calls method <net.minecraft.network.chat.Component.literal(java.lang.String)> in (ProgressionGraphScreen.java:989)

@@ -1,10 +1,9 @@
-package fr.thegostsniperfr.arffornia.compat.jei;
+package fr.thegostsniperfr.arffornia.client.jei;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
-import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
+import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
@@ -13,10 +12,9 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-
-import java.util.List;
 
 @JeiPlugin
 public class ArfforniaJeiPlugin implements IModPlugin {
@@ -39,12 +37,10 @@ public class ArfforniaJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        List<ArfforniaApiDtos.CustomRecipe> recipes = ClientRecipeCache.getAllCachedRecipes().stream().toList();
-
-        Arffornia.LOGGER.info("Registering recipes from ClientRecipeCache for JEI. Found: {} recipes.", recipes.size());
-        if (!recipes.isEmpty()) {
-            registration.addRecipes(CrafterRecipeCategory.CRAFTER_RECIPE_TYPE, recipes);
+        if (Minecraft.getInstance().level == null) {
+            return;
         }
+        registration.addRecipes(CrafterRecipeCategory.CRAFTER_RECIPE_TYPE, CrafterRecipes.all(Minecraft.getInstance().level.getRecipeManager()));
     }
 
     @Override

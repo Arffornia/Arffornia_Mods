@@ -3,7 +3,6 @@ package fr.thegostsniperfr.arffornia.api.backend;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,10 +36,4 @@ public interface ProgressionBackend {
 
     /** Sets (or clears, with null) the player's target milestone. */
     CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId);
-
-    /** All Crafter recipes (empty on failure). */
-    CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes();
-
-    /** Server-wide progression config (banned recipes; empty on failure). */
-    CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig();
 }

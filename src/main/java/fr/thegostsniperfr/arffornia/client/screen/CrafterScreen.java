@@ -1,9 +1,9 @@
 package fr.thegostsniperfr.arffornia.client.screen;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.compat.jei.ArfforniaJeiPlugin;
+import fr.thegostsniperfr.arffornia.client.jei.ArfforniaJeiPlugin;
 import fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket;
+import fr.thegostsniperfr.arffornia.recipe.MachineRecipe;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.recipe.RecipeIngredientRole;
@@ -14,20 +14,18 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,7 +36,6 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private static final ResourceLocation PROGRESS_ARROW_TEXTURE = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/progress_arrow.png");
     private static final ResourceLocation RECIPE_BG = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background.png");
     private static final ResourceLocation RECIPE_BG_SELECTED = ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/recipe_background_selected.png");
-    static final String RECIPE_TYPE_KEY_PREFIX = "gui.arffornia.recipe_type.";
     private static final Pattern MOD_ID_PATTERN = Pattern.compile("@(\\w*)");
 
     private static final int RECIPE_ROWS = 7;
@@ -48,7 +45,7 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private EditBox searchBox;
     private Button nextPageButton;
     private Button prevPageButton;
-    private List<ArfforniaApiDtos.CustomRecipe> filteredRecipes = new ArrayList<>();
+    private List<RecipeHolder<MachineRecipe>> filteredRecipes = new ArrayList<>();
     private int currentPage = 0;
     private String lastSearch = "";
 
@@ -177,20 +174,16 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
             int recipeX = x + 7 + (col * 18);
             int recipeY = y + 17 + (row * 18);
 
-            ArfforniaApiDtos.CustomRecipe recipe = filteredRecipes.get(recipeIndex);
-            ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe) ? RECIPE_BG_SELECTED : RECIPE_BG;
+            RecipeHolder<MachineRecipe> recipe = filteredRecipes.get(recipeIndex);
+            ResourceLocation background = this.menu.blockEntity.isRecipeSelected(recipe.id()) ? RECIPE_BG_SELECTED : RECIPE_BG;
             guiGraphics.blit(background, recipeX, recipeY, 0, 0, 18, 18, 18, 18);
 
-            ItemStack resultStack = ItemStack.EMPTY;
-            if (!recipe.result().isEmpty()) {
-                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(recipe.result().get(0).item()));
-                if (item != Items.AIR) resultStack = new ItemStack(item);
-            }
-
+            ItemStack resultStack = recipe.value().mainResult();
             guiGraphics.renderItem(resultStack, recipeX + 1, recipeY + 1);
+            guiGraphics.renderItemDecorations(this.font, resultStack, recipeX + 1, recipeY + 1);
 
             if (isMouseOver(mouseX, mouseY, recipeX, recipeY, 18, 18)) {
-                guiGraphics.renderTooltip(this.font, formatRecipeName(recipe.type()), mouseX, mouseY);
+                guiGraphics.renderTooltip(this.font, resultStack.getHoverName(), mouseX, mouseY);
             }
         }
 
@@ -228,18 +221,15 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
         this.filteredRecipes = this.menu.availableRecipes.stream().filter(recipe -> {
             boolean modMatches = true;
             if (finalModFilter != null && !finalModFilter.isEmpty()) {
-                modMatches = recipe.result().stream()
-                        .anyMatch(result -> ResourceLocation.parse(result.item()).getNamespace().startsWith(finalModFilter));
+                modMatches = recipe.value().results().stream()
+                        .anyMatch(result -> BuiltInRegistries.ITEM.getKey(result.getItem()).getNamespace().startsWith(finalModFilter));
             }
 
             boolean nameMatches = true;
             if (!finalSearchText.isEmpty()) {
-                nameMatches = recipe.result().stream().anyMatch(result -> {
-                    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(result.item()));
-                    if (item == Items.AIR) return false;
-
-                    String displayName = new ItemStack(item).getHoverName().getString().toLowerCase(Locale.ROOT);
-                    String registryName = result.item().substring(result.item().indexOf(':') + 1).replace("_", " ");
+                nameMatches = recipe.value().results().stream().anyMatch(result -> {
+                    String displayName = result.getHoverName().getString().toLowerCase(Locale.ROOT);
+                    String registryName = BuiltInRegistries.ITEM.getKey(result.getItem()).getPath().replace("_", " ");
 
                     return displayName.contains(finalSearchText) || registryName.contains(finalSearchText);
                 });
@@ -253,19 +243,6 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     private void updatePageButtons() {
         this.prevPageButton.active = currentPage > 0;
         this.nextPageButton.active = (currentPage + 1) * recipesPerPage < filteredRecipes.size();
-    }
-
-    /**
-     * Recipe types come from the API (ids of other mods' recipe types). Known ones have a lang key
-     * {@code gui.arffornia.recipe_type.<namespace>.<path>}; unknown ones fall back to a name derived from the id.
-     */
-    private MutableComponent formatRecipeName(String type) {
-        String[] parts = type.split(":");
-        if (parts.length == 2) {
-            String name = parts[1].replace("_recipe", "").replace("_", " ");
-            return Component.translatableWithFallback(RECIPE_TYPE_KEY_PREFIX + parts[0] + "." + parts[1], StringUtils.capitalize(name));
-        }
-        return Component.literal(type);
     }
 
     @Override
@@ -284,28 +261,21 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
             int recipeY = y + 17 + (row * 18);
 
             if (isMouseOver(pMouseX, pMouseY, recipeX, recipeY, 18, 18)) {
-                ArfforniaApiDtos.CustomRecipe clickedRecipe = filteredRecipes.get(recipeIndex);
+                RecipeHolder<MachineRecipe> clickedRecipe = filteredRecipes.get(recipeIndex);
 
                 if (pButton == 0) { // Left Click
-                    Integer unlockId = clickedRecipe.milestoneUnlockId();
-
-                    if (this.menu.blockEntity.isRecipeSelected(clickedRecipe)) {
-                        unlockId = null;
-                    }
-
-                    PacketDistributor.sendToServer(new ServerboundSelectRecipePacket(this.menu.blockEntity.getBlockPos(), unlockId));
+                    Optional<ResourceLocation> selection = this.menu.blockEntity.isRecipeSelected(clickedRecipe.id())
+                            ? Optional.empty() : Optional.of(clickedRecipe.id());
+                    PacketDistributor.sendToServer(new ServerboundSelectRecipePacket(this.menu.blockEntity.getBlockPos(), selection));
                     this.minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                     return true;
                 } else if (pButton == 2) { // Middle Click
-                    if (!clickedRecipe.result().isEmpty() && ArfforniaJeiPlugin.RUNTIME != null) {
-                        Item resultItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(clickedRecipe.result().get(0).item()));
-                        ItemStack resultStack = new ItemStack(resultItem);
-                        if (!resultStack.isEmpty()) {
-                            ArfforniaJeiPlugin.RUNTIME.getRecipesGui().show(
-                                    ArfforniaJeiPlugin.RUNTIME.getJeiHelpers().getFocusFactory().createFocus(RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, resultStack)
-                            );
-                            return true;
-                        }
+                    if (ArfforniaJeiPlugin.RUNTIME != null) {
+                        ItemStack resultStack = clickedRecipe.value().mainResult();
+                        ArfforniaJeiPlugin.RUNTIME.getRecipesGui().show(
+                                ArfforniaJeiPlugin.RUNTIME.getJeiHelpers().getFocusFactory().createFocus(RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, resultStack)
+                        );
+                        return true;
                     }
                 }
             }
@@ -318,17 +288,9 @@ public class CrafterScreen extends AbstractContainerScreen<CrafterMenu> {
     protected void renderLabels(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY) {
         pGuiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.inventoryLabelY, 4210752, false);
 
-        Integer selectedId = this.menu.blockEntity.getSelectedRecipeMilestoneUnlockId();
-
-        ArfforniaApiDtos.CustomRecipe selectedRecipe = null;
-        if (selectedId != null) {
-            selectedRecipe = this.menu.availableRecipes.stream()
-                    .filter(recipe -> selectedId.equals(recipe.milestoneUnlockId()))
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        Component title = (selectedRecipe != null) ? formatRecipeName(selectedRecipe.type()).withStyle(ChatFormatting.GOLD) : this.title;
+        Component title = this.menu.blockEntity.getSelectedRecipe()
+                .<Component>map(recipe -> recipe.value().mainResult().getHoverName().copy().withStyle(ChatFormatting.GOLD))
+                .orElse(this.title);
 
         pGuiGraphics.drawCenteredString(this.font, title, this.titleLabelX, this.titleLabelY, 4210752);
     }

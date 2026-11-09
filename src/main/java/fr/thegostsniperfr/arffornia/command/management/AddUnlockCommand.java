@@ -5,7 +5,6 @@ import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
-import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.NonNullList;
@@ -41,7 +40,7 @@ public class AddUnlockCommand {
                                 return 0;
                             }
 
-                            Collection<RecipeHolder<?>> allRecipes = RecipeBanManager.getOriginalRecipes();
+                            Collection<RecipeHolder<?>> allRecipes = player.server.getRecipeManager().getRecipes();
 
                             Optional<RecipeHolder<?>> recipeHolderOpt = findBestCraftingRecipeFor(allRecipes, heldItemStack, level);
 

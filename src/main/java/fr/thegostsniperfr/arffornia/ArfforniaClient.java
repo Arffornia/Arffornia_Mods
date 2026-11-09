@@ -4,7 +4,6 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
-import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -24,9 +23,6 @@ public class ArfforniaClient {
 
     @SubscribeEvent
     public static void onClientSetup(final FMLClientSetupEvent event) {
-        Arffornia.LOGGER.info("Client setup: Triggering ClientRecipeCache loading.");
-        ClientRecipeCache.loadRecipes();
-
         final ModContainer modContainer = ModLoadingContext.get().getActiveContainer();
 
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);

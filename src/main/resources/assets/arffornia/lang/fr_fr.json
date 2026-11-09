@@ -37,14 +37,6 @@
   "gui.arffornia.energy.kfe": "%s kFE",
   "gui.arffornia.energy.tooltip": "%s / %s",
   "gui.arffornia.crafter.time": "%s s",
-  "gui.arffornia.recipe_type.minecraft.crafting_shaped": "Fabrication avec forme",
-  "gui.arffornia.recipe_type.minecraft.crafting_shapeless": "Fabrication sans forme",
-  "gui.arffornia.recipe_type.minecraft.smelting": "Cuisson",
-  "gui.arffornia.recipe_type.minecraft.blasting": "Fonte",
-  "gui.arffornia.recipe_type.minecraft.smoking": "Fumage",
-  "gui.arffornia.recipe_type.minecraft.campfire_cooking": "Cuisson au feu de camp",
-  "gui.arffornia.recipe_type.minecraft.stonecutting": "Taille de pierre",
-  "gui.arffornia.recipe_type.minecraft.smithing_transform": "Forge",
   "gui.arffornia.graph.loading": "Chargement du graphe...",
   "gui.arffornia.graph.load_failed": "Impossible de charger les données. Consultez les journaux pour plus de détails.",
   "gui.arffornia.graph.loading_details": "Chargement des détails...",
@@ -123,5 +115,12 @@
   "commands.arffornia.setrequirements.failed": "Impossible de mettre à jour les objets requis. Consultez les journaux du serveur.",
   "commands.arffornia.dump.outside_server": "Le dossier d'export doit rester dans le dossier du serveur.",
   "commands.arffornia.dump.done": "%s recettes, %s objets et %s tags écrits dans %s",
-  "commands.arffornia.dump.failed": "Échec de l'export : %s"
+  "commands.arffornia.dump.failed": "Échec de l'export : %s",
+
+  "pack.arffornia.progression": "Recettes de progression Arffornia",
+  "commands.arffornia.recipes.reload.started": "Téléchargement du datapack de recettes...",
+  "commands.arffornia.recipes.reload.updated": "Recettes mises à jour : %s fichiers de recettes, rechargement en %s ms, gel serveur le plus long %s ms.",
+  "commands.arffornia.recipes.reload.unchanged": "Le datapack de recettes est déjà à jour.",
+  "commands.arffornia.recipes.reload.busy": "Une mise à jour des recettes est déjà en cours.",
+  "commands.arffornia.recipes.reload.failed": "Échec de la mise à jour des recettes (%s). Les dernières recettes valides restent actives."
 }

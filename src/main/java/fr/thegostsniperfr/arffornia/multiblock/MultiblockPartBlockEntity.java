@@ -98,13 +98,17 @@ public class MultiblockPartBlockEntity extends BlockEntity {
         return port != null && port.carriesEnergy() && mode != SideMode.NONE ? new PortEnergyStorage(this, mode) : null;
     }
 
-    /** The master this part belongs to, when it is loaded and still lists this part. */
+    /** The master this part belongs to, when it is loaded and still lists this part. Never loads a chunk. */
     @Nullable
     public MultiblockMachineBlockEntity machine() {
-        if (level == null || !level.isLoaded(master)) {
-            return null;
-        }
-        return level.getBlockEntity(master) instanceof MultiblockMachineBlockEntity machine && machine.parts().contains(worldPosition) ? machine : null;
+        return level != null && level.isLoaded(master) ? owner() : null;
+    }
+
+    /** The master even when its chunk is not loaded: taking a structure apart must not leave a working machine with a hole. */
+    @Nullable
+    MultiblockMachineBlockEntity owner() {
+        return level != null && level.getBlockEntity(master) instanceof MultiblockMachineBlockEntity machine
+                && machine.parts().contains(worldPosition) ? machine : null;
     }
 
     @Override

@@ -52,6 +52,12 @@ public abstract class MultiblockMasterBlock extends MachineBlock {
     }
 
     @Override
+    public boolean canHarvestBlock(BlockState state, BlockGetter level, BlockPos pos, Player player) {
+        return level.getBlockEntity(pos) instanceof MultiblockMachineBlockEntity machine
+                ? Multiblocks.canHarvest(machine.original(), level, pos, player) : super.canHarvestBlock(state, level, pos, player);
+    }
+
+    @Override
     protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         float own = super.getDestroyProgress(state, player, level, pos);
         return level.getBlockEntity(pos) instanceof MultiblockMachineBlockEntity machine

@@ -18,7 +18,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -117,19 +116,14 @@ public final class Multiblocks {
         formation.positions().forEach(level::invalidateCapabilities);
     }
 
-    /**
-     * What a formed block drops: the block it replaced, under that block's own tool rule, so a pickaxe-only casing
-     * does not drop to a bare hand once formed.
-     */
+    /** What a formed block drops: the block it replaced. Whether a player may harvest it is decided by {@link #canHarvest}. */
     static List<ItemStack> dropsOf(BlockState original, LootParams.Builder params) {
-        if (original.isAir()) {
-            return List.of();
-        }
-        ItemStack tool = params.getOptionalParameter(LootContextParams.TOOL);
-        if (original.requiresCorrectToolForDrops() && (tool == null || !tool.isCorrectToolForDrops(original))) {
-            return List.of();
-        }
-        return original.getDrops(params);
+        return original.isAir() ? List.of() : original.getDrops(params);
+    }
+
+    /** A formed block harvests like the block it replaced, so a pickaxe-only casing does not drop to a bare hand. */
+    static boolean canHarvest(BlockState original, BlockGetter level, BlockPos pos, Player player) {
+        return !original.isAir() && original.canHarvestBlock(level, pos, player);
     }
 
     /** How fast a formed block breaks: like the block it replaced, or like itself before the client knows that block. */

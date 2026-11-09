@@ -4,6 +4,8 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
+import fr.thegostsniperfr.arffornia.client.ui.band.BandBench;
+import fr.thegostsniperfr.arffornia.client.ui.band.WebBandScreens;
 import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -30,6 +32,10 @@ public class ArfforniaClient {
         final ModContainer modContainer = ModLoadingContext.get().getActiveContainer();
 
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+
+        if (BandBench.available("web")) {
+            WebBandScreens.warmUp();
+        }
 
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_BLOCK.get(), RenderType.cutout());

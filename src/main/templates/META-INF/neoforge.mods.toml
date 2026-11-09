@@ -91,3 +91,17 @@ description='''${mod_description}'''
 # stop your mod loading on the server for example.
 #[features.${mod_id}]
 #openGLVersion="[3.2,)"
+
+[[dependencies.${mod_id}]]
+    modId="ldlib2"
+    type="optional"
+    versionRange="[2.2.2,)"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="webgui"
+    type="optional"
+    versionRange="[2.0.0,)"
+    ordering="AFTER"
+    side="CLIENT"

@@ -55,9 +55,8 @@ public final class CrafterRecipes {
     }
 
     /**
-     * Stage keys unlocked by completed website milestones. The website has no stable milestone keys yet
-     * (spec 017), so the generated datapack names a milestone's stage {@code arffornia:milestone/<id>} until the
-     * synced stage store (Mods#29) replaces this mapping.
+     * Stage keys unlocked by completed website milestones. Milestones have no stable keys yet (spec 017), so the
+     * website datapack names a milestone's stage {@code arffornia:milestone/<id>} until they do.
      */
     public static Set<String> stagesOfMilestones(Collection<Integer> completedMilestoneIds) {
         return completedMilestoneIds.stream().map(CrafterRecipes::milestoneStage).collect(Collectors.toUnmodifiableSet());

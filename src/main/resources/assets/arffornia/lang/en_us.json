@@ -77,7 +77,7 @@
   "chat.arffornia.crafter.not_linked": "This Crafter is not linked to any progression.",
   "chat.arffornia.milestone.completed": "%s has completed the milestone: %s",
   "chat.arffornia.milestone.validation_failed": "An error occurred while validating the milestone. Your items have been refunded.",
-  "chat.arffornia.rewards.pending": "You have pending rewards from the shop!",
+  "chat.arffornia.rewards.pending": "You have pending rewards!",
   "chat.arffornia.rewards.claim_hint": "Type %s to receive them.",
   "chat.arffornia.rewards.not_linked": "Your account is not linked to the web database.",
   "chat.arffornia.rewards.none": "You have no pending rewards to claim.",
@@ -86,6 +86,9 @@
   "chat.arffornia.rewards.partial_hint": "Your inventory is now full. Make more space and type %s again.",
   "chat.arffornia.rewards.all_claimed": "All your pending rewards have been claimed successfully!",
   "chat.arffornia.rewards.error": "An error occurred while claiming your rewards. Please try again later.",
+  "chat.arffornia.rewards.busy": "Your rewards are already being claimed, please wait.",
+  "chat.arffornia.rewards.unsupported": "Some of your rewards cannot be delivered on this server yet. They stay waiting for you.",
+  "chat.arffornia.rewards.streak": "Daily login streak: day %s! A reward is waiting for you.",
 
   "commands.arffornia.claim_reward.cooldown": "Please wait before using this command again.",
   "commands.arffornia.claim_reward.checking": "Checking for pending rewards...",

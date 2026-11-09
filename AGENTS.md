@@ -17,7 +17,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 | `network/` | Payloads registered in `PacketHandler` (4 serverbound, 1 clientbound) |
 | `recipe/` | `CustomRecipeManager` (server cache), `ClientRecipeCache`, `RecipeBanManager` (reload listener) |
 | `command/` | `/arffornia progression ...` and `/arffornia shop ...` |
-| `shop/` | `RewardHandler`, JDBC `DatabaseManager` to the website Postgres |
+| `shop/` | `RewardHandler` (list, claim, deliver), `HttpRewardsClient` to `/api/rewards/*`, typed `RewardEntry`, `RewardDelivery` |
 | `compat/` | Capabilities, FTB Teams events, JEI plugin |
 | `src/main/resources/` | lang, models, blockstates, loot tables, recipes, tags |
 | `src/main/templates/META-INF/neoforge.mods.toml` | Mod metadata (expanded from `gradle.properties`) |

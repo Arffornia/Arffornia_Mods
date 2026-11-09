@@ -46,6 +46,10 @@ public class ArfforniaApiService {
         return INSTANCE;
     }
 
+    public ApiHttp http() {
+        return http;
+    }
+
     /**
      * Shuts down the migration executor service. Should be called on server stop.
      */

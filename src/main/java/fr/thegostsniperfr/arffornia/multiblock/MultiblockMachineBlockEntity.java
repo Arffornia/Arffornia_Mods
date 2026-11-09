@@ -2,7 +2,6 @@ package fr.thegostsniperfr.arffornia.multiblock;
 
 import fr.thegostsniperfr.arffornia.machine.MachineBlockEntity;
 import fr.thegostsniperfr.arffornia.machine.MachineType;
-import fr.thegostsniperfr.arffornia.machine.SideMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -17,9 +16,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.items.IItemHandler;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,16 +64,6 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity {
     @Override
     protected boolean canOperate() {
         return !parts.isEmpty();
-    }
-
-    @Nullable
-    IItemHandler portItems(PortKind kind, SideMode mode) {
-        return kind.carriesItems() ? itemView(mode) : null;
-    }
-
-    @Nullable
-    IEnergyStorage portEnergy(PortKind kind, SideMode mode) {
-        return kind.carriesEnergy() ? energyView(mode) : null;
     }
 
     public BlockState original() {
@@ -131,6 +117,7 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity {
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
+        tag.put("original", NbtUtils.writeBlockState(original));
         ListTag list = new ListTag();
         parts.forEach(pos -> list.add(NbtUtils.writeBlockPos(pos)));
         tag.put("parts", list);

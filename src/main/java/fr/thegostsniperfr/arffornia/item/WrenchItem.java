@@ -27,7 +27,7 @@ public class WrenchItem extends Item {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         if (level.getBlockEntity(pos) instanceof MultiblockPartBlockEntity part && part.port().isPresent()) {
-            if (context.getPlayer() instanceof ServerPlayer player) {
+            if (context.getPlayer() instanceof ServerPlayer player && Multiblocks.mayConfigure(player, part)) {
                 part.cycleSide(context.getClickedFace()).ifPresent(mode -> player.displayClientMessage(Component.translatable(
                         "chat.arffornia.multiblock.port_side",
                         Component.translatable("gui.arffornia.machine.face." + context.getClickedFace().getSerializedName()),

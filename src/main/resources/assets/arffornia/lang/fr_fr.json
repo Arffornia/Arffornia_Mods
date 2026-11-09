@@ -147,6 +147,7 @@
   "gui.arffornia.machine.face.south": "sud",
   "gui.arffornia.machine.face.west": "ouest",
   "gui.arffornia.machine.face.east": "est",
+  "chat.arffornia.multiblock.not_yours": "Cette machine appartient à une autre progression.",
   "block.arffornia.machine_casing": "Carcasse de machine",
   "block.arffornia.smelter_controller": "Contrôleur de fonderie",
   "block.arffornia.item_input_port": "Port d'entrée d'objets",

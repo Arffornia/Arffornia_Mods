@@ -122,5 +122,18 @@
   "commands.arffornia.recipes.reload.updated": "Recipes updated: %s recipe files, reload took %s ms, longest server freeze %s ms.",
   "commands.arffornia.recipes.reload.unchanged": "The recipe datapack is already up to date.",
   "commands.arffornia.recipes.reload.busy": "A recipe update is already running.",
-  "commands.arffornia.recipes.reload.failed": "Recipe update failed (%s). The last valid recipes stay active."
+  "commands.arffornia.recipes.reload.failed": "Recipe update failed (%s). The last valid recipes stay active.",
+
+  "gui.arffornia.machine.energy": "%s / %s FE",
+  "gui.arffornia.machine.side.none": "off",
+  "gui.arffornia.machine.side.input": "input",
+  "gui.arffornia.machine.side.output": "output",
+  "gui.arffornia.machine.side.both": "input and output",
+  "gui.arffornia.machine.status.idle": "Idle",
+  "gui.arffornia.machine.status.running": "Working",
+  "gui.arffornia.machine.status.no_energy": "No energy",
+  "gui.arffornia.machine.status.output_full": "Output full",
+  "gui.arffornia.machine.status.locked": "Locked",
+  "gui.arffornia.machine.status.stopped": "Stopped",
+  "gui.arffornia.machine.status.not_formed": "Not formed"
 }

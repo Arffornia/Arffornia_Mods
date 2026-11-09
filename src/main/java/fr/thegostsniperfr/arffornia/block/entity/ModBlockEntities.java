@@ -2,6 +2,8 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
+import fr.thegostsniperfr.arffornia.machine.MachineTypes;
+import fr.thegostsniperfr.arffornia.multiblock.MultiblockMachineBlockEntity;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -30,4 +32,9 @@ public class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MultiblockPartBlockEntity>> MULTIBLOCK_PART_BE =
             BLOCK_ENTITIES.register("multiblock_part", () ->
                     BlockEntityType.Builder.of(MultiblockPartBlockEntity::new, ModBlocks.MULTIBLOCK_PART.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MultiblockMachineBlockEntity>> SMELTER_BE =
+            BLOCK_ENTITIES.register("smelter", () ->
+                    BlockEntityType.Builder.<MultiblockMachineBlockEntity>of((pos, state) -> new MultiblockMachineBlockEntity(
+                            ModBlockEntities.SMELTER_BE.get(), MachineTypes.SMELTER, pos, state), ModBlocks.SMELTER.get()).build(null));
 }

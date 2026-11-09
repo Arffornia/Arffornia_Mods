@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "arffornia:block/energy_input_port"
+    }
+  }
+}

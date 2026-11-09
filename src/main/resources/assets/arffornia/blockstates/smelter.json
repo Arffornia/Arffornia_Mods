@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "arffornia:block/smelter"
+    },
+    "facing=east": {
+      "model": "arffornia:block/smelter"
+    },
+    "facing=south": {
+      "model": "arffornia:block/smelter"
+    },
+    "facing=west": {
+      "model": "arffornia:block/smelter"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "D",
+    "C"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:dropper"
+    },
+    "C": {
+      "item": "arffornia:machine_casing"
+    }
+  },
+  "result": {
+    "id": "arffornia:item_output_port",
+    "count": 1
+  }
+}

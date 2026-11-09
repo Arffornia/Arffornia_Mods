@@ -5,6 +5,12 @@
     "arffornia:crafter_part_block",
     "arffornia:space_elevator",
     "arffornia:space_elevator_part_block",
-    "arffornia:multiblock_part"
+    "arffornia:multiblock_part",
+    "arffornia:machine_casing",
+    "arffornia:item_input_port",
+    "arffornia:item_output_port",
+    "arffornia:energy_input_port",
+    "arffornia:smelter_controller",
+    "arffornia:smelter"
   ]
 }

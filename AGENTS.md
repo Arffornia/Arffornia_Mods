@@ -14,7 +14,8 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 | `api/service/ArfforniaApiService.java`, `api/dto/` | HTTP client singleton (Gson) to the Laravel API, DTO records |
 | `block/`, `block/entity/` | Crafter + Space Elevator (2-block: master + invisible part block), block entities |
 | `screen/`, `client/screen/` | Menus (server) and screens (client); `ProgressionGraphScreen` is the graph UI |
-| `network/` | Payloads registered in `PacketHandler` (4 serverbound, 1 clientbound) |
+| `network/` | Payloads registered in `PacketHandler` (4 serverbound, 2 clientbound) |
+| `progression/` | Server-side progression state: player attachment (active progression), `ProgressionStore` SavedData, `Progressions` refresh/sync, machine rules |
 | `recipe/` | `CustomRecipeManager` (server cache), `ClientRecipeCache`, `RecipeBanManager` (reload listener) |
 | `command/` | `/arffornia progression ...` and `/arffornia shop ...` |
 | `shop/` | `RewardHandler`, JDBC `DatabaseManager` to the website Postgres |
@@ -41,7 +42,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - Do not replace the owner's libraries (Nexus_*) with third-party ones.
 - Never merge, tag, release or push to `main`; open PRs. Do not touch the release workflow's secret usage.
 - Design decisions belong to the maintainer: issues labelled `needs-decision` are not to be implemented
-  (recipe redesign #14, rewards #15, gating #16, machines/multiblocks #17, progression scope #18).
+  (recipe redesign #14, rewards #15, gating #16, machines/multiblocks #17).
 - Unfixed security weaknesses: neutral issue/PR wording, no exploit details.
 - Validate every serverbound payload on the server (open menu, distance, ownership, unlock state).
 
@@ -54,7 +55,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 ## Gotchas (from the audit)
 - Recipes come from the website over HTTP (server **and** every client); JEI can register 0 recipes if the fetch is late.
 - Recipe bans fail open when the API is unreachable at datapack load.
-- Crafters/Elevators store the placer's active progression id at placement (async); `-1` means unlinked.
+- A machine belongs to the progression it was placed for (#18): linked synchronously from the placer's synced
+  progression, it keeps it across team changes and stops while that progression is retired (team soft-deleted).
+  `-1` (pre-#18 saves) means unlinked: pick it up and place it again. Gameplay reads `Progressions`, never HTTP.
 - `space_elevator.json` needs SophisticatedStorage; FTB Teams/SophisticatedStorage are not declared in `mods.toml`.
 - `build.gradle` dev client run hardcodes a username/UUID.
 - The COMMON config is shipped to clients too: never add secrets to SERVER-type configs (they sync to clients).

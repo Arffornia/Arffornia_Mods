@@ -6,6 +6,9 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
+import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
+import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
@@ -35,7 +38,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedBlock {
@@ -70,6 +72,9 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
     // --- Waterlogging ---
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        if (!MachineProgressions.canPlace(ctx)) {
+            return null;
+        }
         FluidState fluidState = ctx.getLevel().getFluidState(ctx.getClickedPos());
         return this.defaultBlockState().setValue(WATERLOGGED, fluidState.getType() == Fluids.WATER);
     }
@@ -137,43 +142,26 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
                 }
 
                 long progressionId = be.getLinkedProgressionId();
-                if (progressionId == -1) {
-                    Arffornia.LOGGER.error("Space Elevator at {} has no linked progression ID.", pPos);
+                if (!MachineProgressions.checkServing(serverPlayer, progressionId)) {
                     return InteractionResult.FAIL;
                 }
 
-                ProgressionBackends.get().fetchProgressionData(progressionId)
-                        .thenCompose(progressionData -> {
-                            if (progressionData == null) {
-                                Arffornia.LOGGER.warn("Failed to fetch progression data for ID {}", progressionId);
-                                be.setCachedMilestoneDetails(null);
-                                return CompletableFuture.completedFuture(null);
-                            }
+                ProgressionSnapshot progression = Progressions.find(serverPlayer.server, progressionId).orElseThrow();
+                Integer targetId = progression.currentMilestoneId();
+                if (targetId == null) {
+                    be.setCachedMilestoneDetails(null);
+                    openMenu(serverPlayer, be, null, false);
+                    return InteractionResult.sidedSuccess(false);
+                }
 
-                            if (progressionData.currentMilestoneId() == null) {
-                                be.setCachedMilestoneDetails(null);
-                                return CompletableFuture.completedFuture(new Object[]{progressionData, null});
-                            }
-
-                            return ProgressionBackends.get().fetchMilestoneDetails(progressionData.currentMilestoneId(), serverPlayer.clientInformation().language())
-                                    .thenApply(details -> new Object[]{progressionData, details});
-                        })
-                        .thenAcceptAsync(data -> {
-                            // Check whether the block has been destroyed during the API fetch
-                            if (!(pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity)) {
+                ProgressionBackends.get().fetchMilestoneDetails(targetId, serverPlayer.clientInformation().language())
+                        .thenAcceptAsync(details -> {
+                            if (pLevel.getBlockEntity(pPos) != be) {
                                 return;
                             }
-
-                            if (data == null) {
-                                openMenu(serverPlayer, be, null, false);
-                                return;
-                            }
-
-                            var progressionData = (fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos.ProgressionData) data[0];
-                            var details = (fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos.MilestoneDetails) data[1];
-
                             be.setCachedMilestoneDetails(details);
-                            boolean isCompleted = details != null && progressionData.completedMilestones().contains(details.id());
+                            boolean isCompleted = details != null && Progressions.find(serverPlayer.server, progressionId)
+                                    .map(current -> current.isCompleted(details.id())).orElse(false);
                             openMenu(serverPlayer, be, details, isCompleted);
                         }, pLevel.getServer());
             }
@@ -199,11 +187,8 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
             BlockPos partPos = pPos.above();
             pLevel.setBlock(partPos, ModBlocks.SPACE_ELEVATOR_PART_BLOCK.get().defaultBlockState(), 3);
 
-            if (pPlacer instanceof Player player) {
-                BlockEntity entity = pLevel.getBlockEntity(pPos);
-                if (entity instanceof SpaceElevatorBlockEntity be) {
-                    be.setOwner(player);
-                }
+            if (pPlacer instanceof ServerPlayer player && pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be) {
+                be.linkToProgression(Progressions.activeProgressionOf(player));
             }
         }
     }

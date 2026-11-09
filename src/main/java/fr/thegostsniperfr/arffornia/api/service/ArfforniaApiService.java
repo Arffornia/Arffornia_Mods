@@ -168,13 +168,13 @@ public class ArfforniaApiService {
      * Tells the backend which party team the player was in at {@code observedAtMillis} (null = no party).
      * The backend ignores observations older than the last one it applied, so calls may arrive in any order.
      */
-    public void syncPlayerTeam(UUID playerUuid, @Nullable UUID teamUuid, @Nullable String teamName, long observedAtMillis) {
+    public CompletableFuture<Boolean> syncPlayerTeam(UUID playerUuid, @Nullable UUID teamUuid, @Nullable String teamName, long observedAtMillis) {
         JsonObject body = new JsonObject();
         body.addProperty("player_uuid", compactUuid(playerUuid));
         body.addProperty("team_uuid", teamUuid != null ? teamUuid.toString() : null);
         body.addProperty("team_name", teamName);
         body.addProperty("observed_at", observedAtMillis);
-        sendAndCheckSuccess(http.jsonPut("/teams/player/sync", gson.toJson(body)), "teams/player/sync", playerUuid);
+        return sendAndCheckSuccess(http.jsonPut("/teams/player/sync", gson.toJson(body)), "teams/player/sync", playerUuid);
     }
 
     /**
@@ -211,6 +211,16 @@ public class ArfforniaApiService {
         body.addProperty("player_uuid", compactUuid(playerUuid));
         body.addProperty("milestone_id", milestoneId);
         return postAndCheckSuccess("/progression/add", body, "addMilestone", playerUuid);
+    }
+
+    /**
+     * Adds a milestone to a given progression. Fails when the progression is retired (its team was soft-deleted).
+     */
+    public CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId) {
+        JsonObject body = new JsonObject();
+        body.addProperty("progression_id", progressionId);
+        body.addProperty("milestone_id", milestoneId);
+        return postAndCheckSuccess("/progression/add", body, "addMilestoneToProgression", null);
     }
 
     /**

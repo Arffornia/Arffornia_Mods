@@ -9,7 +9,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 @EventBusSubscriber(modid = Arffornia.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class PacketHandler {
     // 1.1: update_target_name carries a Component (translatable fallbacks) instead of a raw String.
-    private static final String PROTOCOL_VERSION = "1.1";
+    // 1.2: progression_state syncs the player's active progression.
+    private static final String PROTOCOL_VERSION = "1.2";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
@@ -26,6 +27,12 @@ public final class PacketHandler {
                 ClientboundUpdateTargetNamePacket.TYPE,
                 ClientboundUpdateTargetNamePacket.STREAM_CODEC,
                 ClientboundUpdateTargetNamePacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundProgressionStatePacket.TYPE,
+                ClientboundProgressionStatePacket.STREAM_CODEC,
+                ClientboundProgressionStatePacket::handle
         );
 
         registrar.playToServer(

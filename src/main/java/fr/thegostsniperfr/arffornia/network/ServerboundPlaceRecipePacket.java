@@ -2,7 +2,7 @@ package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
@@ -51,30 +51,16 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, int milestoneUnloc
             }
 
             long progressionId = crafterMenu.blockEntity.getLinkedProgressionId();
-            if (progressionId == -1) {
-                return; // Crafter not linked.
+            int requiredMilestoneId = recipe.milestoneId();
+            if (!Progressions.isUnlocked(player.server, progressionId, requiredMilestoneId)) {
+                Arffornia.LOGGER.warn("Player {} tried to use recipe from milestoneUnlockId {} without the required milestoneId {} in progression {}.",
+                        player.getName().getString(), packet.milestoneUnlockId, requiredMilestoneId, progressionId);
+                return;
             }
 
-            int requiredMilestoneId = recipe.milestoneId();
-
-            // Verify on the server-side that the player has unlocked the required milestone.
-            ProgressionBackends.get().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
-                if (progressionData == null || !progressionData.completedMilestones().contains(requiredMilestoneId)) {
-                    Arffornia.LOGGER.warn("Player {} tried to use recipe from milestoneUnlockId {} without having completed the required milestoneId {}.", player.getName().getString(), packet.milestoneUnlockId, requiredMilestoneId);
-                    return;
-                }
-
-                // Check if the player is still in the same menu
-                if(!(player.containerMenu instanceof CrafterMenu currentMenu) || currentMenu != crafterMenu) {
-                    return;
-                }
-
-                // If check passes, proceed with placing and selecting the recipe.
-                if (placeRecipe(player, crafterMenu, recipe)) {
-                    crafterMenu.blockEntity.setSelectedRecipe(packet.milestoneUnlockId());
-                }
-
-            }, player.getServer());
+            if (placeRecipe(player, crafterMenu, recipe)) {
+                crafterMenu.blockEntity.setSelectedRecipe(packet.milestoneUnlockId());
+            }
         });
     }
 

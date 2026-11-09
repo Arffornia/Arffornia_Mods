@@ -39,8 +39,8 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     }
 
     @Override
-    public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
-        return api.addMilestone(playerUuid, milestoneId);
+    public CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId) {
+        return api.addMilestoneToProgression(progressionId, milestoneId);
     }
 
     @Override

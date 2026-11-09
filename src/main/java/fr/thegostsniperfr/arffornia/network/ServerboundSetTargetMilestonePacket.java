@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -32,7 +33,8 @@ public record ServerboundSetTargetMilestonePacket(@Nullable Integer milestoneId)
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 Arffornia.LOGGER.info("Received request from player {} to target milestone {}", player.getName().getString(), packet.milestoneId() != null ? packet.milestoneId() : "NONE");
-                ProgressionBackends.get().setTargetMilestone(player.getUUID(), packet.milestoneId());
+                ProgressionBackends.get().setTargetMilestone(player.getUUID(), packet.milestoneId())
+                        .thenAcceptAsync(success -> Progressions.refreshPlayer(player), player.server);
             }
         });
     }

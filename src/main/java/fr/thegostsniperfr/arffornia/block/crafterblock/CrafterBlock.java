@@ -2,17 +2,16 @@ package fr.thegostsniperfr.arffornia.block.crafterblock;
 
 import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
-import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
+import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
@@ -41,8 +40,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -81,6 +78,9 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        if (!MachineProgressions.canPlace(ctx)) {
+            return null;
+        }
         FluidState fluidState = ctx.getLevel().getFluidState(ctx.getClickedPos());
         return this.defaultBlockState().setValue(WATERLOGGED, fluidState.getType() == Fluids.WATER);
     }
@@ -126,34 +126,17 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
         if (!pLevel.isClientSide()) {
             if (pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer) {
                 long progressionId = be.getLinkedProgressionId();
-
-                if (progressionId == -1) {
-                    serverPlayer.sendSystemMessage(Component.translatable("chat.arffornia.crafter.not_linked").withStyle(ChatFormatting.RED));
+                if (!MachineProgressions.checkServing(serverPlayer, progressionId)) {
                     return InteractionResult.FAIL;
                 }
 
-                ProgressionBackends.get().fetchProgressionData(progressionId).thenAcceptAsync(progressionData -> {
-                    // Check whether the block has been destroyed during the API fetch
-                    if (!(pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity)) {
-                        return;
-                    }
-
-                    Set<Integer> unlockedMilestoneIds;
-                    if (progressionData != null && progressionData.completedMilestones() != null) {
-                        unlockedMilestoneIds = new HashSet<>(progressionData.completedMilestones());
-                    } else {
-                        Arffornia.LOGGER.warn("Could not fetch progression data for ID {}. No recipes will be shown.", progressionId);
-                        unlockedMilestoneIds = Collections.emptySet();
-                    }
-
-                    Arffornia.LOGGER.info("Server: Opening crafter for progression ID {}. Sending unlocked milestone IDs: {}",
-                            progressionId, unlockedMilestoneIds);
-
-                    serverPlayer.openMenu(be, buf -> {
-                        buf.writeBlockPos(pPos);
-                        buf.writeVarIntArray(unlockedMilestoneIds.stream().mapToInt(Integer::intValue).toArray());
-                    });
-                }, pLevel.getServer());
+                Set<Integer> unlockedMilestoneIds = Progressions.find(serverPlayer.server, progressionId)
+                        .map(ProgressionSnapshot::completedMilestones)
+                        .orElse(Set.of());
+                serverPlayer.openMenu(be, buf -> {
+                    buf.writeBlockPos(pPos);
+                    buf.writeVarIntArray(unlockedMilestoneIds.stream().mapToInt(Integer::intValue).toArray());
+                });
             }
         }
         return InteractionResult.sidedSuccess(pLevel.isClientSide());
@@ -164,8 +147,8 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
         super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
         if (!pLevel.isClientSide) {
             pLevel.setBlock(pPos.above(), ModBlocks.CRAFTER_PART_BLOCK.get().defaultBlockState(), 3);
-            if (pPlacer instanceof Player player && pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be) {
-                be.setOwner(player);
+            if (pPlacer instanceof ServerPlayer player && pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be) {
+                be.linkToProgression(Progressions.activeProgressionOf(player));
             }
         }
     }

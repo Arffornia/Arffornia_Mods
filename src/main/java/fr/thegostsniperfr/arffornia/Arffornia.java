@@ -9,14 +9,14 @@ import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.graph.RecipeGraphDump;
-import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
-import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
-import fr.thegostsniperfr.arffornia.recipe.RecipeBanManager;
+import fr.thegostsniperfr.arffornia.recipe.ModRecipes;
+import fr.thegostsniperfr.arffornia.recipe.pack.RecipePack;
+import fr.thegostsniperfr.arffornia.recipe.pack.RecipePackUpdater;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import fr.thegostsniperfr.arffornia.shop.RewardHandler;
 import fr.thegostsniperfr.arffornia.shop.internal.DatabaseManager;
@@ -31,6 +31,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -39,9 +40,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Mod(Arffornia.MODID)
 public class Arffornia {
@@ -53,7 +54,6 @@ public class Arffornia {
 
     private DatabaseManager databaseManager;
     private RewardHandler rewardHandler;
-    private static final AtomicBoolean hasAttemptedMigration = new AtomicBoolean(false);
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -68,13 +68,15 @@ public class Arffornia {
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         ModAttachments.register(modEventBus);
+        ModRecipes.register(modEventBus);
+        modEventBus.register(RecipePack.class);
 
         modEventBus.addListener(this::commonSetup);
 
         // Register event handlers to the FORGE event bus
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(Permissions.class);
-        NeoForge.EVENT_BUS.register(RecipeBanManager.class);
+        NeoForge.EVENT_BUS.register(RecipePackUpdater.class);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
     }
@@ -88,6 +90,9 @@ public class Arffornia {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        if (!Files.isRegularFile(RecipePack.file())) {
+            LOGGER.error("No recipe datapack at {}: Crafter recipes and recipe bans are not applied until one is downloaded.", RecipePack.file());
+        }
         if (ProgressionBackends.isFake()) {
             // Offline/test mode: no website database, so no shop rewards and no /arffornia commands.
             LOGGER.warn("In-memory progression backend active: shop rewards and /arffornia commands are disabled.");
@@ -96,6 +101,14 @@ public class Arffornia {
         this.databaseManager = new DatabaseManager();
         this.rewardHandler = new RewardHandler(this.databaseManager, event.getServer());
         ArfforniaCommand.register(event.getServer().getCommands().getDispatcher(), this.rewardHandler);
+    }
+
+    /** A data reload rebuilds the command tree; the first registration happens in {@link #onServerStarting}. */
+    @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        if (this.rewardHandler != null) {
+            ArfforniaCommand.register(event.getDispatcher(), this.rewardHandler);
+        }
     }
 
     @SubscribeEvent
@@ -112,21 +125,18 @@ public class Arffornia {
             return;
         }
 
-        Arffornia.LOGGER.info("Server has started. Loading initial Arffornia data...");
         Progressions.refreshAll(event.getServer());
 
-        // Load recipes asynchronously: the server thread must never wait for the API.
-        // The migration reloads the recipes itself when it finishes.
-        CustomRecipeManager.loadRecipes().whenComplete((ignored, error) -> {
-            if (error != null) {
-                Arffornia.LOGGER.error("Failed to load initial custom recipes. The mod may not function correctly.", error);
+        if (ProgressionBackends.isFake() || !event.getServer().isDedicatedServer()) {
+            return;
+        }
+        RecipePackUpdater.update(event.getServer()).thenAccept(outcome -> {
+            if (outcome.status() == RecipePackUpdater.Status.FAILED) {
+                LOGGER.error("Recipe datapack update at start failed ({}); keeping the last valid pack.", outcome.detail());
+            } else {
+                LOGGER.info("Recipe datapack update at start: {}", outcome);
             }
         });
-
-        if (ApiConfig.MIGRATE_ON_STARTUP.get() && !hasAttemptedMigration.getAndSet(true)) {
-            Arffornia.LOGGER.info("Running Arffornia custom recipe migration.");
-            ArfforniaApiService.getInstance().runRecipeMigration(event.getServer(), RecipeBanManager.getOriginalRecipes());
-        }
     }
 
     @SubscribeEvent
@@ -138,7 +148,6 @@ public class Arffornia {
         if (this.rewardHandler != null) {
             this.rewardHandler.shutdown();
         }
-        ArfforniaApiService.getInstance().shutdown();
     }
 
     /**

@@ -4,12 +4,12 @@ import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
-import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
+import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
+import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
-import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
@@ -130,13 +130,8 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
                     return InteractionResult.FAIL;
                 }
 
-                Set<Integer> unlockedMilestoneIds = Progressions.find(serverPlayer.server, progressionId)
-                        .map(ProgressionSnapshot::completedMilestones)
-                        .orElse(Set.of());
-                serverPlayer.openMenu(be, buf -> {
-                    buf.writeBlockPos(pPos);
-                    buf.writeVarIntArray(unlockedMilestoneIds.stream().mapToInt(Integer::intValue).toArray());
-                });
+                Set<String> unlockedStages = CrafterRecipes.unlockedStages(serverPlayer.server, progressionId);
+                serverPlayer.openMenu(be, buf -> CrafterMenu.writeOpenData(buf, pPos, unlockedStages));
             }
         }
         return InteractionResult.sidedSuccess(pLevel.isClientSide());

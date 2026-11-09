@@ -107,44 +107,9 @@ public class ArfforniaApiDtos {
     ) {
     }
 
-
-    /**
-     * Maps to the JSON object from the /api/progression/config endpoint.
-     * This contains server-wide configuration data for the mod.
-     */
-    public record ProgressionConfig(
-            @SerializedName("banned_recipes")
-            List<String> bannedRecipes
-    ) {
-    }
-
     public record PlayerData(
             @SerializedName("active_progression_id")
             long activeProgressionId
-    ) {
-    }
-
-    public record CustomRecipe(
-            int id,
-            String type,
-            List<RecipeIngredient> ingredients,
-            List<RecipeResult> result,
-            @Nullable Integer energy,
-            @Nullable Integer time,
-            @SerializedName("milestone_unlock_id") int milestoneUnlockId,
-            @SerializedName("milestone_id") int milestoneId
-    ) {
-    }
-
-    public record RecipeIngredient(
-            String item,
-            int count
-    ) {
-    }
-
-    public record RecipeResult(
-            String item,
-            int count
     ) {
     }
 }

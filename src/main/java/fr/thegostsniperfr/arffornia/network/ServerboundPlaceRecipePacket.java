@@ -1,148 +1,127 @@
 package fr.thegostsniperfr.arffornia.network;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.progression.Progressions;
-import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
+import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
+import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
+import fr.thegostsniperfr.arffornia.recipe.MachineRecipe;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.neoforged.neoforge.common.crafting.SizedIngredient;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-public record ServerboundPlaceRecipePacket(BlockPos blockPos, int milestoneUnlockId) implements CustomPacketPayload {
+/** JEI "+" on a Crafter recipe: moves the ingredients from the player's inventory into the grid and selects it. */
+public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation recipeId) implements CustomPacketPayload {
 
     public static final Type<ServerboundPlaceRecipePacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "place_recipe")
     );
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ServerboundPlaceRecipePacket> STREAM_CODEC = StreamCodec.of(
-            (buf, packet) -> {
-                buf.writeBlockPos(packet.blockPos());
-                buf.writeVarInt(packet.milestoneUnlockId());
-            },
-            (buf) -> new ServerboundPlaceRecipePacket(buf.readBlockPos(), buf.readVarInt())
+    public static final StreamCodec<RegistryFriendlyByteBuf, ServerboundPlaceRecipePacket> STREAM_CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, ServerboundPlaceRecipePacket::blockPos,
+            ResourceLocation.STREAM_CODEC, ServerboundPlaceRecipePacket::recipeId,
+            ServerboundPlaceRecipePacket::new
     );
-
 
     public static void handle(final ServerboundPlaceRecipePacket packet, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player) || !(player.containerMenu instanceof CrafterMenu crafterMenu)) {
-                return;
-            }
-
-            if (!crafterMenu.blockEntity.getBlockPos().equals(packet.blockPos())) {
-                return;
-            }
-
-            ArfforniaApiDtos.CustomRecipe recipe = CustomRecipeManager.getRecipeByMilestoneUnlockId(packet.milestoneUnlockId());
-            if (recipe == null) {
-                return; // Recipe doesn't exist on the server.
-            }
-
-            long progressionId = crafterMenu.blockEntity.getLinkedProgressionId();
-            int requiredMilestoneId = recipe.milestoneId();
-            if (!Progressions.isUnlocked(player.server, progressionId, requiredMilestoneId)) {
-                Arffornia.LOGGER.warn("Player {} tried to use recipe from milestoneUnlockId {} without the required milestoneId {} in progression {}.",
-                        player.getName().getString(), packet.milestoneUnlockId, requiredMilestoneId, progressionId);
-                return;
-            }
-
-            if (placeRecipe(player, crafterMenu, recipe)) {
-                crafterMenu.blockEntity.setSelectedRecipe(packet.milestoneUnlockId());
+            if (context.player() instanceof ServerPlayer player) {
+                processOnServer(player, packet);
             }
         });
     }
 
-    private static boolean placeRecipe(ServerPlayer player, CrafterMenu menu, ArfforniaApiDtos.CustomRecipe recipe) {
-        // Build a map of required ingredients
-        Map<Item, Integer> requiredItems = new HashMap<>();
-        recipe.ingredients().forEach(ing -> {
-            if (ing != null) {
-                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ing.item()));
-                if(item != null) {
-                    requiredItems.merge(item, ing.count(), Integer::sum);
-                }
-            }
-        });
-
-        // Check if the player has all the required items
-        if (!hasEnoughItems(player, requiredItems)) {
-            return false; // Player doesn't have the items, do nothing.
+    /** Must be called on the server thread. @return true if the ingredients were placed and the recipe selected. */
+    public static boolean processOnServer(ServerPlayer player, ServerboundPlaceRecipePacket packet) {
+        if (!(player.containerMenu instanceof CrafterMenu menu)
+                || !ServerPayloadChecks.isInteractingWith(player, menu, menu.blockEntity, packet.blockPos())) {
+            return false;
         }
-
-        // Clear the crafting grid and return any existing items to the player
-        for (int i = 0; i < 9; i++) {
-            ItemStack stackInSlot = menu.blockEntity.itemHandler.getStackInSlot(i);
-            if (!stackInSlot.isEmpty()) {
-                ItemHandlerHelper.giveItemToPlayer(player, stackInSlot);
-                menu.blockEntity.itemHandler.setStackInSlot(i, ItemStack.EMPTY);
-            }
+        Optional<RecipeHolder<MachineRecipe>> recipe = CrafterRecipes.byId(player.server.getRecipeManager(), packet.recipeId());
+        if (recipe.isEmpty() || recipe.get().value().ingredients().size() > CrafterBlockEntity.INPUT_SLOTS) {
+            return false;
         }
-
-        // Iterate through recipe ingredients, find them in player inventory, shrink the stack, and place in crafter
-        for (int gridSlotIndex = 0; gridSlotIndex < 9; gridSlotIndex++) {
-            if (gridSlotIndex >= recipe.ingredients().size() || recipe.ingredients().get(gridSlotIndex) == null) {
-                continue;
-            }
-
-            ArfforniaApiDtos.RecipeIngredient ingredient = recipe.ingredients().get(gridSlotIndex);
-            Item itemToFind = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredient.item()));
-            int countNeeded = ingredient.count();
-
-            for (int playerInvSlot = 0; playerInvSlot < player.getInventory().getContainerSize(); playerInvSlot++) {
-                if (countNeeded <= 0) break;
-
-                ItemStack playerStack = player.getInventory().getItem(playerInvSlot);
-                if (playerStack.is(itemToFind)) {
-                    int canTake = Math.min(playerStack.getCount(), countNeeded);
-                    playerStack.shrink(canTake);
-                    countNeeded -= canTake;
-                }
-            }
-            menu.blockEntity.itemHandler.setStackInSlot(gridSlotIndex, new ItemStack(itemToFind, ingredient.count()));
+        CrafterBlockEntity be = menu.blockEntity;
+        if (!CrafterRecipes.isUnlocked(player.server, be.getLinkedProgressionId(), recipe.get().value())) {
+            Arffornia.LOGGER.warn("Rejected recipe placement {} from {}: stage not unlocked.", packet.recipeId(), player.getName().getString());
+            return false;
         }
-
-        // Notify the client that the inventory has changed
-        player.getInventory().setChanged();
+        if (!placeRecipe(player, be, recipe.get().value())) {
+            return false;
+        }
+        be.setSelectedRecipe(packet.recipeId());
         menu.broadcastChanges();
         return true;
     }
 
-    private static boolean hasEnoughItems(ServerPlayer player, Map<Item, Integer> itemsToCheck) {
-        if (itemsToCheck.isEmpty()) {
-            return true;
+    private static boolean placeRecipe(ServerPlayer player, CrafterBlockEntity be, MachineRecipe recipe) {
+        Inventory inventory = player.getInventory();
+        List<ItemStack> simulated = new ArrayList<>();
+        for (ItemStack stack : inventory.items) {
+            simulated.add(stack.copy());
         }
-
-        Map<Item, Integer> remainingRequirements = new HashMap<>(itemsToCheck);
-
-        for (ItemStack stack : player.getInventory().items) {
-            if (!stack.isEmpty()) {
-                Integer requiredCount = remainingRequirements.get(stack.getItem());
-                if (requiredCount != null) {
-                    int newCount = requiredCount - stack.getCount();
-                    if (newCount <= 0) {
-                        remainingRequirements.remove(stack.getItem());
-                    } else {
-                        remainingRequirements.put(stack.getItem(), newCount);
-                    }
-                }
+        for (SizedIngredient ingredient : recipe.ingredients()) {
+            if (take(simulated, ingredient).isEmpty()) {
+                return false;
             }
         }
 
-        return remainingRequirements.isEmpty();
+        for (int slot = 0; slot < CrafterBlockEntity.INPUT_SLOTS; slot++) {
+            ItemStack previous = be.itemHandler.getStackInSlot(slot);
+            if (!previous.isEmpty()) {
+                be.itemHandler.setStackInSlot(slot, ItemStack.EMPTY);
+                ItemHandlerHelper.giveItemToPlayer(player, previous);
+            }
+        }
+        List<ItemStack> ingredients = recipe.ingredients().stream().map(ingredient -> take(inventory.items, ingredient)).toList();
+        for (int slot = 0; slot < ingredients.size(); slot++) {
+            be.itemHandler.setStackInSlot(slot, ingredients.get(slot));
+        }
+        inventory.setChanged();
+        return true;
     }
 
+    /**
+     * Removes {@code ingredient.count()} items of one kind matching the ingredient from {@code stacks}, or nothing
+     * when no single kind is present in that amount (the result must fit in one Crafter slot).
+     */
+    private static ItemStack take(List<ItemStack> stacks, SizedIngredient ingredient) {
+        for (ItemStack candidate : stacks) {
+            if (candidate.isEmpty() || !ingredient.ingredient().test(candidate) || ingredient.count() > candidate.getMaxStackSize()) {
+                continue;
+            }
+            int available = stacks.stream().filter(s -> ItemStack.isSameItemSameComponents(s, candidate)).mapToInt(ItemStack::getCount).sum();
+            if (available < ingredient.count()) {
+                continue;
+            }
+            ItemStack taken = candidate.copyWithCount(ingredient.count());
+            int remaining = ingredient.count();
+            for (ItemStack stack : stacks) {
+                if (remaining == 0) {
+                    break;
+                }
+                if (ItemStack.isSameItemSameComponents(stack, taken)) {
+                    int amount = Math.min(remaining, stack.getCount());
+                    stack.shrink(amount);
+                    remaining -= amount;
+                }
+            }
+            return taken;
+        }
+        return ItemStack.EMPTY;
+    }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

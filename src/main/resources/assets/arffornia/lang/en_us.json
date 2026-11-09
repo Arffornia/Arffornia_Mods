@@ -37,14 +37,6 @@
   "gui.arffornia.energy.kfe": "%s kFE",
   "gui.arffornia.energy.tooltip": "%s / %s",
   "gui.arffornia.crafter.time": "%s s",
-  "gui.arffornia.recipe_type.minecraft.crafting_shaped": "Shaped crafting",
-  "gui.arffornia.recipe_type.minecraft.crafting_shapeless": "Shapeless crafting",
-  "gui.arffornia.recipe_type.minecraft.smelting": "Smelting",
-  "gui.arffornia.recipe_type.minecraft.blasting": "Blasting",
-  "gui.arffornia.recipe_type.minecraft.smoking": "Smoking",
-  "gui.arffornia.recipe_type.minecraft.campfire_cooking": "Campfire cooking",
-  "gui.arffornia.recipe_type.minecraft.stonecutting": "Stonecutting",
-  "gui.arffornia.recipe_type.minecraft.smithing_transform": "Smithing",
   "gui.arffornia.graph.loading": "Loading graph...",
   "gui.arffornia.graph.load_failed": "Failed to load data. See the logs for details.",
   "gui.arffornia.graph.loading_details": "Loading details...",
@@ -123,5 +115,12 @@
   "commands.arffornia.setrequirements.failed": "Failed to update the requirements. Check the server logs.",
   "commands.arffornia.dump.outside_server": "The dump folder must stay inside the server folder.",
   "commands.arffornia.dump.done": "%s recipes, %s items and %s tags written to %s",
-  "commands.arffornia.dump.failed": "Dump failed: %s"
+  "commands.arffornia.dump.failed": "Dump failed: %s",
+
+  "pack.arffornia.progression": "Arffornia progression recipes",
+  "commands.arffornia.recipes.reload.started": "Downloading the recipe datapack...",
+  "commands.arffornia.recipes.reload.updated": "Recipes updated: %s recipe files, reload took %s ms, longest server freeze %s ms.",
+  "commands.arffornia.recipes.reload.unchanged": "The recipe datapack is already up to date.",
+  "commands.arffornia.recipes.reload.busy": "A recipe update is already running.",
+  "commands.arffornia.recipes.reload.failed": "Recipe update failed (%s). The last valid recipes stay active."
 }

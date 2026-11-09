@@ -4,7 +4,6 @@ import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,15 +45,5 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     @Override
     public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId) {
         return api.setTargetMilestone(playerUuid, milestoneId);
-    }
-
-    @Override
-    public CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes() {
-        return api.fetchAllCustomRecipes();
-    }
-
-    @Override
-    public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
-        return api.fetchProgressionConfig();
     }
 }

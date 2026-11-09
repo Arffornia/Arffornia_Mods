@@ -1,2 +1,1 @@
-fr.thegostsniperfr.arffornia.network.ServerboundPlaceRecipePacket handles a serverbound payload without calling ServerPayloadChecks
 fr.thegostsniperfr.arffornia.network.ServerboundSetTargetMilestonePacket handles a serverbound payload without calling ServerPayloadChecks

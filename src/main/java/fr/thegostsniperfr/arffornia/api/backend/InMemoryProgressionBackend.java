@@ -30,9 +30,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final Map<String, Long> activeProgressionByPlayer = new ConcurrentHashMap<>();
     private final Map<Long, Set<Integer>> completedByProgression = new ConcurrentHashMap<>();
     private final Map<Integer, ArfforniaApiDtos.MilestoneDetails> milestones = new ConcurrentHashMap<>();
-    private final Map<Integer, ArfforniaApiDtos.CustomRecipe> recipesByUnlockId = new ConcurrentHashMap<>();
     private final Map<String, Integer> targetByPlayer = new ConcurrentHashMap<>();
-    private final List<String> bannedRecipes = new CopyOnWriteArrayList<>();
     private final List<AddMilestoneCall> addMilestoneCalls = new CopyOnWriteArrayList<>();
     private final Set<Integer> failingMilestones = ConcurrentHashMap.newKeySet();
     private final Set<Long> retiredProgressions = ConcurrentHashMap.newKeySet();
@@ -62,11 +60,6 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
 
     public InMemoryProgressionBackend putMilestone(ArfforniaApiDtos.MilestoneDetails details) {
         milestones.put(details.id(), details);
-        return this;
-    }
-
-    public InMemoryProgressionBackend putRecipe(ArfforniaApiDtos.CustomRecipe recipe) {
-        recipesByUnlockId.put(recipe.milestoneUnlockId(), recipe);
         return this;
     }
 
@@ -138,15 +131,5 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
             targetByPlayer.put(compact(playerUuid), milestoneId);
         }
         return CompletableFuture.completedFuture(true);
-    }
-
-    @Override
-    public CompletableFuture<List<ArfforniaApiDtos.CustomRecipe>> fetchAllCustomRecipes() {
-        return CompletableFuture.completedFuture(new ArrayList<>(recipesByUnlockId.values()));
-    }
-
-    @Override
-    public CompletableFuture<ArfforniaApiDtos.ProgressionConfig> fetchProgressionConfig() {
-        return CompletableFuture.completedFuture(new ArfforniaApiDtos.ProgressionConfig(new ArrayList<>(bannedRecipes)));
     }
 }

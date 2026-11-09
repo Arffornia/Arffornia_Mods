@@ -1,10 +1,10 @@
 package fr.thegostsniperfr.arffornia.screen;
 
-import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
-import fr.thegostsniperfr.arffornia.recipe.ClientRecipeCache;
+import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
+import fr.thegostsniperfr.arffornia.recipe.MachineRecipe;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -13,32 +13,29 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class CrafterMenu extends AbstractContainerMenu {
     public final CrafterBlockEntity blockEntity;
-    public final List<ArfforniaApiDtos.CustomRecipe> availableRecipes;
+    public final List<RecipeHolder<MachineRecipe>> availableRecipes;
 
     public CrafterMenu(int pContainerId, Inventory inv, FriendlyByteBuf extraData) {
         this(pContainerId, inv, inv.player.level().getBlockEntity(extraData.readBlockPos()));
+        Set<String> unlockedStages = extraData.readCollection(HashSet::new, FriendlyByteBuf::readUtf);
+        this.availableRecipes.addAll(CrafterRecipes.unlocked(inv.player.level().getRecipeManager(), unlockedStages));
+    }
 
-        int[] unlockedIds = extraData.readVarIntArray();
-        Set<Integer> unlockedMilestoneIds = Arrays.stream(unlockedIds).boxed().collect(Collectors.toSet());
-
-        Arffornia.LOGGER.info("Client CrafterMenu: Received unlocked milestones: " + unlockedMilestoneIds.toString());
-
-        this.availableRecipes.clear();
-        this.availableRecipes.addAll(ClientRecipeCache.getRecipesByMilestoneIds(unlockedMilestoneIds));
-
-        Arffornia.LOGGER.info("Client CrafterMenu: Found " + this.availableRecipes.size() + " available recipes after filtering.");
+    public static void writeOpenData(FriendlyByteBuf buf, BlockPos pos, Set<String> unlockedStages) {
+        buf.writeBlockPos(pos);
+        buf.writeCollection(unlockedStages, FriendlyByteBuf::writeUtf);
     }
 
     public CrafterMenu(int pContainerId, Inventory inv, BlockEntity entity) {

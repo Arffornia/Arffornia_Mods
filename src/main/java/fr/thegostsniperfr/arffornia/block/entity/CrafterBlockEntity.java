@@ -1,11 +1,10 @@
 package fr.thegostsniperfr.arffornia.block.entity;
 
-import com.google.common.collect.Maps;
 import fr.thegostsniperfr.arffornia.Arffornia;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
-import fr.thegostsniperfr.arffornia.recipe.CustomRecipeManager;
+import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
+import fr.thegostsniperfr.arffornia.recipe.MachineRecipe;
 import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -21,9 +20,8 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,10 +31,10 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
 
 public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     public static final int INPUT_SLOTS = 9;
@@ -52,7 +50,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     public final IItemHandler automationOutputEastHandler = createOutputItemHandler(1);
     private long linkedProgressionId = ModAttachments.NO_PROGRESSION;
     @Nullable
-    private Integer selectedRecipeMilestoneUnlockId = null;
+    private ResourceLocation selectedRecipeId = null;
     private int progress = 0;
     private int maxProgress = 200;
 
@@ -69,14 +67,12 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         boolean hasWork = false;
-        ArfforniaApiDtos.CustomRecipe currentRecipe = be.getSelectedRecipe();
+        MachineRecipe currentRecipe = be.getSelectedRecipe().map(RecipeHolder::value).orElse(null);
 
         if (currentRecipe != null && be.isUnlocked(currentRecipe) && be.canCraft(currentRecipe)) {
             hasWork = true;
-            be.maxProgress = currentRecipe.time() != null && currentRecipe.time() > 0 ? currentRecipe.time() : 200;
-            int totalEnergyCost = currentRecipe.energy() != null ? currentRecipe.energy() : 0;
-
-            int energyPerTick = energyPerTick(totalEnergyCost, be.maxProgress);
+            be.maxProgress = currentRecipe.time();
+            int energyPerTick = energyPerTick(currentRecipe.energy(), be.maxProgress);
 
             if (be.energyStorage.getEnergyStored() >= energyPerTick) {
                 be.energyStorage.extractEnergy(energyPerTick, false);
@@ -135,130 +131,50 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         return (int) ((totalEnergy + (long) ticks - 1) / ticks);
     }
 
-    /**
-     * Resolves an item id from a backend recipe. Returns null for missing, malformed or unknown ids (for example a
-     * tag ingredient, which has no item id); the recipe is then treated as unusable.
-     */
-    @Nullable
-    static Item resolveItem(@Nullable String itemId) {
-        if (itemId == null || itemId.isBlank()) {
-            return null;
-        }
-        ResourceLocation id = ResourceLocation.tryParse(itemId);
-        if (id == null) {
-            return null;
-        }
-        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
-        return item == Items.AIR ? null : item;
-    }
-
-    /** Recipe ids already reported as unusable, to log each one only once. */
-    private static final Set<Integer> REPORTED_UNUSABLE_RECIPES = ConcurrentHashMap.newKeySet();
-
-    private static void reportUnusable(ArfforniaApiDtos.CustomRecipe recipe, String reason) {
-        if (REPORTED_UNUSABLE_RECIPES.add(recipe.id())) {
-            Arffornia.LOGGER.error("Crafter recipe {} (unlock {}) is unusable: {}. Tag ingredients are not supported yet.",
-                    recipe.id(), recipe.milestoneUnlockId(), reason);
-        }
-    }
-
-    private boolean isUnlocked(ArfforniaApiDtos.CustomRecipe recipe) {
+    private boolean isUnlocked(MachineRecipe recipe) {
         return level != null && level.getServer() != null
-                && Progressions.isUnlocked(level.getServer(), linkedProgressionId, recipe.milestoneId());
+                && CrafterRecipes.isUnlocked(level.getServer(), linkedProgressionId, recipe);
     }
 
-    private boolean canCraft(ArfforniaApiDtos.CustomRecipe recipe) {
-        if (recipe.ingredients() == null || recipe.result() == null) {
-            reportUnusable(recipe, "missing ingredients or result");
-            return false;
-        }
-        Map<Item, Integer> requiredItems = Maps.newHashMap();
-        for (ArfforniaApiDtos.RecipeIngredient ingredient : recipe.ingredients()) {
-            if (ingredient != null) {
-                Item item = resolveItem(ingredient.item());
-                if (item == null) {
-                    reportUnusable(recipe, "ingredient without a valid item id (" + ingredient.item() + ")");
-                    return false;
-                }
-                requiredItems.merge(item, ingredient.count(), Integer::sum);
-            }
-        }
-
-        if (requiredItems.isEmpty()) {
-            return false;
-        }
-
+    private List<ItemStack> inputStacks() {
+        List<ItemStack> stacks = new ArrayList<>(INPUT_SLOTS);
         for (int i = 0; i < INPUT_SLOTS; i++) {
-            ItemStack stackInSlot = this.itemHandler.getStackInSlot(i);
-            if (!stackInSlot.isEmpty()) {
-                Item item = stackInSlot.getItem();
-                if (requiredItems.containsKey(item)) {
-                    int needed = requiredItems.get(item);
-                    int count = Math.min(needed, stackInSlot.getCount());
-                    requiredItems.merge(item, -count, Integer::sum);
-                }
-            }
+            stacks.add(this.itemHandler.getStackInSlot(i));
         }
+        return stacks;
+    }
 
-        if (requiredItems.values().stream().anyMatch(count -> count > 0)) {
+    private boolean canCraft(MachineRecipe recipe) {
+        if (recipe.allocate(inputStacks()).isEmpty()) {
             return false;
         }
-
-        for (int i = 0; i < recipe.result().size(); i++) {
-            if (i >= OUTPUT_SLOTS) break;
-            ArfforniaApiDtos.RecipeResult result = recipe.result().get(i);
-            Item resultItem = result != null ? resolveItem(result.item()) : null;
-            if (resultItem == null) {
-                reportUnusable(recipe, "result without a valid item id");
+        if (recipe.results().size() > OUTPUT_SLOTS) {
+            return false;
+        }
+        for (int i = 0; i < recipe.results().size(); i++) {
+            ItemStack result = recipe.results().get(i);
+            ItemStack output = this.itemHandler.getStackInSlot(INPUT_SLOTS + i);
+            if (!output.isEmpty() && (!ItemStack.isSameItemSameComponents(output, result)
+                    || output.getCount() + result.getCount() > output.getMaxStackSize())) {
                 return false;
             }
-            ItemStack resultStack = new ItemStack(resultItem, result.count());
-            ItemStack outputStack = this.itemHandler.getStackInSlot(INPUT_SLOTS + i);
-
-            if (!outputStack.isEmpty()) {
-                if (!ItemStack.isSameItemSameComponents(outputStack, resultStack)) {
-                    return false;
-                }
-                if (outputStack.getCount() + resultStack.getCount() > outputStack.getMaxStackSize()) {
-                    return false;
-                }
-            }
         }
-
         return true;
     }
 
-    private void craftItem(ArfforniaApiDtos.CustomRecipe recipe) {
-        for (ArfforniaApiDtos.RecipeIngredient ingredient : recipe.ingredients()) {
-            if (ingredient == null) {
-                continue;
-            }
-
-            Item requiredItem = resolveItem(ingredient.item());
-            if (requiredItem == null) {
-                continue; // canCraft() already rejected this recipe
-            }
-            int amountToConsume = ingredient.count();
-            for (int i = 0; i < INPUT_SLOTS; i++) {
-                if (amountToConsume <= 0) break;
-                ItemStack stackInSlot = this.itemHandler.getStackInSlot(i);
-                if (stackInSlot.is(requiredItem)) {
-                    int toExtract = Math.min(amountToConsume, stackInSlot.getCount());
-                    this.itemHandler.extractItem(i, toExtract, false);
-                    amountToConsume -= toExtract;
-                }
+    private void craftItem(MachineRecipe recipe) {
+        Optional<int[]> allocation = recipe.allocate(inputStacks());
+        if (allocation.isEmpty()) {
+            return;
+        }
+        int[] taken = allocation.get();
+        for (int slot = 0; slot < INPUT_SLOTS; slot++) {
+            if (taken[slot] > 0) {
+                this.itemHandler.extractItem(slot, taken[slot], false);
             }
         }
-
-        for (int i = 0; i < recipe.result().size(); i++) {
-            if (i >= OUTPUT_SLOTS) break;
-            ArfforniaApiDtos.RecipeResult result = recipe.result().get(i);
-            Item resultItem = result != null ? resolveItem(result.item()) : null;
-            if (resultItem == null) {
-                continue; // canCraft() already rejected this recipe
-            }
-            ItemStack resultStack = new ItemStack(resultItem, result.count());
-            this.itemHandler.insertItem(INPUT_SLOTS + i, resultStack, false);
+        for (int i = 0; i < recipe.results().size(); i++) {
+            this.itemHandler.insertItem(INPUT_SLOTS + i, recipe.results().get(i).copy(), false);
         }
     }
 
@@ -278,18 +194,20 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     @Nullable
-    public Integer getSelectedRecipeMilestoneUnlockId() {
-        return selectedRecipeMilestoneUnlockId;
+    public ResourceLocation getSelectedRecipeId() {
+        return selectedRecipeId;
     }
 
-    @Nullable
-    public ArfforniaApiDtos.CustomRecipe getSelectedRecipe() {
-        return this.selectedRecipeMilestoneUnlockId != null ? CustomRecipeManager.getRecipeByMilestoneUnlockId(this.selectedRecipeMilestoneUnlockId) : null;
+    public Optional<RecipeHolder<MachineRecipe>> getSelectedRecipe() {
+        if (this.selectedRecipeId == null || this.level == null) {
+            return Optional.empty();
+        }
+        return CrafterRecipes.byId(this.level.getRecipeManager(), this.selectedRecipeId);
     }
 
-    public void setSelectedRecipe(@Nullable Integer milestoneUnlockId) {
-        if (!Objects.equals(this.selectedRecipeMilestoneUnlockId, milestoneUnlockId)) {
-            this.selectedRecipeMilestoneUnlockId = milestoneUnlockId;
+    public void setSelectedRecipe(@Nullable ResourceLocation recipeId) {
+        if (!Objects.equals(this.selectedRecipeId, recipeId)) {
+            this.selectedRecipeId = recipeId;
             this.progress = 0;
             setChanged();
             if (level != null) {
@@ -298,8 +216,8 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
-    public boolean isRecipeSelected(ArfforniaApiDtos.CustomRecipe recipe) {
-        return this.selectedRecipeMilestoneUnlockId != null && this.selectedRecipeMilestoneUnlockId.equals(recipe.milestoneUnlockId());
+    public boolean isRecipeSelected(ResourceLocation recipeId) {
+        return recipeId.equals(this.selectedRecipeId);
     }
 
     public NonNullList<ItemStack> getInventoryForDrop() {
@@ -399,8 +317,8 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         pTag.put("inventory", itemHandler.serializeNBT(pRegistries));
         pTag.putInt("energy", energyStorage.getEnergyStored());
         pTag.putLong("linkedProgressionId", linkedProgressionId);
-        if (selectedRecipeMilestoneUnlockId != null) {
-            pTag.putInt("selectedRecipeId", selectedRecipeMilestoneUnlockId);
+        if (selectedRecipeId != null) {
+            pTag.putString("selectedRecipe", selectedRecipeId.toString());
         }
         pTag.putInt("progress", progress);
         pTag.putInt("maxProgress", maxProgress);
@@ -425,11 +343,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
         energyStorage.setEnergy(pTag.getInt("energy"));
         linkedProgressionId = pTag.contains("linkedProgressionId") ? pTag.getLong("linkedProgressionId") : ModAttachments.NO_PROGRESSION;
-        if (pTag.contains("selectedRecipeId")) {
-            selectedRecipeMilestoneUnlockId = pTag.getInt("selectedRecipeId");
-        } else {
-            selectedRecipeMilestoneUnlockId = null;
-        }
+        selectedRecipeId = pTag.contains("selectedRecipe") ? ResourceLocation.tryParse(pTag.getString("selectedRecipe")) : null;
         progress = pTag.getInt("progress");
 
         // Safety check to prevent division-by-zero if maxProgress is invalid from a save

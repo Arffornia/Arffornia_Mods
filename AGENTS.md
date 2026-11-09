@@ -16,10 +16,11 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 | `screen/`, `client/screen/` | Menus (server) and screens (client); `ProgressionGraphScreen` is the graph UI |
 | `network/` | Payloads registered in `PacketHandler` (4 serverbound, 2 clientbound) |
 | `progression/` | Server-side progression state: player attachment (active progression), `ProgressionStore` SavedData, `Progressions` refresh/sync, machine rules |
-| `recipe/` | `CustomRecipeManager` (server cache), `ClientRecipeCache`, `RecipeBanManager` (reload listener) |
+| `recipe/` | `arffornia:machine` recipe type (`MachineRecipe`, `ModRecipes`), `CrafterRecipes`; `recipe/pack/` downloads the website recipe datapack and loads it as a required pack |
 | `command/` | `/arffornia progression ...` and `/arffornia shop ...` |
 | `shop/` | `RewardHandler`, JDBC `DatabaseManager` to the website Postgres |
-| `compat/` | Capabilities, FTB Teams events, JEI plugin |
+| `compat/` | Capabilities, FTB Teams events |
+| `client/jei/` | JEI plugin, reads Crafter recipes from the synced `RecipeManager` |
 | `src/main/resources/` | lang, models, blockstates, loot tables, recipes, tags |
 | `src/main/templates/META-INF/neoforge.mods.toml` | Mod metadata (expanded from `gradle.properties`) |
 | `.github/workflows/` | `ci.yml` (PR build), `build.yml` (tag release), `prerelease.yml` (`edge` and `pr-<n>` test pre-releases), `security.yml` (Trivy) |
@@ -53,8 +54,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - No client GameTest framework in 1.21.1: UI checks are manual for now.
 
 ## Gotchas (from the audit)
-- Recipes come from the website over HTTP (server **and** every client); JEI can register 0 recipes if the fetch is late.
-- Recipe bans fail open when the API is unreachable at datapack load.
+- Recipes and bans come from the website datapack (`<server>/arffornia/recipe-pack.zip`), refreshed at start and by
+  `/arffornia recipes reload`; an API outage keeps the last valid pack. Without any pack on disk nothing is banned.
+- Recipes added by KubeJS or in code cannot be disabled by the datapack; remove them at their source.
 - A machine belongs to the progression it was placed for (#18): linked synchronously from the placer's synced
   progression, it keeps it across team changes and stops while that progression is retired (team soft-deleted).
   `-1` (pre-#18 saves) means unlinked: pick it up and place it again. Gameplay reads `Progressions`, never HTTP.

@@ -146,5 +146,11 @@
   "gui.arffornia.machine.face.north": "north",
   "gui.arffornia.machine.face.south": "south",
   "gui.arffornia.machine.face.west": "west",
-  "gui.arffornia.machine.face.east": "east"
+  "gui.arffornia.machine.face.east": "east",
+  "block.arffornia.machine_casing": "Machine Casing",
+  "block.arffornia.smelter_controller": "Smelter Controller",
+  "block.arffornia.item_input_port": "Item Input Port",
+  "block.arffornia.item_output_port": "Item Output Port",
+  "block.arffornia.energy_input_port": "Energy Input Port",
+  "block.arffornia.smelter": "Smelter"
 }

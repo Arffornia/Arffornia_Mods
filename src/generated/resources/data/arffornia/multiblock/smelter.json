@@ -1,0 +1,5 @@
+{
+  "master": "arffornia:smelter",
+  "structure": "arffornia:multiblock/smelter",
+  "trigger": "arffornia:smelter_controller"
+}

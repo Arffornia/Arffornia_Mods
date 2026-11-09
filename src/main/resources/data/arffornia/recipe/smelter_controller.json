@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "BBB",
+    "BFB",
+    "BRB"
+  ],
+  "key": {
+    "B": {
+      "item": "minecraft:bricks"
+    },
+    "F": {
+      "item": "minecraft:blast_furnace"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "result": {
+    "id": "arffornia:smelter_controller",
+    "count": 1
+  }
+}

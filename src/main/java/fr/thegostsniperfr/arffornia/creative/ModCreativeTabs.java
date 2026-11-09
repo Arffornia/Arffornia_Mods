@@ -23,6 +23,11 @@ public class ModCreativeTabs {
                         output.accept(ModItems.WRENCH.get());
                         output.accept(ModBlocks.CRAFTER_BLOCK.get());
                         output.accept(ModBlocks.SPACE_ELEVATOR.get());
+                        output.accept(ModBlocks.SMELTER_CONTROLLER.get());
+                        output.accept(ModBlocks.MACHINE_CASING.get());
+                        output.accept(ModBlocks.ITEM_INPUT_PORT.get());
+                        output.accept(ModBlocks.ITEM_OUTPUT_PORT.get());
+                        output.accept(ModBlocks.ENERGY_INPUT_PORT.get());
                     })
                     .build());
 

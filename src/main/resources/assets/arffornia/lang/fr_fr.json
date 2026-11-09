@@ -146,5 +146,11 @@
   "gui.arffornia.machine.face.north": "nord",
   "gui.arffornia.machine.face.south": "sud",
   "gui.arffornia.machine.face.west": "ouest",
-  "gui.arffornia.machine.face.east": "est"
+  "gui.arffornia.machine.face.east": "est",
+  "block.arffornia.machine_casing": "Carcasse de machine",
+  "block.arffornia.smelter_controller": "Contrôleur de fonderie",
+  "block.arffornia.item_input_port": "Port d'entrée d'objets",
+  "block.arffornia.item_output_port": "Port de sortie d'objets",
+  "block.arffornia.energy_input_port": "Port d'entrée d'énergie",
+  "block.arffornia.smelter": "Fonderie"
 }

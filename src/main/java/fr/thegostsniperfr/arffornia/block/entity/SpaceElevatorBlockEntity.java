@@ -183,6 +183,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         ProgressionBackends.get().addMilestoneToProgression(progressionId, activeMilestoneId)
                 .thenAcceptAsync(success -> {
                     if (success) {
+                        Progressions.recordCompleted(player.server, progressionId, activeMilestoneId);
                         Progressions.refreshProgression(player.server, progressionId);
                         Component playerName = player.getDisplayName();
                         // The milestone name comes from the API (not a language key), so it is a literal argument.

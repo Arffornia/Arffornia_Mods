@@ -9,10 +9,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Server-side progression state (Arffornia_Mods#18, #29). Gameplay reads it synchronously; the website is only
@@ -23,6 +26,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class Progressions {
     private static final Set<Long> FIRST_FETCHES = ConcurrentHashMap.newKeySet();
+    // Concurrent refreshes of the same key can answer out of order: only a response newer than the last applied one wins.
+    private static final AtomicLong REQUESTS = new AtomicLong();
+    private static final Map<Long, Long> PROGRESSION_APPLIED = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> PLAYER_APPLIED = new ConcurrentHashMap<>();
 
     private Progressions() {
     }
@@ -62,7 +69,11 @@ public final class Progressions {
     public static CompletableFuture<Void> refreshPlayer(ServerPlayer player) {
         MinecraftServer server = player.server;
         String compactUuid = player.getUUID().toString().replace("-", "");
+        long request = REQUESTS.incrementAndGet();
         return ProgressionBackends.get().fetchPlayerData(compactUuid).thenComposeAsync(playerData -> {
+            if (!isNewest(PLAYER_APPLIED, player.getUUID(), request)) {
+                return CompletableFuture.completedFuture(null);
+            }
             if (playerData == null) {
                 Arffornia.LOGGER.warn("Could not refresh the progression of {}; keeping the last known one.", player.getName().getString());
                 return CompletableFuture.completedFuture(null);
@@ -80,8 +91,12 @@ public final class Progressions {
 
     /** Re-reads one progression from the website, stores it and syncs it to the online players it is active for. */
     public static CompletableFuture<Void> refreshProgression(MinecraftServer server, long progressionId) {
+        long request = REQUESTS.incrementAndGet();
         return ProgressionBackends.get().fetchProgressionData(progressionId)
                 .thenAcceptAsync(data -> {
+                    if (!isNewest(PROGRESSION_APPLIED, progressionId, request)) {
+                        return;
+                    }
                     if (data == null) {
                         Arffornia.LOGGER.warn("Could not refresh progression {}; keeping the last known state.", progressionId);
                         return;
@@ -108,6 +123,22 @@ public final class Progressions {
     public static void sendCachedState(ServerPlayer player) {
         find(player.server, activeProgressionOf(player))
                 .ifPresent(snapshot -> PacketDistributor.sendToPlayer(player, new ClientboundProgressionStatePacket(snapshot)));
+    }
+
+    /** Records {@code request} as applied for {@code key} unless a newer request was already applied. */
+    private static <K> boolean isNewest(Map<K, Long> applied, K key, long request) {
+        long winner = applied.merge(key, request, Math::max);
+        return winner == request;
+    }
+
+    /** Records a milestone the website just confirmed, so checks see it before the next refresh answers. */
+    public static void recordCompleted(MinecraftServer server, long progressionId, int milestoneId) {
+        find(server, progressionId).ifPresent(snapshot -> {
+            PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
+            Set<Integer> completed = new HashSet<>(snapshot.completedMilestones());
+            completed.add(milestoneId);
+            store(server, new ProgressionSnapshot(progressionId, completed, snapshot.currentMilestoneId(), snapshot.retired()));
+        });
     }
 
     private static ProgressionSnapshot toSnapshot(long progressionId, ArfforniaApiDtos.ProgressionData data) {

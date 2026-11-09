@@ -424,7 +424,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         energyStorage.setEnergy(pTag.getInt("energy"));
-        linkedProgressionId = pTag.getLong("linkedProgressionId");
+        linkedProgressionId = pTag.contains("linkedProgressionId") ? pTag.getLong("linkedProgressionId") : ModAttachments.NO_PROGRESSION;
         if (pTag.contains("selectedRecipeId")) {
             selectedRecipeMilestoneUnlockId = pTag.getInt("selectedRecipeId");
         } else {

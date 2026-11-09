@@ -7,7 +7,8 @@ import java.util.Set;
  * classes so the payload handler can live in common code.
  */
 public final class SyncedProgressionState {
-    private static volatile ProgressionSnapshot current = new ProgressionSnapshot(ModAttachments.NO_PROGRESSION, Set.of(), null, false);
+    private static final ProgressionSnapshot NONE = new ProgressionSnapshot(ModAttachments.NO_PROGRESSION, Set.of(), null, false);
+    private static volatile ProgressionSnapshot current = NONE;
 
     private SyncedProgressionState() {
     }
@@ -18,5 +19,9 @@ public final class SyncedProgressionState {
 
     public static void set(ProgressionSnapshot snapshot) {
         current = snapshot;
+    }
+
+    public static void clear() {
+        current = NONE;
     }
 }

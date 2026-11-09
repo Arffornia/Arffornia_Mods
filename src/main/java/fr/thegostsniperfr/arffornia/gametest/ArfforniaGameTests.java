@@ -434,6 +434,26 @@ public final class ArfforniaGameTests {
         });
     }
 
+    @GameTest(template = PLATFORM)
+    public static void elevatorRefusesToRelaunchACompletedMilestone(GameTestHelper helper) {
+        int id = nextId();
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
+        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 5));
+        openElevator(owner, be);
+        ServerboundLaunchElevatorPacket packet = new ServerboundLaunchElevatorPacket(be.getBlockPos());
+        ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
+
+        helper.succeedWhen(() -> {
+            helper.assertFalse(be.isLaunching(), "First launch should be finished");
+            // Same tick as the success: the follow-up refresh has not answered yet.
+            ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
+            helper.assertFalse(be.isLaunching(), "A completed milestone must not be launched again");
+            helper.assertTrue(be.countItems(Items.IRON_INGOT) == 4, "Requirements consumed once, left=" + be.countItems(Items.IRON_INGOT));
+        });
+    }
+
     // ---- Machines belong to the progression they were placed for (#18) ----------------------------------------
 
     @GameTest(template = PLATFORM)

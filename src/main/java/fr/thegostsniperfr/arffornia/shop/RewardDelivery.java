@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.GameMasterBlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -19,10 +20,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Maps each reward type to a fixed server-side action. Must run on the server thread. */
 public final class RewardDelivery {
     private static final int MAIN_INVENTORY_SLOTS = 36;
+    private static final Set<Item> OPERATOR_ITEMS = Set.of(Items.BARRIER, Items.LIGHT, Items.DEBUG_STICK, Items.STRUCTURE_VOID,
+            Items.SPAWNER, Items.TRIAL_SPAWNER, Items.VAULT, Items.KNOWLEDGE_BOOK, Items.BEDROCK, Items.END_PORTAL_FRAME, Items.REINFORCED_DEEPSLATE);
 
     private final MinecraftServer server;
 
@@ -34,11 +38,15 @@ public final class RewardDelivery {
     @Nullable
     public String whyUndeliverable(RewardEntry entry) {
         return switch (entry) {
-            case RewardEntry.Item item -> resolveItem(item.item()).isPresent() ? null : "unknown item " + item.item();
+            case RewardEntry.Item item -> {
+                Optional<Item> resolved = resolveItem(item.item());
+                if (resolved.isEmpty()) yield "unknown item " + item.item();
+                yield isOperatorItem(resolved.get()) ? "operator item " + item.item() + " cannot be a reward" : null;
+            }
             case RewardEntry.LuckyBox box -> lootTable(box.box()) != LootTable.EMPTY ? null : "unknown lucky box " + box.box();
             case RewardEntry.Permission permission -> {
                 if (!isLuckPermsLoaded()) yield "LuckPerms is not installed";
-                yield ShopConfig.ALLOWED_PERMISSION_PREFIXES.get().stream().anyMatch(permission.node()::startsWith)
+                yield ShopConfig.ALLOWED_PERMISSION_PREFIXES.get().stream().anyMatch(prefix -> RewardEntry.isNodeUnder(permission.node(), prefix))
                         ? null : "permission " + permission.node() + " is not in rewards.allowedPermissionPrefixes";
             }
             case RewardEntry.Rank rank -> {
@@ -111,6 +119,10 @@ public final class RewardDelivery {
         if (!stack.isEmpty()) {
             player.drop(stack, false);
         }
+    }
+
+    private static boolean isOperatorItem(Item item) {
+        return item instanceof GameMasterBlockItem || OPERATOR_ITEMS.contains(item);
     }
 
     private static Optional<Item> resolveItem(String id) {

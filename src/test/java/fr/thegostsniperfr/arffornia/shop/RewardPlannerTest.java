@@ -48,4 +48,11 @@ class RewardPlannerTest {
         assertTrue(plan.toClaim().isEmpty());
         assertEquals(List.of(1L, 2L, 3L), plan.undeliverable().stream().map(PendingReward::id).toList());
     }
+
+    @Test
+    void aRewardBiggerThanTheInventoryIsClaimedWhenTheInventoryIsEmpty() {
+        RewardPlanner.Plan plan = RewardPlanner.plan(List.of(items(1, 100)), RewardPlanner.INVENTORY_SLOTS, ALL_DELIVERABLE, ONE_SLOT_PER_ITEM);
+
+        assertEquals(List.of(1L), plan.toClaim().stream().map(PendingReward::id).toList());
+    }
 }

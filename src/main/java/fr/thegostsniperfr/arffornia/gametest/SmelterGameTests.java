@@ -41,6 +41,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.common.crafting.SizedIngredient;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -329,6 +330,35 @@ public final class SmelterGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = PLATFORM)
+    public static void minedPartDropsItsOriginalBlockWithTheRightTool(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        Built built = build(helper, Rotation.NONE, Mirror.NONE);
+        FakePlayer player = playerOnProgression(helper, id);
+        wrench(helper, player, built.at(CONTROLLER));
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_PICKAXE));
+
+        player.gameMode.destroyBlock(helper.absolutePos(built.at(BRICK)));
+
+        helper.assertItemEntityPresent(Items.BRICKS, built.at(BRICK), 2.0);
+        assertBlocksRestored(helper, built, built.at(BRICK));
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void minedPartDropsNothingByHandWhenItsOriginalNeedsAPickaxe(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        Built built = build(helper, Rotation.NONE, Mirror.NONE);
+        FakePlayer player = playerOnProgression(helper, id);
+        wrench(helper, player, built.at(CONTROLLER));
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+
+        player.gameMode.destroyBlock(helper.absolutePos(built.at(BRICK)));
+
+        helper.assertItemEntityNotPresent(Items.BRICKS, built.at(BRICK), 2.0);
+        helper.succeed();
+    }
+
     // ---- ports ---------------------------------------------------------------------------------------------------
 
     @GameTest(template = PLATFORM)
@@ -371,6 +401,60 @@ public final class SmelterGameTests {
         helper.assertTrue(capability(helper, Capabilities.ItemHandler.BLOCK, built.at(INPUT_PORT), Direction.UP) != null, "Other faces stay open");
         helper.assertTrue(reloaded.side(Direction.EAST) == SideMode.NONE, "The face mode should be saved");
         helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void pipeCapabilityCachedBeforeFormationSeesThePort(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        Built built = build(helper, Rotation.NONE, Mirror.NONE);
+        BlockCapabilityCache<IItemHandler, Direction> cache = BlockCapabilityCache.create(Capabilities.ItemHandler.BLOCK,
+                helper.getLevel(), helper.absolutePos(built.at(INPUT_PORT)), Direction.EAST);
+        helper.assertTrue(cache.getCapability() == null, "An unformed port exposes nothing");
+
+        wrench(helper, playerOnProgression(helper, id), built.at(CONTROLLER));
+
+        IItemHandler port = cache.getCapability();
+        helper.assertTrue(port != null && port.insertItem(0, new ItemStack(Items.RAW_IRON), true).isEmpty(),
+                "A pipe's cached capability should see the formed input port");
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void onlyThePlayersOfItsProgressionMaySwitchAPort(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        MultiblockMachineBlockEntity machine = formed(helper, id);
+        BlockPos port = helper.absolutePos(new Built(Map.of(), Rotation.NONE, Mirror.NONE).at(INPUT_PORT));
+        FakePlayer stranger = playerOnProgression(helper, id + 500_000);
+        FakePlayer owner = playerOnProgression(helper, id);
+        UseOnContext onEastFace = new UseOnContext(stranger, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(port), Direction.EAST, port, false));
+
+        ModItems.WRENCH.get().onItemUseFirst(new ItemStack(ModItems.WRENCH.get()), onEastFace);
+        SideMode afterStranger = ((MultiblockPartBlockEntity) helper.getLevel().getBlockEntity(port)).side(Direction.EAST);
+        ModItems.WRENCH.get().onItemUseFirst(new ItemStack(ModItems.WRENCH.get()), new UseOnContext(owner, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(port), Direction.EAST, port, false)));
+        SideMode afterOwner = ((MultiblockPartBlockEntity) helper.getLevel().getBlockEntity(port)).side(Direction.EAST);
+
+        helper.assertTrue(machine.linkedProgressionId() == id, "The Smelter belongs to progression " + id);
+        helper.assertTrue(afterStranger == SideMode.INPUT, "Another progression must not switch the port");
+        helper.assertTrue(afterOwner == SideMode.NONE, "The owner's Wrench should switch the face off");
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 100)
+    public static void smelterWaitsWhenItsOutputIsFull(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        registerRecipe(helper, id, ironRecipe(id, Items.RAW_COPPER_BLOCK));
+        MultiblockMachineBlockEntity machine = formed(helper, id, id);
+        machine.items().setStackInSlot(MachineTypes.SMELTER.layout().outputSlot(0), new ItemStack(Items.DIRT, 64));
+        machine.items().setStackInSlot(0, new ItemStack(Items.RAW_COPPER_BLOCK, 4));
+        machine.energy().receiveEnergy(10_000, false);
+
+        helper.runAfterDelay(40, () -> {
+            helper.assertTrue(machine.status() == MachineStatus.OUTPUT_FULL, "Status should be OUTPUT_FULL, got " + machine.status());
+            helper.assertTrue(machine.items().getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
+            helper.succeed();
+        });
     }
 
     // ---- processing ----------------------------------------------------------------------------------------------

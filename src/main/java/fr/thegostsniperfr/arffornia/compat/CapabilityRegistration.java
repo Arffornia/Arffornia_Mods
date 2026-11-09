@@ -4,6 +4,7 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
+import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -59,5 +60,12 @@ public class CapabilityRegistration {
                 ModBlockEntities.CRAFTER_BE.get(),
                 (be, side) -> be.energyStorage
         );
+
+        event.registerBlock(Capabilities.ItemHandler.BLOCK,
+                (level, pos, state, be, side) -> be instanceof MultiblockPartBlockEntity part ? part.items(side) : null,
+                ModBlocks.MULTIBLOCK_PART.get());
+        event.registerBlock(Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> be instanceof MultiblockPartBlockEntity part ? part.energy(side) : null,
+                ModBlocks.MULTIBLOCK_PART.get());
     }
 }

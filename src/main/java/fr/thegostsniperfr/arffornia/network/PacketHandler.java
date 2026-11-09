@@ -10,7 +10,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 public final class PacketHandler {
     // 1.1: update_target_name carries a Component (translatable fallbacks) instead of a raw String.
     // 1.2: progression_state syncs the player's active progression.
-    private static final String PROTOCOL_VERSION = "1.2";
+    // 1.3: multiblocks syncs the structure templates for the Wrench hologram.
+    private static final String PROTOCOL_VERSION = "1.3";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
@@ -33,6 +34,12 @@ public final class PacketHandler {
                 ClientboundProgressionStatePacket.TYPE,
                 ClientboundProgressionStatePacket.STREAM_CODEC,
                 ClientboundProgressionStatePacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundMultiblocksPacket.TYPE,
+                ClientboundMultiblocksPacket.STREAM_CODEC,
+                ClientboundMultiblocksPacket::handle
         );
 
         registrar.playToServer(

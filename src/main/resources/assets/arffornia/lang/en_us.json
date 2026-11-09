@@ -135,5 +135,17 @@
   "gui.arffornia.machine.status.output_full": "Output full",
   "gui.arffornia.machine.status.locked": "Locked",
   "gui.arffornia.machine.status.stopped": "Stopped",
-  "gui.arffornia.machine.status.not_formed": "Not formed"
+  "gui.arffornia.machine.status.not_formed": "Not formed",
+  "block.arffornia.multiblock_part": "Machine Part",
+  "chat.arffornia.multiblock.formed": "%s formed.",
+  "chat.arffornia.multiblock.incomplete": "%s incomplete: %s blocks missing or wrong. Look at the controller with the Wrench to see them.",
+  "chat.arffornia.multiblock.locked": "Your progression has not unlocked the %s yet.",
+  "chat.arffornia.multiblock.port_side": "Port, %s face: %s",
+  "gui.arffornia.machine.face.down": "bottom",
+  "gui.arffornia.machine.face.up": "top",
+  "gui.arffornia.machine.face.north": "north",
+  "gui.arffornia.machine.face.south": "south",
+  "gui.arffornia.machine.face.west": "west",
+  "gui.arffornia.machine.face.east": "east",
+  "chat.arffornia.multiblock.not_yours": "This machine belongs to another progression."
 }

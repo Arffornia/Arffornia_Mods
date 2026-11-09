@@ -101,6 +101,8 @@ neoForge {
 
         gameTestServer {
             type = "gameTestServer"
+            // Own directory, wiped before each run: the saved progression store would leak between runs (ids repeat).
+            gameDirectory = project.file('run/gametest')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             // GameTests run against the in-memory ProgressionBackend, never the website.
             systemProperty 'arffornia.backend', 'fake'
@@ -130,6 +132,13 @@ sourceSets.main.resources {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+}
+
+def gameTestWorld = file('run/gametest/world')
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        gameTestWorld.deleteDir()
+    }
 }
 
 dependencies {

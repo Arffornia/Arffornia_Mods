@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.machine.MachineEnergyStorage;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
@@ -72,7 +73,7 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
         if (currentRecipe != null && be.isUnlocked(currentRecipe) && be.canCraft(currentRecipe)) {
             hasWork = true;
             be.maxProgress = currentRecipe.time();
-            int energyPerTick = energyPerTick(currentRecipe.energy(), be.maxProgress);
+            int energyPerTick = MachineEnergyStorage.perTick(currentRecipe.energy(), be.maxProgress);
 
             if (be.energyStorage.getEnergyStored() >= energyPerTick) {
                 be.energyStorage.extractEnergy(energyPerTick, false);
@@ -115,20 +116,6 @@ public class CrafterBlockEntity extends BlockEntity implements MenuProvider {
 
     public void setClientEnergyFromDataSlot(int energy) {
         this.clientEnergy = energy;
-    }
-
-    /**
-     * Energy drawn per tick so that a craft of {@code ticks} ticks consumes at least {@code totalEnergy} FE.
-     * Rounds up: a recipe whose energy is lower than its duration still costs 1 FE per tick.
-     */
-    public static int energyPerTick(int totalEnergy, int ticks) {
-        if (totalEnergy <= 0) {
-            return 0;
-        }
-        if (ticks <= 0) {
-            return totalEnergy;
-        }
-        return (int) ((totalEnergy + (long) ticks - 1) / ticks);
     }
 
     private boolean isUnlocked(MachineRecipe recipe) {

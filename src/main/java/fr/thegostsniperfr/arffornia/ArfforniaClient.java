@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
+import fr.thegostsniperfr.arffornia.client.screen.MachineScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -40,6 +41,7 @@ public class ArfforniaClient {
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenuTypes.SPACE_ELEVATOR_MENU.get(), SpaceElevatorScreen::new);
         event.register(ModMenuTypes.CRAFTER_MENU.get(), CrafterScreen::new);
+        event.register(ModMenuTypes.MACHINE_MENU.get(), MachineScreen::new);
     }
 
     @SubscribeEvent

@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.screen;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.machine.MachineMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.bus.api.IEventBus;
@@ -23,6 +24,10 @@ public class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<CrafterMenu>> CRAFTER_MENU =
             MENUS.register("crafter_menu",
                     () -> IMenuTypeExtension.create(CrafterMenu::new));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<MachineMenu>> MACHINE_MENU =
+            MENUS.register("machine_menu",
+                    () -> IMenuTypeExtension.create(MachineMenu::new));
 
 
 }

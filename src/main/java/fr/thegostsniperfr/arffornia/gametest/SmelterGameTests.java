@@ -359,6 +359,18 @@ public final class SmelterGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = PLATFORM)
+    public static void partBrokenWithoutAPlayerStillDropsItsOriginalBlock(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        Built built = build(helper, Rotation.NONE, Mirror.NONE);
+        wrench(helper, playerOnProgression(helper, id), built.at(CONTROLLER));
+
+        helper.getLevel().destroyBlock(helper.absolutePos(built.at(BRICK)), true);
+
+        helper.assertItemEntityPresent(Items.BRICKS, built.at(BRICK), 2.0);
+        helper.succeed();
+    }
+
     // ---- ports ---------------------------------------------------------------------------------------------------
 
     @GameTest(template = PLATFORM)

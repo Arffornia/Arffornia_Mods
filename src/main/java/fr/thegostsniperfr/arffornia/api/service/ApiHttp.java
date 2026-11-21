@@ -106,6 +106,41 @@ public final class ApiHttp {
     }
 
     /**
+     * GET with the service token, for data a player may have made private (website spec 019): the game
+     * server is allowed to read it. Without a token it falls back to the public GET.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> CompletableFuture<T> getJsonAsService(String path, Type type, String what, String acceptLanguage) {
+        Function<String, HttpRequest> builder = bearer -> {
+            HttpRequest.Builder request = request(path).header("Authorization", "Bearer " + bearer);
+            if (acceptLanguage != null) {
+                request.header("Accept-Language", acceptLanguage);
+            }
+            return request.GET().build();
+        };
+        return sendAuthenticated(builder)
+                .thenCompose(response -> {
+                    if (response == null) {
+                        return this.<T>getJson(path, type, what, acceptLanguage);
+                    }
+                    if (!isSuccess(response.statusCode())) {
+                        logger.error("API GET {} for {} failed with status {}", path, what, response.statusCode());
+                        return CompletableFuture.completedFuture((T) null);
+                    }
+                    try {
+                        return CompletableFuture.completedFuture(gson.<T>fromJson(response.body(), type));
+                    } catch (JsonParseException e) {
+                        logger.error("API GET {} for {} returned invalid JSON: {}", path, what, e.getMessage());
+                        return CompletableFuture.completedFuture((T) null);
+                    }
+                })
+                .exceptionally(ex -> {
+                    logger.error("API GET {} for {} failed: {}", path, what, ex.getMessage());
+                    return null;
+                });
+    }
+
+    /**
      * Sends an authenticated request built by {@code requestForToken}. On 401 the token is invalidated and the
      * request is retried exactly once with a fresh token.
      *

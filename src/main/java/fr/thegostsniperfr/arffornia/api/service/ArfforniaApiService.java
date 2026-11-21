@@ -56,7 +56,7 @@ public class ArfforniaApiService {
      * @return A CompletableFuture containing the progression data, or null on failure.
      */
     public CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId) {
-        return http.getJson("/progression/" + progressionId, ArfforniaApiDtos.ProgressionData.class, "progression " + progressionId);
+        return http.getJsonAsService("/progression/" + progressionId, ArfforniaApiDtos.ProgressionData.class, "progression " + progressionId, null);
     }
 
     /**
@@ -75,7 +75,7 @@ public class ArfforniaApiService {
      * @param minecraftLanguage the player's game language (e.g. {@code fr_fr}), or null for the API default.
      */
     public CompletableFuture<ArfforniaApiDtos.GraphData> fetchPlayerGraphData(String playerUuid, @Nullable String minecraftLanguage) {
-        return http.getJson("/stages/player/get/" + playerUuid, ArfforniaApiDtos.GraphData.class, "player graph " + playerUuid,
+        return http.getJsonAsService("/stages/player/get/" + playerUuid, ArfforniaApiDtos.GraphData.class, "player graph " + playerUuid,
                 ApiText.toLanguageTag(minecraftLanguage));
     }
 

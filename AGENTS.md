@@ -54,8 +54,10 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - No client GameTest framework in 1.21.1: UI checks are manual for now.
 
 ## Gotchas (from the audit)
-- Recipes and bans come from the website datapack (`<server>/arffornia/recipe-pack.zip`), refreshed at start and by
-  `/arffornia recipes reload`; an API outage keeps the last valid pack. Without any pack on disk nothing is banned.
+- Recipes and bans come from the website datapack (`<server>/arffornia/recipe-pack.zip`), fetched at boot before the
+  data packs load (15 s timeout, cached file otherwise, so starting never reloads) and by `/arffornia recipes reload`
+  (the reload loads in the background, the server keeps ticking); an API outage keeps the last valid pack. Without any
+  pack on disk nothing is banned.
 - Recipes added by KubeJS or in code cannot be disabled by the datapack; remove them at their source.
 - A machine belongs to the progression it was placed for (#18): linked synchronously from the placer's synced
   progression, it keeps it across team changes and stops while that progression is retired (team soft-deleted).

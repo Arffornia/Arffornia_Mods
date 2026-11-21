@@ -8,7 +8,10 @@ import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
+import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.graph.RecipeGraphDump;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 
@@ -35,6 +38,10 @@ public final class RecipePack {
     public static void onAddPackFinders(AddPackFindersEvent event) {
         if (event.getPackType() != PackType.SERVER_DATA || event.isTrusted()) {
             return;
+        }
+        if (FMLEnvironment.dist.isDedicatedServer() && !ProgressionBackends.isFake()
+                && System.getProperty(RecipeGraphDump.STARTUP_PROPERTY) == null) {
+            RecipePackUpdater.fetchBeforeDataLoad();
         }
         event.addRepositorySource(onLoad -> {
             Path file = file();

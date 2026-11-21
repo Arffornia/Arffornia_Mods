@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.recipe.pack;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.config.ApiConfig;
+import net.minecraft.Util;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -23,22 +24,28 @@ import java.util.Collection;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Downloads the recipe datapack from the website, keeps it only when it is valid, then reloads the server data so
- * every connected client and JEI get the new recipes. Any failure keeps the last valid pack, so recipe bans stay
- * applied when the website is down.
+ * Downloads the recipe datapack from the website and keeps it only when it is valid. At boot the download happens
+ * before the server data loads, so starting never needs a reload. A live update reloads the server data so every
+ * connected client and JEI get the new recipes. Any failure keeps the last valid pack, so recipe bans stay applied
+ * when the website is down.
  */
 public final class RecipePackUpdater {
     public static final String API_PATH = "/progression/datapack";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
+    static final Duration BOOT_TIMEOUT = Duration.ofSeconds(15);
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
     private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
+    private static final AtomicBoolean BOOT_FETCH_DONE = new AtomicBoolean(false);
     private static volatile Optional<String> loadedSha = Optional.empty();
 
     private static boolean probeArmed;
@@ -68,12 +75,47 @@ public final class RecipePackUpdater {
         return URI.create(ApiConfig.API_BASE_URL.get() + API_PATH);
     }
 
+    /**
+     * Blocking fetch run once per process while the server data pack repository is first built, so the pack the
+     * server loads at start is already the current one. The server is not ticking yet, so no watchdog applies.
+     */
+    public static void fetchBeforeDataLoad() {
+        if (!BOOT_FETCH_DONE.compareAndSet(false, true)) {
+            return;
+        }
+        Outcome outcome = fetchInto(uri(), RecipePack.file(), BOOT_TIMEOUT);
+        if (outcome.status() == Status.FAILED) {
+            Arffornia.LOGGER.error("Recipe datapack fetch at boot failed ({}); starting with the cached pack, if any.", outcome.detail());
+        } else {
+            Arffornia.LOGGER.info("Recipe datapack fetch at boot: {} {}", outcome.status(), outcome.detail());
+        }
+    }
+
+    /** Downloads into {@code target} when the website has a different valid pack. Never throws. */
+    static Outcome fetchInto(URI uri, Path target, Duration timeout) {
+        CompletableFuture<Download> stored = download(uri, localSha(target), timeout).thenApply(download -> store(download, target));
+        try {
+            Download download = stored.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            return Outcome.of(download.status(), download.status() == Status.UPDATED ? download.summary().sha256() : download.detail());
+        } catch (TimeoutException e) {
+            // Cancelling the stage that writes the file keeps a late response from replacing the pack mid-load.
+            stored.cancel(true);
+            return Outcome.of(Status.FAILED, "timed out after " + timeout.toSeconds() + " s");
+        } catch (ExecutionException e) {
+            return Outcome.of(Status.FAILED, rootCause(e).toString());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            stored.cancel(true);
+            return Outcome.of(Status.FAILED, "interrupted");
+        }
+    }
+
     public static CompletableFuture<Outcome> update(MinecraftServer server) {
         if (!RUNNING.compareAndSet(false, true)) {
             return CompletableFuture.completedFuture(Outcome.of(Status.BUSY, "an update is already running"));
         }
         Path target = RecipePack.file();
-        return download(uri(), loadedSha)
+        return download(uri(), loadedSha, REQUEST_TIMEOUT)
                 .thenApply(download -> store(download, target))
                 .thenComposeAsync(download -> download.status() == Status.UPDATED
                         ? reload(server).thenApply(timing -> {
@@ -108,8 +150,8 @@ public final class RecipePackUpdater {
         }
     }
 
-    private static CompletableFuture<Download> download(URI uri, Optional<String> localSha) {
-        HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).header("Accept", "application/zip").GET();
+    private static CompletableFuture<Download> download(URI uri, Optional<String> localSha, Duration timeout) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/zip").GET();
         localSha.ifPresent(sha -> request.header("If-None-Match", "\"" + sha + "\""));
         return CLIENT.sendAsync(request.build(), HttpResponse.BodyHandlers.ofInputStream()).thenApply(response -> {
             if (response.statusCode() == 304) {
@@ -176,7 +218,12 @@ public final class RecipePackUpdater {
         }
     }
 
-    /** Must run on the server thread. Completes with {reload millis, longest tick gap millis}. */
+    /**
+     * Must run on the server thread. Completes with {reload millis, longest tick gap millis}.
+     * {@code reloadResources} blocks the server thread until the reload ends when it is called from that thread, and
+     * a full pack takes longer than the watchdog allows. Called from a background thread it returns at once: the data
+     * loads in the background and is swapped in on the server thread, so the server keeps ticking.
+     */
     private static CompletableFuture<long[]> reload(MinecraftServer server) {
         PackRepository repository = server.getPackRepository();
         repository.reload();
@@ -185,7 +232,8 @@ public final class RecipePackUpdater {
         probeArmed = true;
         lastTickStart = start;
         longestTickGap = 0;
-        return server.reloadResources(selected)
+        return CompletableFuture.supplyAsync(() -> server.reloadResources(selected), Util.backgroundExecutor())
+                .thenCompose(reloading -> reloading)
                 .thenComposeAsync(ignored -> {
                     long reloadMillis = (System.nanoTime() - start) / 1_000_000;
                     probeResult = new CompletableFuture<>();

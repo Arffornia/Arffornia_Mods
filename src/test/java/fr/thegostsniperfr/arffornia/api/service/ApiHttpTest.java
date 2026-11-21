@@ -49,6 +49,10 @@ class ApiHttpTest {
             respond(exchange, actionStatus, "{}");
         });
         server.createContext("/api/public", exchange -> respond(exchange, publicStatus, publicBody));
+        server.createContext("/api/private", exchange -> {
+            String auth = exchange.getRequestHeaders().getFirst("Authorization");
+            respond(exchange, auth != null && auth.startsWith("Bearer token-") ? 200 : 404, "{\"seen\":true}");
+        });
         server.start();
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/api";
     }
@@ -152,5 +156,22 @@ class ApiHttpTest {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    @Test
+    void serviceGetSendsTheTokenSoPrivateDataIsReadable() throws Exception {
+        JsonObject body = http().<JsonObject>getJsonAsService("/private", JsonObject.class, "private", null).get(20, TimeUnit.SECONDS);
+
+        assertNotNull(body);
+        assertEquals(1, authCalls.get());
+    }
+
+    @Test
+    void serviceGetFallsBackToThePublicGetWithoutAToken() throws Exception {
+        authStatus = 500;
+
+        JsonObject body = http().<JsonObject>getJsonAsService("/public", JsonObject.class, "public", null).get(20, TimeUnit.SECONDS);
+
+        assertNotNull(body);
     }
 }

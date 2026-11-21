@@ -11,3 +11,15 @@ same layout and neither recomputes it.
    template's ELK layout and reads node positions, link paths and stage columns back from the DOM.
 3. `python3 build_band.py <dir with the three JSON files and band.template.html> <fonts dir> <out dir>`:
    writes `band.json` and the self-contained `band.html` (fonts and item icons inlined).
+
+## Bench on a real display
+
+`bench/` drives a full-pack client next to these scripts: `client/` (the pack, plus this jar, LDLib2 2.2.2 and
+WebGUI 2.0.0), `mc-home/` (portablemc), `wmc-runtime/`, and `cef-libs/` and `extra-libs/` (Nix symlinkJoins of
+the CEF and GLFW libraries listed in the spec 018 report). Run inside `nix shell nixpkgs#portablemc`:
+
+1. `RES=1920x1080 JDK_LIB=... bench/start.sh label`: starts the client, creates or opens the `band-bench` world.
+2. `bench/follow.sh label &` then `bench/cmd.sh bench` (both screens) or `bench/cmd.sh benchweb:60,30,15`
+   (web frame-rate sweep). Results land in `client/arffornia-band/bench-*.json`; `follow.sh` appends PSS and
+   browser CPU per phase to `mem.jsonl`.
+3. `bench/cmd.sh shot` takes a screenshot, `bench/kill.sh` stops the client.

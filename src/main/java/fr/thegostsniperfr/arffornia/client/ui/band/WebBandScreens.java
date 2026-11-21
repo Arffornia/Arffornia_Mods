@@ -21,7 +21,7 @@ import net.neoforged.fml.loading.FMLPaths;
  */
 public final class WebBandScreens {
     private static final int HIDDEN_FPS = 1;
-    private static final int SHOWN_FPS = 60;
+    private static int shownFps = 30;
 
     private static WebBrowser browser;
     private static long bootAt;
@@ -69,6 +69,12 @@ public final class WebBandScreens {
         }
     }
 
+    /** Frame rate the page renders at while the screen is open; Chromium accepts 1 to 60. */
+    public static void setShownFps(int fps) {
+        shownFps = Math.max(1, Math.min(60, fps));
+        Arffornia.LOGGER.info("[band] web shown fps set to {}", shownFps);
+    }
+
     public static Screen create() {
         return new WebBandScreen();
     }
@@ -83,7 +89,7 @@ public final class WebBandScreens {
             if (browser != null) {
                 var window = Minecraft.getInstance().getWindow();
                 browser.resize(window.getWidth(), window.getHeight());
-                browser.setWindowlessFrameRate(SHOWN_FPS);
+                browser.setWindowlessFrameRate(shownFps);
             }
         }
 
@@ -101,6 +107,41 @@ public final class WebBandScreens {
 
         @Override
         public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        }
+
+        @Override
+        public void mouseMoved(double mouseX, double mouseY) {
+            if (browser != null) {
+                browser.sendMouseMove(toPixels(mouseX), toPixels(mouseY));
+            }
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (browser != null) {
+                browser.sendMousePress(toPixels(mouseX), toPixels(mouseY), button);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            if (browser != null) {
+                browser.sendMouseRelease(toPixels(mouseX), toPixels(mouseY), button);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+            if (browser != null) {
+                browser.sendMouseWheel(toPixels(mouseX), toPixels(mouseY), scrollY, 0);
+            }
+            return true;
+        }
+
+        private static int toPixels(double guiCoordinate) {
+            return (int) Math.round(guiCoordinate * Minecraft.getInstance().getWindow().getGuiScale());
         }
 
         @Override

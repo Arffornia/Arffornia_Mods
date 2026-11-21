@@ -15,8 +15,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.Commands;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LevelSettings;
+import net.minecraft.world.level.WorldDataConfiguration;
+import net.minecraft.world.level.levelgen.WorldOptions;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
@@ -100,7 +108,64 @@ public final class BandBench {
             case "native", "web" -> open(what);
             case "close" -> Minecraft.getInstance().setScreen(null);
             case "bench" -> scheduleBench();
-            default -> Arffornia.LOGGER.warn("[band] unknown command {}", what);
+            case "world" -> createBenchWorld();
+            case "shot" -> Screenshot.grab(FMLPaths.GAMEDIR.get().toFile(), "band-" + System.currentTimeMillis() + ".png",
+                    Minecraft.getInstance().getMainRenderTarget(), message -> Arffornia.LOGGER.info("[band] {}", message.getString()));
+            default -> {
+                if (what.startsWith("webfps:") && available("web")) {
+                    WebBandScreens.setShownFps(Integer.parseInt(what.substring("webfps:".length())));
+                } else if (what.startsWith("benchweb:") && available("web")) {
+                    scheduleWebFpsBench(what.substring("benchweb:".length()));
+                } else {
+                    Arffornia.LOGGER.warn("[band] unknown command {}", what);
+                }
+            }
+        }
+    }
+
+    /**
+     * Web screen only, once per frame rate in the comma-separated list: open, hold 5 s so the page
+     * settles, record 15 s, close. A marker file lets an outside sampler time the browser's CPU.
+     */
+    private static void scheduleWebFpsBench(String fpsList) {
+        results.clear();
+        results.put("window", Minecraft.getInstance().getWindow().getWidth() + "x" + Minecraft.getInstance().getWindow().getHeight());
+        results.put("gui_scale", Minecraft.getInstance().getWindow().getGuiScale());
+        steps.add(new Step(() -> Minecraft.getInstance().setScreen(null), 3000));
+        for (String part : fpsList.split(",")) {
+            int fps = Integer.parseInt(part.trim());
+            steps.add(new Step(() -> WebBandScreens.setShownFps(fps), 0));
+            steps.add(new Step(() -> open("web"), 5000));
+            steps.add(new Step(() -> { marker("web" + fps); startRecording(); }, 15000));
+            steps.add(new Step(() -> { stopRecording("web_fps_" + fps); marker(""); }, 0));
+            steps.add(new Step(() -> Minecraft.getInstance().setScreen(null), 3000));
+        }
+        steps.add(new Step(() -> WebBandScreens.setShownFps(30), 0));
+        steps.add(new Step(BandBench::writeResults, 0));
+        stepUntil = 0;
+        Arffornia.LOGGER.info("[band] web fps bench scheduled ({} steps)", steps.size());
+    }
+
+    /** A peaceful creative world, so scripted runs never go through the world screens. */
+    private static void createBenchWorld() {
+        Minecraft mc = Minecraft.getInstance();
+        String name = "band-bench";
+        if (mc.getLevelSource().levelExists(name)) {
+            mc.createWorldOpenFlows().openWorld(name, () -> mc.setScreen(null));
+            return;
+        }
+        LevelSettings settings = new LevelSettings(name, GameType.CREATIVE, false, Difficulty.PEACEFUL, true,
+                new GameRules(), WorldDataConfiguration.DEFAULT);
+        mc.createWorldOpenFlows().createFreshLevel(name, settings, WorldOptions.defaultWithRandomSeed(),
+                WorldPresets::createNormalWorldDimensions, mc.screen);
+    }
+
+    private static void marker(String phase) {
+        try {
+            Files.createDirectories(DIR);
+            Files.writeString(DIR.resolve("phase"), phase);
+        } catch (IOException e) {
+            Arffornia.LOGGER.warn("[band] cannot write phase marker", e);
         }
     }
 
@@ -148,8 +213,8 @@ public final class BandBench {
         results.put("in_world", Minecraft.getInstance().level != null);
         results.put("rss_start_kb", rssKb());
         steps.add(new Step(() -> Minecraft.getInstance().setScreen(null), 3000));
-        steps.add(new Step(BandBench::startRecording, 10000));
-        steps.add(new Step(() -> stopRecording("baseline"), 500));
+        steps.add(new Step(() -> { marker("baseline"); startRecording(); }, 10000));
+        steps.add(new Step(() -> { stopRecording("baseline"); marker(""); }, 500));
         for (String kind : new String[]{"native", "web"}) {
             if (!available(kind)) {
                 continue;
@@ -159,8 +224,8 @@ public final class BandBench {
                 steps.add(new Step(() -> Minecraft.getInstance().setScreen(null), 1500));
             }
             steps.add(new Step(() -> open(kind), 2000));
-            steps.add(new Step(BandBench::startRecording, 10000));
-            steps.add(new Step(() -> stopRecording(kind), 0));
+            steps.add(new Step(() -> { marker(kind); startRecording(); }, 10000));
+            steps.add(new Step(() -> { stopRecording(kind); marker(""); }, 0));
             steps.add(new Step(() -> Minecraft.getInstance().setScreen(null), 2000));
         }
         steps.add(new Step(BandBench::writeResults, 0));

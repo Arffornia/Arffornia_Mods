@@ -20,7 +20,7 @@ make check          # ./gradlew build: compile, tests, jar
 make run-client     # dev client (runs/ is git-ignored)
 make run-server     # dev dedicated server
 ```
-The jar is written to `build/libs/arffornia.jar` (PostgreSQL driver and HikariCP are embedded via jarJar).
+The jar is written to `build/libs/arffornia.jar`.
 
 ## Commands
 | Command | What it does |
@@ -42,7 +42,17 @@ One COMMON config file, `config/arffornia-common.toml`:
 | `api.baseUrl` | Website API base URL (prod `https://arffornia.com/api`) |
 | `api.clientId`, `api.clientSecret` | Website service-account credentials (server only; leave empty on clients) |
 | `api.migrateOnStartup` | Reverse-engineer and upload recipes for unlocked items at server start |
-| `database.host/port/database/username/password` | Website PostgreSQL, used for shop/vote rewards (server only) |
+| `rewards.allowedPermissionPrefixes` | LuckPerms nodes a reward may grant (default `cosmetic.`, `arffornia.reward.`) |
+| `rewards.allowedRankGroups` | LuckPerms groups a reward may add (default empty: rank rewards stay pending) |
+
+## Rewards
+Shop, vote and daily-streak rewards come from the website API (`/api/rewards/*`, service account with the
+`reward_service` role) as typed entries: `item`, `permission`, `rank`, `lucky_box`. Nothing is run as a command.
+The mod lists a player's pending rewards, claims each one with an idempotency key, then delivers it: items go to the
+inventory (overflow drops at the player's feet), LuckPerms changes go through its API, and a lucky box `ns:path`
+rolls the loot table `data/ns/loot_table/lucky_box/path.json` (default `arffornia:streak` ships with the mod; a
+datapack can override it). A reward with an unknown type, item, box, node or group is not claimed and stays pending.
+On join the mod records the daily connection, which queues the streak reward on the website.
 
 In production the server file is templated by
 [Arffornia_Provisioning](https://github.com/Arffornia/Arffornia_Provisioning) (`config/server/...`) and the client file

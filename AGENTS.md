@@ -62,6 +62,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - A machine belongs to the progression it was placed for (#18): linked synchronously from the placer's synced
   progression, it keeps it across team changes and stops while that progression is retired (team soft-deleted).
   `-1` (pre-#18 saves) means unlinked: pick it up and place it again. Gameplay reads `Progressions`, never HTTP.
+- Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
+  the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
+  Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.
 - `space_elevator.json` needs SophisticatedStorage; FTB Teams/SophisticatedStorage are not declared in `mods.toml`.
 - `build.gradle` dev client run hardcodes a username/UUID.
 - The COMMON config is shipped to clients too: never add secrets to SERVER-type configs (they sync to clients).

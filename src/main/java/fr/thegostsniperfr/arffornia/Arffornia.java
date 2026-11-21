@@ -124,17 +124,6 @@ public class Arffornia {
         }
 
         Progressions.refreshAll(event.getServer());
-
-        if (ProgressionBackends.isFake() || !event.getServer().isDedicatedServer()) {
-            return;
-        }
-        RecipePackUpdater.update(event.getServer()).thenAccept(outcome -> {
-            if (outcome.status() == RecipePackUpdater.Status.FAILED) {
-                LOGGER.error("Recipe datapack update at start failed ({}); keeping the last valid pack.", outcome.detail());
-            } else {
-                LOGGER.info("Recipe datapack update at start: {}", outcome);
-            }
-        });
     }
 
     /**

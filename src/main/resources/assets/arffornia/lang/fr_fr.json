@@ -78,6 +78,10 @@
   "chat.arffornia.rewards.busy": "Vos récompenses sont déjà en cours de récupération, patientez.",
   "chat.arffornia.rewards.unsupported": "Certaines récompenses ne peuvent pas encore être livrées sur ce serveur. Elles restent en attente.",
   "chat.arffornia.rewards.streak": "Série de connexions : jour %s ! Une récompense vous attend.",
+  "title.arffornia.rewards.streak": "Série de connexions : jour %s",
+  "title.arffornia.rewards.pending": "Des récompenses vous attendent",
+  "title.arffornia.rewards.claim_hint": "Tapez %s",
+  "chat.arffornia.rewards.click_to_claim": "Cliquez pour récupérer vos récompenses",
 
   "commands.arffornia.claim_reward.cooldown": "Veuillez patienter avant de réutiliser cette commande.",
   "commands.arffornia.claim_reward.checking": "Recherche de récompenses en attente...",

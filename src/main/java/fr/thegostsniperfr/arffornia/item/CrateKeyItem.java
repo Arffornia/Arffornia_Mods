@@ -1,10 +1,14 @@
 package fr.thegostsniperfr.arffornia.item;
 
+import fr.thegostsniperfr.arffornia.crate.CrateBlock;
 import fr.thegostsniperfr.arffornia.crate.CrateDefinition;
 import fr.thegostsniperfr.arffornia.crate.CrateDefinitions;
 import fr.thegostsniperfr.arffornia.crate.CrateKey;
 import fr.thegostsniperfr.arffornia.crate.CrateRarity;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -51,6 +55,12 @@ public class CrateKeyItem extends Item {
     private static CrateDefinition.Client crateOf(ItemStack stack) {
         CrateKey key = stack.get(ModDataComponents.CRATE_KEY.get());
         return key == null ? null : CrateDefinitions.find(key.crate());
+    }
+
+    /** Sneak + right-click with a key still reaches the crate: it skips the roulette or opens the preview. */
+    @Override
+    public boolean doesSneakBypassUse(ItemStack stack, LevelReader level, BlockPos pos, Player player) {
+        return level.getBlockState(pos).getBlock() instanceof CrateBlock;
     }
 
     @Override

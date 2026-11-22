@@ -5,6 +5,7 @@ import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterBlock;
 import fr.thegostsniperfr.arffornia.block.crafterblock.CrafterPartBlock;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevator;
 import fr.thegostsniperfr.arffornia.block.spaceelevator.SpaceElevatorPartBlock;
+import fr.thegostsniperfr.arffornia.crate.CrateBlock;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.machine.smelter.SmelterBlock;
 import fr.thegostsniperfr.arffornia.multiblock.ControllerBlock;
@@ -42,6 +43,8 @@ public class ModBlocks {
     public static final DeferredBlock<PortBlock> ITEM_INPUT_PORT = registerBlock("item_input_port", () -> port(PortKind.ITEM_INPUT));
     public static final DeferredBlock<PortBlock> ITEM_OUTPUT_PORT = registerBlock("item_output_port", () -> port(PortKind.ITEM_OUTPUT));
     public static final DeferredBlock<PortBlock> ENERGY_INPUT_PORT = registerBlock("energy_input_port", () -> port(PortKind.ENERGY_INPUT));
+    public static final DeferredBlock<CrateBlock> CRATE = registerBlock("crate", () -> new CrateBlock());
+
     public static final DeferredBlock<SmelterBlock> SMELTER = BLOCKS.register("smelter", () -> new SmelterBlock());
 
     private static PortBlock port(PortKind kind) {

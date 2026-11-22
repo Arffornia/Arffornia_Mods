@@ -271,8 +271,12 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         Matrix4f matrix = pose.last().pose();
         float x = -font.width(text) / 2F;
         int background = (int) (Minecraft.getInstance().options.getBackgroundOpacity(0.25F) * 255 * alpha) << 24;
+        // Glyphs and their background quad are coplanar and z-fight. The first pass draws only the background:
+        // Font forces alpha 0 to opaque, so 0x04 is the smallest alpha it keeps, and the text shader discards it.
+        // The glyphs follow with a polygon offset so they always win the depth test.
+        font.drawInBatch(text, x, 0, 0x04000000, false, matrix, buffers, Font.DisplayMode.NORMAL, background, LightTexture.FULL_BRIGHT);
         font.drawInBatch(text, x, 0, 0xFFFFFF | ((int) (255 * Math.max(0.1F, alpha)) << 24), false, matrix, buffers,
-                Font.DisplayMode.NORMAL, background, LightTexture.FULL_BRIGHT);
+                Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
         pose.popPose();
     }
 

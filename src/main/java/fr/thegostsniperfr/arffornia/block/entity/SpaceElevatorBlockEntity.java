@@ -2,10 +2,13 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.ProgressionEventSender;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModels;
+import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
+import net.minecraft.server.MinecraftServer;
 import fr.thegostsniperfr.arffornia.screen.SpaceElevatorMenu;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.ChatFormatting;
@@ -44,6 +47,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvider {
     public final ItemStackHandler itemHandler = new ItemStackHandler(70);
@@ -51,7 +55,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     @Nullable
     public ArfforniaApiDtos.MilestoneDetails cachedMilestoneDetails;
     private long linkedProgressionId = ModAttachments.NO_PROGRESSION;
-    private boolean isLaunching = false;
 
     public SpaceElevatorBlockEntity(BlockPos pPos, BlockState pBlockState) {
         super(ModBlockEntities.SPACE_ELEVATOR_BE.get(), pPos, pBlockState);
@@ -158,7 +161,7 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
     }
 
     public void launch(ServerPlayer player) {
-        if (level == null || level.isClientSide() || isLaunching || !areRequirementsMet(this.cachedMilestoneDetails))
+        if (level == null || level.isClientSide() || !areRequirementsMet(this.cachedMilestoneDetails))
             return;
 
         final ArfforniaApiDtos.MilestoneDetails details = this.cachedMilestoneDetails;
@@ -168,44 +171,35 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
         }
 
         final long progressionId = this.linkedProgressionId;
-        if (!MachineProgressions.checkServing(player, progressionId)
-                || Progressions.find(player.server, progressionId).map(p -> p.isCompleted(details.id())).orElse(true)) {
+        final String milestoneKey = details.key();
+        MinecraftServer server = player.server;
+        if (milestoneKey == null || !MachineProgressions.checkServing(player, progressionId)) {
+            return;
+        }
+        Optional<ProgressionSnapshot> snapshot = Progressions.find(server, progressionId);
+        // Checked before anything is consumed: the event is only recorded for an available, not yet done milestone (rule 3).
+        if (snapshot.isEmpty() || snapshot.get().isCompleted(details.id()) || snapshot.get().isCompleted(milestoneKey)
+                || !ProgressionModels.current(server).isAvailable(milestoneKey, snapshot.get())) {
             return;
         }
 
-        // --- TRANSACTIONAL LOGIC ---
-        this.isLaunching = true;
+        final List<ItemStack> consumedItems = consumeRequirements();
+        if (!ProgressionEventSender.milestoneCompleted(server, progressionId, milestoneKey, player.getUUID())) {
+            refundItems(player, consumedItems);
+            return;
+        }
+        Progressions.recordCompleted(server, progressionId, details.id());
         setChanged();
 
-        final List<ItemStack> consumedItems = consumeRequirements();
-        final int activeMilestoneId = details.id();
+        Component message = Component.translatable("chat.arffornia.milestone.completed",
+                player.getDisplayName(),
+                Component.literal(details.name()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        server.getPlayerList().broadcastSystemMessage(message, false);
 
-        ProgressionBackends.get().addMilestoneToProgression(progressionId, activeMilestoneId)
-                .thenAcceptAsync(success -> {
-                    if (success) {
-                        Progressions.recordCompleted(player.server, progressionId, activeMilestoneId);
-                        Progressions.refreshProgression(player.server, progressionId);
-                        Component playerName = player.getDisplayName();
-                        // The milestone name comes from the API (not a language key), so it is a literal argument.
-                        Component message = Component.translatable("chat.arffornia.milestone.completed",
-                                playerName,
-                                Component.literal(details.name()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-
-                        player.getServer().getPlayerList().broadcastSystemMessage(message, false);
-
-                        int stageNumber = details.stageNumber() != null ? details.stageNumber() : 1;
-                        for (int i = 0; i < stageNumber; i++) {
-                            spawnFirework();
-                        }
-                    } else {
-                        Arffornia.LOGGER.error("API call to complete milestone {} in progression {} failed. Refunding items.", activeMilestoneId, progressionId);
-                        Progressions.refreshProgression(player.server, progressionId);
-                        player.sendSystemMessage(Component.translatable("chat.arffornia.milestone.validation_failed").withStyle(ChatFormatting.RED));
-                        refundItems(player, consumedItems);
-                    }
-                    this.isLaunching = false;
-                    setChanged();
-                }, player.getServer());
+        int stageNumber = details.stageNumber() != null ? details.stageNumber() : 1;
+        for (int i = 0; i < stageNumber; i++) {
+            spawnFirework();
+        }
     }
 
     private void refundItems(ServerPlayer player, List<ItemStack> itemsToRefund) {
@@ -257,7 +251,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
 
         pTag.put("inventory", itemHandler.serializeNBT(pRegistries));
         pTag.putLong("linkedProgressionId", linkedProgressionId);
-        pTag.putBoolean("isLaunching", isLaunching);
     }
 
     @Override
@@ -281,7 +274,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
             this.linkedProgressionId = pTag.getLong("linkedProgressionId");
         }
 
-        this.isLaunching = pTag.getBoolean("isLaunching");
     }
 
     public void linkToProgression(long progressionId) {
@@ -299,10 +291,6 @@ public class SpaceElevatorBlockEntity extends BlockEntity implements MenuProvide
 
     public long getLinkedProgressionId() {
         return this.linkedProgressionId;
-    }
-
-    public boolean isLaunching() {
-        return this.isLaunching;
     }
 
     @Nullable

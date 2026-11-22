@@ -2,7 +2,6 @@ package fr.thegostsniperfr.arffornia.block.spaceelevator;
 
 import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
-import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
@@ -136,11 +135,6 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
     protected InteractionResult useWithoutItem(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, BlockHitResult pHit) {
         if (!pLevel.isClientSide()) {
             if (pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer) {
-                if (be.isLaunching()) {
-                    Arffornia.LOGGER.warn("Player {} tried to access Space Elevator at {} while it was launching.", pPlayer.getName().getString(), pPos);
-                    return InteractionResult.FAIL;
-                }
-
                 long progressionId = be.getLinkedProgressionId();
                 if (!MachineProgressions.checkServing(serverPlayer, progressionId)) {
                     return InteractionResult.FAIL;
@@ -196,7 +190,7 @@ public class SpaceElevator extends BaseEntityBlock implements SimpleWaterloggedB
     @Override
     public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
         if (!pState.is(pNewState.getBlock())) {
-            if (pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be && !be.isLaunching()) {
+            if (pLevel.getBlockEntity(pPos) instanceof SpaceElevatorBlockEntity be) {
                 NonNullList<ItemStack> items = NonNullList.create();
                 for (int i = 0; i < be.itemHandler.getSlots(); i++) {
                     items.add(be.itemHandler.getStackInSlot(i));

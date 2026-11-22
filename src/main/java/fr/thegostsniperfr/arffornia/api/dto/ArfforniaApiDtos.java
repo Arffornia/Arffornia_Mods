@@ -97,6 +97,7 @@ public class ArfforniaApiDtos {
      */
     public record MilestoneDetails(
             int id,
+            @Nullable String key,
             String name,
             String description,
             @SerializedName("stage_id") int stageId,

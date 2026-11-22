@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The receiving player's active progression: completed milestones, target and whether it is retired.
+ * The receiving player's active progression: completed milestones (ids and keys), open stage, target and whether it is retired.
  */
 public record ClientboundProgressionStatePacket(ProgressionSnapshot snapshot) implements CustomPacketPayload {
 
@@ -28,7 +28,10 @@ public record ClientboundProgressionStatePacket(ProgressionSnapshot snapshot) im
             ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list()), s -> List.copyOf(s.completedMilestones()),
             ByteBufCodecs.optional(ByteBufCodecs.VAR_INT), s -> Optional.ofNullable(s.currentMilestoneId()),
             ByteBufCodecs.BOOL, ProgressionSnapshot::retired,
-            (id, completed, target, retired) -> new ProgressionSnapshot(id, new HashSet<>(completed), target.orElse(null), retired)
+            ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()), s -> List.copyOf(s.completedKeys()),
+            ByteBufCodecs.VAR_INT, ProgressionSnapshot::openStage,
+            (id, completed, target, retired, keys, openStage) ->
+                    new ProgressionSnapshot(id, new HashSet<>(completed), target.orElse(null), retired, new HashSet<>(keys), openStage)
     );
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ClientboundProgressionStatePacket> STREAM_CODEC =

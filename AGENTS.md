@@ -65,7 +65,8 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - Spec 017 milestones are keyed by **key**, never row id. Gates are `arffornia:stage/<n>`, `arffornia:milestone/<key>`
   or the legacy `arffornia:milestone/<id>` (all digits, what today's datapack emits). Detection: a hidden advancement
   `arffornia:milestone/<key>` (no display; `inventory_changed` for obtain, `arffornia:item_crafted` for craft) completes
-  the milestone for the player's active progression at once; the event waits in `ProgressionEventOutbox` (SavedData)
+  the milestone for the player's active progression at once, only when it is available (rule 3, from the model read
+  with its ETag into `ProgressionModels`; otherwise the advancement is revoked); the event waits in `ProgressionEventOutbox` (SavedData)
   until `POST /progressions/{id}/events` acknowledges it, with retry. Stages are opened by the website only.
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through

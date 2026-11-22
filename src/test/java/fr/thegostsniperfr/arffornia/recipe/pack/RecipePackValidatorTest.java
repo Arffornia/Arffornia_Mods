@@ -84,6 +84,33 @@ class RecipePackValidatorTest {
     }
 
     @Test
+    void validate_acceptsMilestoneAdvancements_withoutCountingThemAsRecipes() throws Exception {
+        Map<String, String> files = validPack();
+        files.put("data/arffornia/advancement/milestone/oritech/the_beginning.json",
+                "{\"criteria\":{\"obtained_0\":{\"trigger\":\"minecraft:inventory_changed\"}},\"requirements\":[[\"obtained_0\"]]}");
+
+        RecipePackValidator.Summary summary = RecipePackValidator.validate(zip(files));
+
+        assertEquals(2, summary.recipeFiles());
+    }
+
+    @Test
+    void validate_rejects_whenAMilestoneAdvancementHasRewards() throws Exception {
+        Map<String, String> files = validPack();
+        files.put("data/arffornia/advancement/milestone/x.json", "{\"criteria\":{},\"rewards\":{\"function\":\"evil:run\"}}");
+
+        assertThrows(RecipePackValidator.InvalidPackException.class, () -> RecipePackValidator.validate(zip(files)));
+    }
+
+    @Test
+    void validate_rejects_whenAnAdvancementIsOutsideTheMilestoneFolder() throws Exception {
+        Map<String, String> files = validPack();
+        files.put("data/minecraft/advancement/story/root.json", "{\"criteria\":{}}");
+
+        assertThrows(RecipePackValidator.InvalidPackException.class, () -> RecipePackValidator.validate(zip(files)));
+    }
+
+    @Test
     void validate_rejects_whenPackCarriesFilesOtherThanRecipes() throws Exception {
         Map<String, String> files = validPack();
         files.put("data/minecraft/tags/function/load.json", "{\"values\":[\"evil:run\"]}");

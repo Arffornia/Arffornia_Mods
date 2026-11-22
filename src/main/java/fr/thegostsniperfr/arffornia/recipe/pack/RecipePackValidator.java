@@ -27,6 +27,7 @@ public final class RecipePackValidator {
     public static final int MAX_ENTRIES = 20_000;
     public static final int MAX_ENTRY_BYTES = 1024 * 1024;
     private static final Pattern RECIPE_FILE = Pattern.compile("data/[a-z0-9_.-]+/recipe/[a-z0-9_./-]+\\.json");
+    private static final Pattern MILESTONE_ADVANCEMENT_FILE = Pattern.compile("data/arffornia/advancement/milestone/[a-z0-9_./-]+\\.json");
 
     public record Summary(String sha256, int recipeFiles) {
     }
@@ -80,8 +81,9 @@ public final class RecipePackValidator {
                 if (entry.isDirectory()) {
                     continue;
                 }
-                if (!name.equals("pack.mcmeta") && !RECIPE_FILE.matcher(name).matches()) {
-                    throw new InvalidPackException("only pack.mcmeta and data/<namespace>/recipe/**.json are allowed, got " + name);
+                boolean isAdvancement = MILESTONE_ADVANCEMENT_FILE.matcher(name).matches();
+                if (!name.equals("pack.mcmeta") && !RECIPE_FILE.matcher(name).matches() && !isAdvancement) {
+                    throw new InvalidPackException("only pack.mcmeta, data/<namespace>/recipe/**.json and data/arffornia/advancement/milestone/**.json are allowed, got " + name);
                 }
                 if (entry.getSize() > MAX_ENTRY_BYTES) {
                     throw new InvalidPackException(name + " is larger than " + MAX_ENTRY_BYTES + " bytes");
@@ -99,6 +101,11 @@ public final class RecipePackValidator {
                     hasMeta = true;
                 } else if (!json.isJsonObject()) {
                     throw new InvalidPackException(name + " is not a JSON object");
+                } else if (isAdvancement) {
+                    // Rewards can run functions and give loot; milestone detection never needs them.
+                    if (json.getAsJsonObject().has("rewards")) {
+                        throw new InvalidPackException(name + " has rewards");
+                    }
                 } else {
                     recipeFiles++;
                 }

@@ -28,6 +28,7 @@ public class ModCreativeTabs {
                         output.accept(ModBlocks.ITEM_INPUT_PORT.get());
                         output.accept(ModBlocks.ITEM_OUTPUT_PORT.get());
                         output.accept(ModBlocks.ENERGY_INPUT_PORT.get());
+                        output.accept(ModBlocks.CRATE.get());
                     })
                     .build());
 

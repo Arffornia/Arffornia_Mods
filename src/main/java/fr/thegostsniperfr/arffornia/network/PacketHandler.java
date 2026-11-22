@@ -49,6 +49,18 @@ public final class PacketHandler {
                 ClientboundCrateDefinitionsPacket::handle
         );
 
+        registrar.playToClient(
+                ClientboundCrateSequencePacket.TYPE,
+                ClientboundCrateSequencePacket.STREAM_CODEC,
+                ClientboundCrateSequencePacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundCratePreviewPacket.TYPE,
+                ClientboundCratePreviewPacket.STREAM_CODEC,
+                ClientboundCratePreviewPacket::handle
+        );
+
         registrar.playToServer(
                 ServerboundLaunchElevatorPacket.TYPE,
                 ServerboundLaunchElevatorPacket.STREAM_CODEC,

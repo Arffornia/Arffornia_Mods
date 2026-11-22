@@ -27,6 +27,9 @@ public interface ProgressionBackend {
     /** Keyed state of spec 017 (milestone keys, open stage), or null on failure or while no model is published. */
     CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId);
 
+    /** The published model, revalidated with {@code etag} when not null. Never completes exceptionally. */
+    CompletableFuture<ArfforniaApiDtos.ModelReply> fetchProgressionModel(@Nullable String etag);
+
     /** Sends at most 100 events to the idempotent events endpoint. Never completes exceptionally. */
     CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events);
 

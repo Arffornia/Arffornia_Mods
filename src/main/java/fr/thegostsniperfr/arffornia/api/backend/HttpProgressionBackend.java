@@ -34,6 +34,11 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     }
 
     @Override
+    public CompletableFuture<ArfforniaApiDtos.ModelReply> fetchProgressionModel(@Nullable String etag) {
+        return api.fetchProgressionModel(etag);
+    }
+
+    @Override
     public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
         return api.sendProgressionEvents(progressionId, events);
     }

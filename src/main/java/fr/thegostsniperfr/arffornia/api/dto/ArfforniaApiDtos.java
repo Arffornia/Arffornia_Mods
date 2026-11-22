@@ -137,6 +137,23 @@ public class ArfforniaApiDtos {
         public static final String MILESTONE_COMPLETED = "milestone_completed";
     }
 
+    /** {@code GET /progression/model}: the published snapshot, reduced to what availability (rule 3) needs. */
+    public record ModelDocument(int version, List<ModelMilestone> milestones) {
+    }
+
+    public record ModelMilestone(String key, int stage, @Nullable List<String> requires) {
+    }
+
+    /**
+     * Outcome of a model read.
+     *
+     * @param status   HTTP status (304 when the cached ETag still matches), or 0 when no answer came back
+     * @param etag     the ETag of the answered document, without quotes
+     * @param document the parsed document of a 200, else null
+     */
+    public record ModelReply(int status, @Nullable String etag, @Nullable ModelDocument document) {
+    }
+
     public record EventResult(String id, String status, @Nullable String reason) {
         public static final String APPLIED = "applied";
         public static final String DUPLICATE = "duplicate";

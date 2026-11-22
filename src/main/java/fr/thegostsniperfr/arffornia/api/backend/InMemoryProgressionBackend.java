@@ -39,6 +39,8 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final Map<Long, Set<String>> seenEventIds = new ConcurrentHashMap<>();
     private final Set<Long> unreachableProgressions = ConcurrentHashMap.newKeySet();
     private final Map<Long, List<ArfforniaApiDtos.ProgressionEvent>> receivedEvents = new ConcurrentHashMap<>();
+    private final Map<String, ArfforniaApiDtos.ModelMilestone> modelMilestones = new ConcurrentHashMap<>();
+    private final Set<String> refusedMilestones = ConcurrentHashMap.newKeySet();
 
     public static String compact(UUID uuid) {
         return uuid.toString().replace("-", "");
@@ -83,6 +85,22 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     public InMemoryProgressionBackend setOpenStage(long progressionId, int stage) {
         openStageByProgression.put(progressionId, stage);
         return this;
+    }
+
+    /** Adds a milestone to the published model (shared by every test, so use distinct keys). */
+    public InMemoryProgressionBackend putModelMilestone(String key, int stage, String... requires) {
+        modelMilestones.put(key, new ArfforniaApiDtos.ModelMilestone(key, stage, List.of(requires)));
+        return this;
+    }
+
+    /** Makes the events endpoint reject this milestone as not available, as the website does when its rule 3 disagrees with the game. */
+    public InMemoryProgressionBackend refuseMilestone(String key) {
+        refusedMilestones.add(key);
+        return this;
+    }
+
+    public ArfforniaApiDtos.ModelDocument model() {
+        return new ArfforniaApiDtos.ModelDocument(1, List.copyOf(modelMilestones.values()));
     }
 
     /** While set, events for this progression get no answer, as when the website is down (per id, so parallel tests do not interfere). */
@@ -139,6 +157,11 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return CompletableFuture.completedFuture(state(progressionId));
     }
 
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.ModelReply> fetchProgressionModel(@Nullable String etag) {
+        return CompletableFuture.completedFuture(new ArfforniaApiDtos.ModelReply(200, "test-" + modelMilestones.size(), model()));
+    }
+
     /** Same answers as the website: duplicate by event id or by milestone key, 409 for a retired progression. */
     @Override
     public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
@@ -157,6 +180,10 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
             List<ArfforniaApiDtos.EventResult> results = new ArrayList<>();
             for (ArfforniaApiDtos.ProgressionEvent event : events) {
                 receivedEvents.computeIfAbsent(progressionId, id -> new CopyOnWriteArrayList<>()).add(event);
+                if (refusedMilestones.contains(event.milestone())) {
+                    results.add(new ArfforniaApiDtos.EventResult(event.id(), ArfforniaApiDtos.EventResult.REJECTED, "not_available"));
+                    continue;
+                }
                 boolean applied = seen.add(event.id()) && done.add(event.milestone());
                 results.add(new ArfforniaApiDtos.EventResult(event.id(),
                         applied ? ArfforniaApiDtos.EventResult.APPLIED : ArfforniaApiDtos.EventResult.DUPLICATE, null));

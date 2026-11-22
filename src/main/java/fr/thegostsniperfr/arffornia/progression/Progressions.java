@@ -84,6 +84,9 @@ public final class Progressions {
             long previous = activeProgressionOf(player);
             long current = playerData.activeProgressionId();
             player.setData(ModAttachments.ACTIVE_PROGRESSION, current);
+            if (previous != current) {
+                MilestoneAdvancements.recheckInventoryLater(player);
+            }
             CompletableFuture<Void> refreshCurrent = refreshProgression(server, current);
             if (previous != current && previous != ModAttachments.NO_PROGRESSION) {
                 return CompletableFuture.allOf(refreshCurrent, refreshProgression(server, previous));
@@ -115,6 +118,7 @@ public final class Progressions {
                     ProgressionSnapshot previous = find(server, progressionId).orElse(null);
                     ProgressionSnapshot fresh = toSnapshot(progressionId, data);
                     if (state != null) {
+                        ProgressionModels.ensureVersion(server, state.snapshotVersion());
                         fresh = withKeyedState(server, fresh, state);
                     } else if (previous != null) {
                         fresh = fresh.withKeyedState(previous.completedKeys(), previous.openStage(), false);
@@ -156,13 +160,27 @@ public final class Progressions {
     }
 
     public static void store(MinecraftServer server, ProgressionSnapshot snapshot) {
-        ProgressionStore.get(server).put(snapshot);
+        ProgressionStore store = ProgressionStore.get(server);
+        Optional<ProgressionSnapshot> previous = store.find(snapshot.id());
+        store.put(snapshot);
+        boolean moreAvailable = previous.map(before -> mayHaveMoreAvailable(before, snapshot)).orElse(true);
+        if (moreAvailable) {
+            ProgressionEventSender.forgetRefusals(snapshot.id());
+        }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (activeProgressionOf(player) == snapshot.id()) {
                 PacketDistributor.sendToPlayer(player, new ClientboundProgressionStatePacket(snapshot));
                 MilestoneAdvancements.reconcile(player, snapshot);
+                if (moreAvailable) {
+                    MilestoneAdvancements.recheckInventoryLater(player);
+                }
             }
         }
+    }
+
+    /** A milestone done or a stage opened may make other milestones available (rule 3). */
+    private static boolean mayHaveMoreAvailable(ProgressionSnapshot before, ProgressionSnapshot after) {
+        return Math.max(1, after.openStage()) > Math.max(1, before.openStage()) || !before.completedKeys().containsAll(after.completedKeys());
     }
 
     /** Sends the player's last known state, without waiting for the website. */

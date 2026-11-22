@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * Records milestones completed in game and sends them to the website's idempotent events endpoint (spec 017).
  * <p>
+ * Everything here runs on the server from server-side detection; no client payload can complete a milestone.
  * The world is the runtime authority: a completion applies to the progression at once and waits in the
  * {@link ProgressionEventOutbox} until the website acknowledges it. A failed call is retried with a growing delay;
  * a website outage never locks or unlocks anything. Stages are opened by the website; the game learns it from the
@@ -41,33 +43,59 @@ public final class ProgressionEventSender {
     private static final Map<Long, Retry> RETRIES = new HashMap<>();
     // Keys the website does not know (the datapack is ahead of or behind the published model): not sent again until the next data reload.
     private static final Set<String> UNKNOWN_KEYS = new HashSet<>();
+    // Milestones the website refused for a progression (e.g. not available by its rules): no resend loop.
+    private static final Map<Long, Set<String>> REFUSED = new HashMap<>();
 
     private ProgressionEventSender() {
     }
 
-    /** The player met a milestone's validation: it is done for their active progression, now, and the website is told. */
-    public static void milestoneCompleted(ServerPlayer player, String milestoneKey) {
+    /**
+     * The player met a milestone's validation. When the milestone is available to their active progression (rule 3) it
+     * is done now, for the whole progression, and the website is told.
+     *
+     * @return true when the milestone counts or was already done; false when it does not count (yet)
+     */
+    public static boolean milestoneCompleted(ServerPlayer player, String milestoneKey) {
         MinecraftServer server = player.server;
         long progressionId = Progressions.activeProgressionOf(player);
-        if (progressionId == ModAttachments.NO_PROGRESSION || UNKNOWN_KEYS.contains(milestoneKey)) {
-            return;
+        if (progressionId == ModAttachments.NO_PROGRESSION || UNKNOWN_KEYS.contains(milestoneKey)
+                || REFUSED.getOrDefault(progressionId, Set.of()).contains(milestoneKey)) {
+            return false;
         }
-        Optional<ProgressionSnapshot> snapshot = Progressions.find(server, progressionId);
-        if (snapshot.map(known -> known.retired() || known.isCompleted(milestoneKey)).orElse(false)) {
-            return;
-        }
-        ProgressionEventOutbox outbox = ProgressionEventOutbox.get(server);
-        if (outbox.pendingKeys(progressionId).contains(milestoneKey)) {
-            return;
-        }
-        outbox.add(progressionId, UUID.randomUUID().toString().replace("-", ""), milestoneKey, System.currentTimeMillis(),
-                player.getUUID().toString().replace("-", ""));
-        if (snapshot.isPresent()) {
-            Progressions.recordCompletedKey(server, progressionId, milestoneKey);
-        } else {
+        Optional<ProgressionSnapshot> found = Progressions.find(server, progressionId);
+        if (found.isEmpty()) {
             Progressions.ensureKnown(server, progressionId);
+            return false;
         }
+        ProgressionSnapshot snapshot = found.get();
+        if (snapshot.retired()) {
+            return false;
+        }
+        if (snapshot.isCompleted(milestoneKey)) {
+            return true;
+        }
+        ProgressionModel model = ProgressionModels.current(server);
+        if (!model.isAvailable(milestoneKey, snapshot)) {
+            if (!model.milestones().containsKey(milestoneKey)) {
+                ProgressionModels.refresh(server, false);
+            }
+            return false;
+        }
+        ProgressionEventOutbox.get(server).add(progressionId, UUID.randomUUID().toString().replace("-", ""), milestoneKey,
+                System.currentTimeMillis(), player.getUUID().toString().replace("-", ""));
+        Progressions.recordCompletedKey(server, progressionId, milestoneKey);
         send(server, progressionId);
+        return true;
+    }
+
+    /** The website refused these milestones for this progression; they are not tried again until its availability grows. */
+    static void forgetRefusals(long progressionId) {
+        REFUSED.remove(progressionId);
+    }
+
+    static void forgetRefusals() {
+        REFUSED.clear();
+        UNKNOWN_KEYS.clear();
     }
 
     @SubscribeEvent
@@ -75,6 +103,13 @@ public final class ProgressionEventSender {
         IN_FLIGHT.clear();
         RETRIES.clear();
         UNKNOWN_KEYS.clear();
+        REFUSED.clear();
+        ProgressionModels.resetFetchState();
+    }
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        ProgressionModels.refresh(event.getServer(), true);
     }
 
     @SubscribeEvent
@@ -147,12 +182,15 @@ public final class ProgressionEventSender {
                     Arffornia.LOGGER.warn("The website rejected milestone {} for progression {}: {}", event.milestoneKey(), progressionId, result.reason());
                     if ("unknown_milestone".equals(result.reason())) {
                         UNKNOWN_KEYS.add(event.milestoneKey());
+                    } else {
+                        REFUSED.computeIfAbsent(progressionId, id -> new HashSet<>()).add(event.milestoneKey());
                     }
                 }
             }
             outbox.remove(answered);
             RETRIES.remove(progressionId);
             if (reply.body().state() != null) {
+                ProgressionModels.ensureVersion(server, reply.body().state().snapshotVersion());
                 Progressions.applyKeyedState(server, progressionId, reply.body().state());
             }
             return !answered.isEmpty() && !outbox.oldest(progressionId, 1).isEmpty();

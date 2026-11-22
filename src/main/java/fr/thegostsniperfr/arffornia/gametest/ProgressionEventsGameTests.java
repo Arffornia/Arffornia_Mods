@@ -9,6 +9,8 @@ import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.ModCriteriaTriggers;
 import fr.thegostsniperfr.arffornia.progression.ProgressionEventOutbox;
 import fr.thegostsniperfr.arffornia.progression.ProgressionEventSender;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModel;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModels;
 import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.progression.Stages;
@@ -66,7 +68,15 @@ public final class ProgressionEventsGameTests {
         return ProgressionBackends.fake();
     }
 
+    /** A stage 1 milestone without prerequisites: available from the start. */
     private static void addMilestoneAdvancement(MinecraftServer server, String key, Criterion<?> validation) {
+        addMilestoneAdvancement(server, key, validation, 1);
+    }
+
+    /** Publishes the milestone in the model (stage, prerequisites) and adds its hidden advancement. */
+    private static void addMilestoneAdvancement(MinecraftServer server, String key, Criterion<?> validation, int stage, String... requires) {
+        backend().putModelMilestone(key, stage, requires);
+        ProgressionModels.apply(server, ProgressionModel.of(backend().model(), "test-" + key));
         ResourceLocation id = MilestoneAdvancements.advancementId(key);
         AdvancementHolder holder = Advancement.Builder.advancement().addCriterion("validation", validation).build(id);
         ServerAdvancementManager manager = server.getAdvancements();
@@ -223,5 +233,116 @@ public final class ProgressionEventsGameTests {
         helper.assertTrue(doneInGame(server, newTeam, key), "Meeting the validation again after a team change completes it for the new team");
         leave(server, player);
         helper.succeed();
+    }
+
+    // ---- availability (rule 3) -----------------------------------------------------------------------------------
+
+    private static Criterion<?> crafting(Item item) {
+        return ModCriteriaTriggers.ITEM_CRAFTED.get().createCriterion(
+                new ItemCraftedTrigger.TriggerInstance(Optional.empty(), List.of(ItemPredicate.Builder.item().of(item).build())));
+    }
+
+    private static void craft(ServerPlayer player, Item item) {
+        NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player, new ItemStack(item), new SimpleContainer(9)));
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void anItemFoundEarlyCountsOnlyOnceItsPrerequisiteIsDone(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        int team = IDS.getAndIncrement();
+        String prerequisite = "gametest/early_pre_" + team;
+        String endgame = "gametest/early_end_" + team;
+        addMilestoneAdvancement(server, prerequisite, InventoryChangeTrigger.TriggerInstance.hasItems(Items.GLOW_INK_SAC));
+        addMilestoneAdvancement(server, endgame, InventoryChangeTrigger.TriggerInstance.hasItems(Items.NAUTILUS_SHELL), 1, prerequisite);
+        knownProgression(server, team);
+        ServerPlayer player = playerOn(helper, team);
+
+        obtain(player, Items.NAUTILUS_SHELL);
+        boolean doneEarly = doneInGame(server, team, endgame);
+        boolean queuedEarly = ProgressionEventOutbox.get(server).pendingKeys(team).contains(endgame);
+        obtain(player, Items.GLOW_INK_SAC);
+
+        helper.assertFalse(doneEarly, "An item found before its milestone is available must not count");
+        helper.assertFalse(queuedEarly, "Nothing is sent for an unavailable milestone");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(doneInGame(server, team, endgame), "The kept item counts, without another pickup, once the prerequisite is done");
+            helper.assertTrue(backend().isCompleted(team, endgame), "The website then receives it");
+            leave(server, player);
+        });
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void anItemFoundBeforeItsStageCountsOnceTheStageOpens(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        int team = IDS.getAndIncrement();
+        String key = "gametest/stage_two_" + team;
+        addMilestoneAdvancement(server, key, InventoryChangeTrigger.TriggerInstance.hasItems(Items.HEART_OF_THE_SEA), 2);
+        knownProgression(server, team);
+        Progressions.store(server, Progressions.find(server, team).orElseThrow().withOpenStage(1));
+        ServerPlayer player = playerOn(helper, team);
+
+        obtain(player, Items.HEART_OF_THE_SEA);
+        boolean doneAtStageOne = doneInGame(server, team, key);
+        Progressions.store(server, Progressions.find(server, team).orElseThrow().withOpenStage(2));
+
+        helper.assertFalse(doneAtStageOne, "A stage 2 milestone must not count at stage 1");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(doneInGame(server, team, key), "The kept item counts once stage 2 opens");
+            leave(server, player);
+        });
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void aCraftBeforeTheMilestoneIsAvailableDoesNotCount(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        int team = IDS.getAndIncrement();
+        String prerequisite = "gametest/craft_pre_" + team;
+        String key = "gametest/craft_late_" + team;
+        addMilestoneAdvancement(server, prerequisite, InventoryChangeTrigger.TriggerInstance.hasItems(Items.SPONGE));
+        addMilestoneAdvancement(server, key, crafting(Items.LODESTONE), 1, prerequisite);
+        knownProgression(server, team);
+        ServerPlayer player = playerOn(helper, team);
+
+        craft(player, Items.LODESTONE);
+        boolean doneEarly = doneInGame(server, team, key);
+        obtain(player, Items.SPONGE);
+
+        helper.assertFalse(doneEarly, "A craft before the milestone is available must not count");
+        helper.startSequence()
+                .thenExecuteAfter(5, () -> {
+                    helper.assertTrue(doneInGame(server, team, prerequisite), "The prerequisite is done");
+                    helper.assertFalse(doneInGame(server, team, key), "An earlier craft does not count afterwards");
+                    craft(player, Items.LODESTONE);
+                    helper.assertTrue(doneInGame(server, team, key), "A new craft counts once the milestone is available");
+                    leave(server, player);
+                })
+                .thenSucceed();
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 200)
+    public static void aMilestoneTheWebsiteRefusesIsDroppedAndNotSentAgain(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        int team = IDS.getAndIncrement();
+        String key = "gametest/refused_" + team;
+        addMilestoneAdvancement(server, key, InventoryChangeTrigger.TriggerInstance.hasItems(Items.SHULKER_SHELL));
+        backend().refuseMilestone(key);
+        knownProgression(server, team);
+        ServerPlayer player = playerOn(helper, team);
+
+        obtain(player, Items.SHULKER_SHELL);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(backend().receivedEvents(team).size() == 1, "The milestone is sent once");
+                    helper.assertTrue(ProgressionEventOutbox.get(server).pendingKeys(team).isEmpty(), "A refused event leaves the outbox");
+                    helper.assertFalse(doneInGame(server, team, key), "The website's state wins over a refused milestone");
+                })
+                .thenExecute(() -> obtain(player, Items.SHULKER_SHELL))
+                .thenExecuteAfter(20, () -> {
+                    helper.assertTrue(backend().receivedEvents(team).size() == 1, "A refused milestone is not sent again, got "
+                            + backend().receivedEvents(team).size());
+                    leave(server, player);
+                })
+                .thenSucceed();
     }
 }

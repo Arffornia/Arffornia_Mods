@@ -1,0 +1,56 @@
+{
+ "textures": {
+  "glow": "minecraft:block/white_concrete",
+  "particle": "minecraft:block/white_concrete"
+ },
+ "elements": [
+  {
+   "from": [
+    0.4,
+    9.3,
+    0.4
+   ],
+   "to": [
+    15.6,
+    9.7,
+    15.6
+   ],
+   "faces": {
+    "north": {
+     "texture": "#glow",
+     "tintindex": 0
+    },
+    "south": {
+     "texture": "#glow",
+     "tintindex": 0
+    },
+    "east": {
+     "texture": "#glow",
+     "tintindex": 0
+    },
+    "west": {
+     "texture": "#glow",
+     "tintindex": 0
+    }
+   }
+  },
+  {
+   "from": [
+    7.5,
+    5,
+    0.1
+   ],
+   "to": [
+    8.5,
+    7,
+    0.2
+   ],
+   "faces": {
+    "north": {
+     "texture": "#glow",
+     "tintindex": 0
+    }
+   }
+  }
+ ]
+}

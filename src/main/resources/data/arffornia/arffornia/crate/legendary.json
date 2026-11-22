@@ -1,0 +1,7 @@
+{
+  "name": {"translate": "crate.arffornia.legendary"},
+  "loot_table": "arffornia:crate/legendary",
+  "key_model": "arffornia:item/key_legendary",
+  "rarity": "legendary",
+  "preview": "loot_table"
+}

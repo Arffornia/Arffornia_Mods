@@ -4,6 +4,10 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.client.multiblock.MultiblockMachineRenderer;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.crate.CrateKeyModels;
+import fr.thegostsniperfr.arffornia.client.crate.CratePreviewScreen;
+import fr.thegostsniperfr.arffornia.client.crate.CrateRenderer;
+import fr.thegostsniperfr.arffornia.crate.CrateClientHooks;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.MachineScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
@@ -35,6 +39,7 @@ public class ArfforniaClient {
         final ModContainer modContainer = ModLoadingContext.get().getActiveContainer();
 
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        CrateClientHooks.set(CratePreviewScreen::open);
 
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_BLOCK.get(), RenderType.cutout());
@@ -55,11 +60,21 @@ public class ArfforniaClient {
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
         event.register(SMELTER_FORMED_MODEL);
+        CrateKeyModels.registerAdditional(event);
+        event.register(CrateRenderer.BASE);
+        event.register(CrateRenderer.LID);
+        event.register(CrateRenderer.SEAMS);
+    }
+
+    @SubscribeEvent
+    public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+        CrateKeyModels.wrap(event);
     }
 
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModBlockEntities.SMELTER_BE.get(), context -> new MultiblockMachineRenderer(context, SMELTER_FORMED_MODEL));
+        event.registerBlockEntityRenderer(ModBlockEntities.CRATE_BE.get(), CrateRenderer::new);
     }
 
     @SubscribeEvent

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:gift",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        { "type": "minecraft:item", "name": "minecraft:netherite_ingot", "weight": 35,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 2 } }] },
+        { "type": "minecraft:item", "name": "minecraft:enchanted_golden_apple", "weight": 25,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 2 } }] },
+        { "type": "minecraft:item", "name": "minecraft:diamond_block", "weight": 25,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 4 } }] },
+        { "type": "minecraft:item", "name": "minecraft:totem_of_undying", "weight": 10 },
+        { "type": "minecraft:item", "name": "minecraft:elytra", "weight": 5 }
+      ]
+    }
+  ]
+}

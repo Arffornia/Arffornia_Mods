@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import fr.thegostsniperfr.arffornia.command.crate.CrateCommand;
 import fr.thegostsniperfr.arffornia.command.management.ProgressionCommand;
 import fr.thegostsniperfr.arffornia.command.management.RecipesCommand;
 import fr.thegostsniperfr.arffornia.command.shop.ShopCommand;
@@ -20,6 +21,7 @@ public class ArfforniaCommand {
                 .then(ProgressionCommand.register())
                 .then(RecipesCommand.register())
                 .then(ShopCommand.register(rewardHandler))
+                .then(CrateCommand.register())
                 .then(DumpCommand.register());
 
         dispatcher.register(root);

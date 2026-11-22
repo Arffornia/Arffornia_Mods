@@ -23,6 +23,7 @@ class RewardEntryTest {
         assertEquals(new RewardEntry.Permission("cosmetic.hat", false), parse("{\"type\":\"permission\",\"node\":\"cosmetic.hat\",\"value\":false}"));
         assertEquals(new RewardEntry.Rank("vip"), parse("{\"type\":\"rank\",\"group\":\"vip\"}"));
         assertEquals(new RewardEntry.LuckyBox("arffornia:streak", 2), parse("{\"type\":\"lucky_box\",\"box\":\"arffornia:streak\",\"count\":2}"));
+        assertEquals(new RewardEntry.Key("arffornia:kit/starter", 3), parse("{\"type\":\"key\",\"crate\":\"arffornia:kit/starter\",\"count\":3}"));
     }
 
     @Test
@@ -48,6 +49,9 @@ class RewardEntryTest {
             "{\"type\":\"permission\",\"node\":\"prefix.100.owner\"}",
             "{\"type\":\"permission\",\"node\":\"meta.x.y\"}",
             "{\"type\":\"lucky_box\",\"box\":\"arffornia:streak\",\"count\":65}",
+            "{\"type\":\"key\",\"crate\":\"arffornia:streak\",\"count\":0}",
+            "{\"type\":\"key\",\"crate\":\"Streak\",\"count\":1}",
+            "{\"type\":\"key\",\"count\":1}",
             "{\"item\":\"minecraft:diamond\",\"count\":1}",
             "[1]"
     })

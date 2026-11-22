@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.block.entity;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
+import fr.thegostsniperfr.arffornia.crate.CrateBlockEntity;
 import fr.thegostsniperfr.arffornia.machine.MachineTypes;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockMachineBlockEntity;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlockEntity;
@@ -37,4 +38,7 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("smelter", () ->
                     BlockEntityType.Builder.<MultiblockMachineBlockEntity>of((pos, state) -> new MultiblockMachineBlockEntity(
                             ModBlockEntities.SMELTER_BE.get(), MachineTypes.SMELTER, pos, state), ModBlocks.SMELTER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrateBlockEntity>> CRATE_BE =
+            BLOCK_ENTITIES.register("crate", () -> BlockEntityType.Builder.of(CrateBlockEntity::new, ModBlocks.CRATE.get()).build(null));
 }

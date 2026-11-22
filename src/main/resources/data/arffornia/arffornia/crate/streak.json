@@ -1,0 +1,12 @@
+{
+  "name": {"translate": "crate.arffornia.streak"},
+  "loot_table": "arffornia:crate/streak",
+  "key_model": "arffornia:item/key_streak",
+  "rarity": "common",
+  "item_rarity": {
+    "minecraft:diamond": "rare",
+    "minecraft:netherite_scrap": "legendary"
+  },
+  "preview": "loot_table",
+  "calendar": "streak"
+}

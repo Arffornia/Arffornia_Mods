@@ -10,6 +10,9 @@ import fr.thegostsniperfr.arffornia.shop.RewardsClient;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
+import fr.thegostsniperfr.arffornia.item.ModItems;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
@@ -60,6 +63,20 @@ public final class RewardHandlerGameTests {
         player.getInventory().clearContent();
         player.setPos(helper.absoluteVec(new Vec3(1, 2, 1)));
         return player;
+    }
+
+    private static PendingReward keys(long id, int count) {
+        return new PendingReward(id, "streak", List.of(new RewardEntry.Key("arffornia:streak", count)));
+    }
+
+    private static void fill(ServerPlayer player, int slots) {
+        for (int i = 0; i < slots; i++) {
+            player.getInventory().setItem(i, new ItemStack(Items.DIRT, 64));
+        }
+    }
+
+    private static boolean nothingDropped(GameTestHelper helper, ServerPlayer player) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, player.getBoundingBox().inflate(8)).isEmpty();
     }
 
     private static PendingReward diamonds(long id, int count) {
@@ -146,5 +163,101 @@ public final class RewardHandlerGameTests {
             helper.assertTrue(client.claimKeys.get(0).equals(client.claimKeys.get(1)), "replayed with the same key");
             helper.assertTrue(player.getInventory().countItem(Items.DIAMOND) == 4, "delivered once");
         });
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void keyRewardIsDeliveredOnce(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        ScriptedClient client = new ScriptedClient();
+        long id = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(keys(id, 2))));
+        client.claims.add(new RewardsClient.ClaimResult.Claimed(keys(id, 2)));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        runTwice(helper, handler, player, () -> {
+            helper.assertTrue(player.getInventory().countItem(ModItems.CRATE_KEY.get()) == 2, "2 keys once");
+            helper.assertTrue(client.claimKeys.size() == 1, "claimed once");
+        });
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void rewardThatDoesNotFitStaysPendingAndNothingDrops(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        fill(player, 35);
+        ScriptedClient client = new ScriptedClient();
+        long id = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(diamonds(id, 65))));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        runTwice(helper, handler, player, () -> {
+            helper.assertTrue(client.claimKeys.isEmpty(), "not claimed: 2 slots needed, 1 free");
+            helper.assertTrue(player.getInventory().countItem(Items.DIAMOND) == 0, "nothing given");
+            helper.assertTrue(nothingDropped(helper, player), "nothing dropped");
+        });
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void rewardLargerThanTheInventoryStaysPendingWithAnEmptyInventory(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        ScriptedClient client = new ScriptedClient();
+        long id = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(diamonds(id, 64 * 37))));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        runTwice(helper, handler, player, () -> {
+            helper.assertTrue(client.claimKeys.isEmpty(), "a 37-slot reward is never claimed");
+            helper.assertTrue(player.getInventory().countItem(Items.DIAMOND) == 0, "nothing given");
+            helper.assertTrue(nothingDropped(helper, player), "nothing dropped");
+        });
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void luckyBoxIsRolledAndCheckedBeforeItIsClaimed(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        fill(player, 36);
+        ScriptedClient client = new ScriptedClient();
+        long id = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(new PendingReward(id, "streak", List.of(new RewardEntry.LuckyBox("arffornia:streak", 1))))));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        runTwice(helper, handler, player, () -> {
+            helper.assertTrue(client.claimKeys.isEmpty(), "full inventory: the box is not claimed");
+            helper.assertTrue(nothingDropped(helper, player), "nothing dropped");
+        });
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void keysThatFitAreClaimedOnJoinAndOtherRewardsWait(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        ScriptedClient client = new ScriptedClient();
+        long keyId = NEXT_ID.incrementAndGet();
+        long itemId = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(keys(keyId, 1), diamonds(itemId, 1))));
+        client.claims.add(new RewardsClient.ClaimResult.Claimed(keys(keyId, 1)));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        handler.onPlayerJoined(player).whenComplete((ignored, error) -> helper.getLevel().getServer().execute(() -> {
+            helper.assertTrue(error == null, "join flow failed: " + error);
+            helper.assertTrue(player.getInventory().countItem(ModItems.CRATE_KEY.get()) == 1, "key given on join");
+            helper.assertTrue(player.getInventory().countItem(Items.DIAMOND) == 0, "the item reward waits for the command");
+            helper.assertTrue(client.claimKeys.size() == 1 && client.claimKeys.get(0).startsWith(keyId + ":"), "only the key reward claimed");
+            helper.succeed();
+        }));
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void keysThatDoNotFitOnJoinStayPending(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        fill(player, 36);
+        ScriptedClient client = new ScriptedClient();
+        long id = NEXT_ID.incrementAndGet();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(keys(id, 1))));
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player);
+
+        handler.onPlayerJoined(player).whenComplete((ignored, error) -> helper.getLevel().getServer().execute(() -> {
+            helper.assertTrue(client.claimKeys.isEmpty(), "not claimed");
+            helper.assertTrue(nothingDropped(helper, player), "nothing dropped");
+            helper.succeed();
+        }));
     }
 }

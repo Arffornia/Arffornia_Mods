@@ -34,6 +34,11 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final List<AddMilestoneCall> addMilestoneCalls = new CopyOnWriteArrayList<>();
     private final Set<Integer> failingMilestones = ConcurrentHashMap.newKeySet();
     private final Set<Long> retiredProgressions = ConcurrentHashMap.newKeySet();
+    private final Map<Long, Set<String>> completedKeysByProgression = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> openStageByProgression = new ConcurrentHashMap<>();
+    private final Map<Long, Set<String>> seenEventIds = new ConcurrentHashMap<>();
+    private final Set<Long> unreachableProgressions = ConcurrentHashMap.newKeySet();
+    private final Map<Long, List<ArfforniaApiDtos.ProgressionEvent>> receivedEvents = new ConcurrentHashMap<>();
 
     public static String compact(UUID uuid) {
         return uuid.toString().replace("-", "");
@@ -75,6 +80,30 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return this;
     }
 
+    public InMemoryProgressionBackend setOpenStage(long progressionId, int stage) {
+        openStageByProgression.put(progressionId, stage);
+        return this;
+    }
+
+    /** While set, events for this progression get no answer, as when the website is down (per id, so parallel tests do not interfere). */
+    public InMemoryProgressionBackend setUnreachable(long progressionId, boolean unreachable) {
+        if (unreachable) {
+            unreachableProgressions.add(progressionId);
+        } else {
+            unreachableProgressions.remove(progressionId);
+        }
+        return this;
+    }
+
+    public boolean isCompleted(long progressionId, String milestoneKey) {
+        return completedKeysByProgression.getOrDefault(progressionId, Set.of()).contains(milestoneKey);
+    }
+
+    /** Every event the website accepted an answer for, duplicates included. */
+    public List<ArfforniaApiDtos.ProgressionEvent> receivedEvents(long progressionId) {
+        return List.copyOf(receivedEvents.getOrDefault(progressionId, List.of()));
+    }
+
     public boolean isCompleted(long progressionId, int milestoneId) {
         return completedByProgression.getOrDefault(progressionId, Set.of()).contains(milestoneId);
     }
@@ -100,6 +129,47 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return CompletableFuture.completedFuture(
                 new ArfforniaApiDtos.ProgressionData((int) progressionId, new ArrayList<>(completed), null,
                         retiredProgressions.contains(progressionId)));
+    }
+
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId) {
+        if (!completedByProgression.containsKey(progressionId)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.completedFuture(state(progressionId));
+    }
+
+    /** Same answers as the website: duplicate by event id or by milestone key, 409 for a retired progression. */
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (unreachableProgressions.contains(progressionId)) {
+                return ArfforniaApiDtos.EventsReply.noAnswer();
+            }
+            if (!completedByProgression.containsKey(progressionId)) {
+                return new ArfforniaApiDtos.EventsReply(404, null);
+            }
+            if (retiredProgressions.contains(progressionId)) {
+                return new ArfforniaApiDtos.EventsReply(409, null);
+            }
+            Set<String> seen = seenEventIds.computeIfAbsent(progressionId, id -> ConcurrentHashMap.newKeySet());
+            Set<String> done = completedKeysByProgression.computeIfAbsent(progressionId, id -> ConcurrentHashMap.newKeySet());
+            List<ArfforniaApiDtos.EventResult> results = new ArrayList<>();
+            for (ArfforniaApiDtos.ProgressionEvent event : events) {
+                receivedEvents.computeIfAbsent(progressionId, id -> new CopyOnWriteArrayList<>()).add(event);
+                boolean applied = seen.add(event.id()) && done.add(event.milestone());
+                results.add(new ArfforniaApiDtos.EventResult(event.id(),
+                        applied ? ArfforniaApiDtos.EventResult.APPLIED : ArfforniaApiDtos.EventResult.DUPLICATE, null));
+            }
+            return new ArfforniaApiDtos.EventsReply(200, new ArfforniaApiDtos.EventsResponse(results, state(progressionId)));
+        }, CompletableFuture.delayedExecutor(ASYNC_DELAY_MS, TimeUnit.MILLISECONDS));
+    }
+
+    private ArfforniaApiDtos.ProgressionState state(long progressionId) {
+        List<ArfforniaApiDtos.CompletedMilestone> completed = completedKeysByProgression.getOrDefault(progressionId, Set.of()).stream()
+                .sorted().map(key -> new ArfforniaApiDtos.CompletedMilestone(key, "2026-01-01T00:00:00Z")).toList();
+        return new ArfforniaApiDtos.ProgressionState(progressionId, 1, retiredProgressions.contains(progressionId),
+                openStageByProgression.getOrDefault(progressionId, 1), completed);
     }
 
     @Override

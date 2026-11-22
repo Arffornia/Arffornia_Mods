@@ -59,6 +59,39 @@ public class ArfforniaApiService {
         return http.getJsonAsService("/progression/" + progressionId, ArfforniaApiDtos.ProgressionData.class, "progression " + progressionId, null);
     }
 
+    /** Keyed state of spec 017, read as the game server so private progressions are visible; null on failure. */
+    public CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId) {
+        return http.getJsonAsService("/progressions/" + progressionId + "/state", ArfforniaApiDtos.ProgressionState.class,
+                "progression state " + progressionId, null);
+    }
+
+    /** Posts events to the idempotent events endpoint; the reply carries the status so the caller can decide to retry. */
+    public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
+        JsonObject body = new JsonObject();
+        body.add("events", gson.toJsonTree(events));
+        String path = "/progressions/" + progressionId + "/events";
+        return http.sendAuthenticated(http.jsonPost(path, gson.toJson(body)))
+                .thenApply(response -> {
+                    if (response == null) {
+                        return ArfforniaApiDtos.EventsReply.noAnswer();
+                    }
+                    if (!ApiHttp.isSuccess(response.statusCode())) {
+                        Arffornia.LOGGER.warn("API POST {} answered {}: {}", path, response.statusCode(), response.body());
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), null);
+                    }
+                    try {
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), gson.fromJson(response.body(), ArfforniaApiDtos.EventsResponse.class));
+                    } catch (RuntimeException e) {
+                        Arffornia.LOGGER.error("API POST {} returned invalid JSON: {}", path, e.getMessage());
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), null);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.warn("API POST {} failed: {}", path, ex.getMessage());
+                    return ArfforniaApiDtos.EventsReply.noAnswer();
+                });
+    }
+
     /**
      * Fetches the PROGRESSION DATA for a specific player (completed milestones, target).
      *

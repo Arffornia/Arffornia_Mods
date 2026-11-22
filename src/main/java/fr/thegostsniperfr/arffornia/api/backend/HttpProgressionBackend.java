@@ -4,6 +4,7 @@ import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -25,6 +26,16 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     @Override
     public CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId) {
         return api.fetchProgressionData(progressionId);
+    }
+
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId) {
+        return api.fetchProgressionState(progressionId);
+    }
+
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
+        return api.sendProgressionEvents(progressionId, events);
     }
 
     @Override

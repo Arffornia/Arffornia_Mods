@@ -112,4 +112,49 @@ public class ArfforniaApiDtos {
             long activeProgressionId
     ) {
     }
+
+    /** {@code GET /progressions/{id}/state} (spec 017), keyed by milestone key. Only the fields the game uses. */
+    public record ProgressionState(
+            @SerializedName("progression_id") long progressionId,
+            @SerializedName("snapshot_version") int snapshotVersion,
+            boolean retired,
+            @SerializedName("open_stage") int openStage,
+            List<CompletedMilestone> completed
+    ) {
+    }
+
+    public record CompletedMilestone(String key, @SerializedName("completed_at") String completedAt) {
+    }
+
+    /** One entry of {@code POST /progressions/{id}/events}; only {@code milestone_completed} is sent by the game today. */
+    public record ProgressionEvent(
+            String id,
+            String type,
+            String milestone,
+            @SerializedName("occurred_at") long occurredAt,
+            @Nullable String actor
+    ) {
+        public static final String MILESTONE_COMPLETED = "milestone_completed";
+    }
+
+    public record EventResult(String id, String status, @Nullable String reason) {
+        public static final String APPLIED = "applied";
+        public static final String DUPLICATE = "duplicate";
+        public static final String REJECTED = "rejected";
+    }
+
+    public record EventsResponse(List<EventResult> results, @Nullable ProgressionState state) {
+    }
+
+    /**
+     * Outcome of an events call.
+     *
+     * @param status HTTP status, or 0 when no answer came back (network error, no service token)
+     * @param body   the parsed answer of a 2xx, else null
+     */
+    public record EventsReply(int status, @Nullable EventsResponse body) {
+        public static EventsReply noAnswer() {
+            return new EventsReply(0, null);
+        }
+    }
 }

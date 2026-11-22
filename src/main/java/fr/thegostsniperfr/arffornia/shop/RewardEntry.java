@@ -19,6 +19,7 @@ public sealed interface RewardEntry {
     Pattern GROUP = Pattern.compile("^[a-z0-9_-]{1,36}$");
     int MAX_ITEM_COUNT = 2304;
     int MAX_BOX_COUNT = 64;
+    int MAX_KEY_COUNT = 64;
 
     record Item(String item, int count) implements RewardEntry {
     }
@@ -30,6 +31,10 @@ public sealed interface RewardEntry {
     }
 
     record LuckyBox(String box, int count) implements RewardEntry {
+    }
+
+    /** Keys for a crate (spec 020), bound to the player who receives them. */
+    record Key(String crate, int count) implements RewardEntry {
     }
 
     /** A type this mod version does not know (added later on the website), or an entry that failed validation. */
@@ -76,6 +81,13 @@ public sealed interface RewardEntry {
                 yield matches(RESOURCE_ID, box) && inRange(count, MAX_BOX_COUNT)
                         ? new LuckyBox(box, count)
                         : new Unsupported(type, "invalid box or count");
+            }
+            case "key" -> {
+                String crate = string(json, "crate");
+                Integer count = integer(json, "count");
+                yield matches(RESOURCE_ID, crate) && inRange(count, MAX_KEY_COUNT)
+                        ? new Key(crate, count)
+                        : new Unsupported(type, "invalid crate or count");
             }
             default -> new Unsupported(type, "unknown type");
         };

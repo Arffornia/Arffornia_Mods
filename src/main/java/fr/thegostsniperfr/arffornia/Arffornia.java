@@ -10,6 +10,7 @@ import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
 import fr.thegostsniperfr.arffornia.graph.RecipeGraphDump;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
+import fr.thegostsniperfr.arffornia.item.ModDataComponents;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
@@ -61,6 +62,7 @@ public class Arffornia {
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
 
         ModItems.register(modEventBus);
+        ModDataComponents.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         ModBlockEntities.register(modEventBus);

@@ -11,6 +11,7 @@ public class ModItems {
             DeferredRegister.createItems(Arffornia.MODID);
 
     public static final DeferredItem<Item> WRENCH = ITEMS.register("wrench", WrenchItem::new);
+    public static final DeferredItem<CrateKeyItem> CRATE_KEY = ITEMS.register("crate_key", CrateKeyItem::new);
 
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);

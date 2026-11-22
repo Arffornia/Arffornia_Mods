@@ -4,6 +4,7 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.client.multiblock.MultiblockMachineRenderer;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.crate.CrateKeyModels;
 import fr.thegostsniperfr.arffornia.client.screen.CrafterScreen;
 import fr.thegostsniperfr.arffornia.client.screen.MachineScreen;
 import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
@@ -55,6 +56,12 @@ public class ArfforniaClient {
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
         event.register(SMELTER_FORMED_MODEL);
+        CrateKeyModels.registerAdditional(event);
+    }
+
+    @SubscribeEvent
+    public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+        CrateKeyModels.wrap(event);
     }
 
     @SubscribeEvent

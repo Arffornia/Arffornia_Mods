@@ -1,0 +1,11 @@
+{
+  "name": {"translate": "crate.arffornia.vote"},
+  "loot_table": "arffornia:crate/vote",
+  "key_model": "arffornia:item/key_vote",
+  "rarity": "uncommon",
+  "item_rarity": {
+    "minecraft:diamond": "rare",
+    "minecraft:totem_of_undying": "legendary"
+  },
+  "preview": "loot_table"
+}

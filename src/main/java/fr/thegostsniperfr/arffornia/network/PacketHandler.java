@@ -11,7 +11,8 @@ public final class PacketHandler {
     // 1.1: update_target_name carries a Component (translatable fallbacks) instead of a raw String.
     // 1.2: progression_state syncs the player's active progression.
     // 1.3: multiblocks syncs the structure templates for the Wrench hologram.
-    private static final String PROTOCOL_VERSION = "1.3";
+    // 1.4: crate definitions, opening sequence and preview (spec 020).
+    private static final String PROTOCOL_VERSION = "1.4";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
@@ -40,6 +41,12 @@ public final class PacketHandler {
                 ClientboundMultiblocksPacket.TYPE,
                 ClientboundMultiblocksPacket.STREAM_CODEC,
                 ClientboundMultiblocksPacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundCrateDefinitionsPacket.TYPE,
+                ClientboundCrateDefinitionsPacket.STREAM_CODEC,
+                ClientboundCrateDefinitionsPacket::handle
         );
 
         registrar.playToServer(

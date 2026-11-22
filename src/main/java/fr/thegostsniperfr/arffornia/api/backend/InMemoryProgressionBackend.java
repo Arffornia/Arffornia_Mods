@@ -99,6 +99,11 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return this;
     }
 
+    public InMemoryProgressionBackend allowMilestone(String key) {
+        refusedMilestones.remove(key);
+        return this;
+    }
+
     public ArfforniaApiDtos.ModelDocument model() {
         return new ArfforniaApiDtos.ModelDocument(1, List.copyOf(modelMilestones.values()));
     }
@@ -181,7 +186,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
             for (ArfforniaApiDtos.ProgressionEvent event : events) {
                 receivedEvents.computeIfAbsent(progressionId, id -> new CopyOnWriteArrayList<>()).add(event);
                 if (refusedMilestones.contains(event.milestone())) {
-                    results.add(new ArfforniaApiDtos.EventResult(event.id(), ArfforniaApiDtos.EventResult.REJECTED, "not_available"));
+                    results.add(new ArfforniaApiDtos.EventResult(event.id(), ArfforniaApiDtos.EventResult.REJECTED, "milestone_unavailable"));
                     continue;
                 }
                 boolean applied = seen.add(event.id()) && done.add(event.milestone());

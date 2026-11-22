@@ -82,10 +82,14 @@ public final class ProgressionModels extends SavedData {
         if (model.equals(models.model)) {
             return;
         }
+        boolean newVersion = model.version() != models.model.version();
         models.model = model;
         models.setDirty();
         Arffornia.LOGGER.info("Progression model version {} loaded ({} milestones).", model.version(), model.milestones().size());
-        ProgressionEventSender.forgetRefusals();
+        if (newVersion) {
+            // The website judged refused milestones with the old rules.
+            ProgressionEventSender.forgetRefusals();
+        }
         server.getPlayerList().getPlayers().forEach(MilestoneAdvancements::recheckInventoryLater);
     }
 

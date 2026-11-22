@@ -172,6 +172,7 @@ public final class ProgressionEventSender {
             Map<String, ProgressionEventOutbox.Pending> sent = new HashMap<>();
             batch.forEach(event -> sent.put(event.id(), event));
             Set<String> answered = new HashSet<>();
+            Set<String> refusedKeys = new HashSet<>();
             for (ArfforniaApiDtos.EventResult result : reply.body().results()) {
                 ProgressionEventOutbox.Pending event = sent.get(result.id());
                 if (event == null) {
@@ -185,10 +186,16 @@ public final class ProgressionEventSender {
                     } else {
                         REFUSED.computeIfAbsent(progressionId, id -> new HashSet<>()).add(event.milestoneKey());
                     }
+                    refusedKeys.add(event.milestoneKey());
                 }
             }
             outbox.remove(answered);
             RETRIES.remove(progressionId);
+            // A refused milestone (e.g. milestone_unavailable) stops counting in game; its advancement is revoked so it can fire again later.
+            refusedKeys.forEach(key -> {
+                Progressions.dropCompletedKey(server, progressionId, key);
+                MilestoneAdvancements.revokeForMembers(server, progressionId, key);
+            });
             if (reply.body().state() != null) {
                 ProgressionModels.ensureVersion(server, reply.body().state().snapshotVersion());
                 Progressions.applyKeyedState(server, progressionId, reply.body().state());

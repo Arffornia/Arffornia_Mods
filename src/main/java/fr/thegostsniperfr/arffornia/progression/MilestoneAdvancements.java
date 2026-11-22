@@ -4,6 +4,7 @@ import fr.thegostsniperfr.arffornia.Arffornia;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerPlayer;
@@ -82,6 +83,19 @@ public final class MilestoneAdvancements {
                 }
             }
         }));
+    }
+
+    /** The website refused the milestone: members' advancements are revoked so it can fire again once it is available. */
+    static void revokeForMembers(MinecraftServer server, long progressionId, String milestoneKey) {
+        AdvancementHolder holder = server.getAdvancements().get(advancementId(milestoneKey));
+        if (holder == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (Progressions.activeProgressionOf(player) == progressionId) {
+                revokeAll(player.getAdvancements(), holder);
+            }
+        }
     }
 
     private static void revokeAll(PlayerAdvancements advancements, AdvancementHolder holder) {

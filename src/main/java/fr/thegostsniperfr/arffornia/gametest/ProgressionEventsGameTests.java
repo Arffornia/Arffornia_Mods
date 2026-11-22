@@ -40,6 +40,11 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.RegistryOps;
+
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
@@ -337,12 +342,37 @@ public final class ProgressionEventsGameTests {
                     helper.assertTrue(ProgressionEventOutbox.get(server).pendingKeys(team).isEmpty(), "A refused event leaves the outbox");
                     helper.assertFalse(doneInGame(server, team, key), "The website's state wins over a refused milestone");
                 })
-                .thenExecute(() -> obtain(player, Items.SHULKER_SHELL))
+                .thenExecute(() -> {
+                    AdvancementHolder holder = server.getAdvancements().get(MilestoneAdvancements.advancementId(key));
+                    helper.assertFalse(player.getAdvancements().getOrStartProgress(holder).isDone(), "A refused milestone's advancement is revoked");
+                    obtain(player, Items.SHULKER_SHELL);
+                })
                 .thenExecuteAfter(20, () -> {
                     helper.assertTrue(backend().receivedEvents(team).size() == 1, "A refused milestone is not sent again, got "
                             + backend().receivedEvents(team).size());
-                    leave(server, player);
+                    backend().allowMilestone(key);
+                    Progressions.recordCompletedKey(server, team, "gametest/refused_unlocker_" + team);
                 })
+                .thenWaitUntil(() -> helper.assertTrue(backend().isCompleted(team, key),
+                        "Once more milestones are available, the kept item fires again and the website accepts it"))
+                .thenExecute(() -> leave(server, player))
                 .thenSucceed();
+    }
+
+    /** The exact criterion the website datapack (Website#169) writes for a craft milestone, item id or tag. */
+    @GameTest(template = PLATFORM)
+    public static void theWebsiteCraftCriterionParsesAndMatchesItsItems(GameTestHelper helper) {
+        RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, helper.getLevel().registryAccess());
+        JsonElement json = JsonParser.parseString(
+                "{\"trigger\": \"arffornia:item_crafted\", \"conditions\": {\"items\": [{\"items\": \"minecraft:lodestone\"}, {\"items\": \"#minecraft:logs\"}]}}");
+
+        Criterion<?> criterion = Criterion.CODEC.parse(ops, json).getOrThrow();
+
+        helper.assertTrue(criterion.trigger() == ModCriteriaTriggers.ITEM_CRAFTED.get(), "The trigger is arffornia:item_crafted");
+        ItemCraftedTrigger.TriggerInstance instance = (ItemCraftedTrigger.TriggerInstance) criterion.triggerInstance();
+        helper.assertTrue(instance.matches(new ItemStack(Items.LODESTONE)), "An item id matches");
+        helper.assertTrue(instance.matches(new ItemStack(Items.OAK_LOG)), "A tag matches");
+        helper.assertFalse(instance.matches(new ItemStack(Items.STONE)), "Other items do not match");
+        helper.succeed();
     }
 }

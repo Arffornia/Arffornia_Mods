@@ -70,6 +70,12 @@ public record ProgressionSnapshot(long id, Set<Integer> completedMilestones, @Nu
         return new ProgressionSnapshot(id, completedMilestones, currentMilestoneId, retired, keys, openStage);
     }
 
+    public ProgressionSnapshot withoutCompletedKey(String milestoneKey) {
+        Set<String> keys = new HashSet<>(completedKeys);
+        keys.remove(milestoneKey);
+        return new ProgressionSnapshot(id, completedMilestones, currentMilestoneId, retired, keys, openStage);
+    }
+
     public ProgressionSnapshot withKeyedState(Set<String> keys, int stage, boolean isRetired) {
         return new ProgressionSnapshot(id, completedMilestones, currentMilestoneId, retired || isRetired, keys, stage);
     }

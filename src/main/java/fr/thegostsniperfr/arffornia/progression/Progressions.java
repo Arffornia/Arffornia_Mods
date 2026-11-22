@@ -195,6 +195,14 @@ public final class Progressions {
         return winner == request;
     }
 
+    /** Drops a milestone the website refused, so gating stops using it before the next refresh. */
+    public static void dropCompletedKey(MinecraftServer server, long progressionId, String milestoneKey) {
+        find(server, progressionId).ifPresent(snapshot -> {
+            PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
+            store(server, snapshot.withoutCompletedKey(milestoneKey));
+        });
+    }
+
     /** Records a milestone the website just confirmed, so checks see it before the next refresh answers. */
     public static void recordCompleted(MinecraftServer server, long progressionId, int milestoneId) {
         find(server, progressionId).ifPresent(snapshot -> {

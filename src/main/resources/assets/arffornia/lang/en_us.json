@@ -78,6 +78,10 @@
   "chat.arffornia.rewards.busy": "Your rewards are already being claimed, please wait.",
   "chat.arffornia.rewards.unsupported": "Some of your rewards cannot be delivered on this server yet. They stay waiting for you.",
   "chat.arffornia.rewards.streak": "Daily login streak: day %s! A reward is waiting for you.",
+  "title.arffornia.rewards.streak": "Login streak: day %s",
+  "title.arffornia.rewards.pending": "Rewards waiting for you",
+  "title.arffornia.rewards.claim_hint": "Type %s",
+  "chat.arffornia.rewards.click_to_claim": "Click to claim your rewards",
 
   "commands.arffornia.claim_reward.cooldown": "Please wait before using this command again.",
   "commands.arffornia.claim_reward.checking": "Checking for pending rewards...",

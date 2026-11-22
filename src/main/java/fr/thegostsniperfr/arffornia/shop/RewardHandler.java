@@ -2,7 +2,12 @@ package fr.thegostsniperfr.arffornia.shop;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
@@ -44,19 +49,56 @@ public class RewardHandler {
     public void onPlayerJoined(ServerPlayer player) {
         UUID uuid = player.getUUID();
         client.recordDailyConnection(uuid)
-                .thenCompose(streak -> {
-                    if (streak != null && streak.firstConnectionToday()) {
-                        sendTo(uuid, Component.translatable("chat.arffornia.rewards.streak", streak.dayStreak()).withStyle(ChatFormatting.GOLD));
-                    }
-                    return client.fetchPending(uuid);
-                })
-                .thenAcceptAsync(result -> {
+                .thenCompose(streak -> client.fetchPending(uuid).thenApply(result -> {
                     boolean hasRewards = result instanceof RewardsClient.PendingResult.Found found && !found.rewards().isEmpty();
-                    if (hasRewards || !RewardClaimLedger.get(server).openClaimsOf(uuid).isEmpty()) {
-                        sendTo(uuid, Component.translatable("chat.arffornia.rewards.pending").withStyle(ChatFormatting.GREEN));
-                        sendTo(uuid, Component.translatable("chat.arffornia.rewards.claim_hint", Arffornia.CLAIM_REWARD_COMMAND.copy().withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.YELLOW));
-                    }
-                }, server);
+                    Integer day = streak != null && streak.firstConnectionToday() ? streak.dayStreak() : null;
+                    return new JoinNotice(day, hasRewards);
+                }))
+                .thenAcceptAsync(notice -> announce(uuid, notice.streakDay(),
+                        notice.hasRewards() || !RewardClaimLedger.get(server).openClaimsOf(uuid).isEmpty()), server);
+    }
+
+    private record JoinNotice(@Nullable Integer streakDay, boolean hasRewards) {
+    }
+
+    // The chat lines stay for the log; the title is what the player actually sees on join.
+    private void announce(UUID uuid, @Nullable Integer streakDay, boolean hasRewards) {
+        if (streakDay == null && !hasRewards) {
+            return;
+        }
+        ServerPlayer player = onlinePlayer.apply(uuid);
+        if (player == null) {
+            return;
+        }
+        Component command = claimCommand();
+        if (streakDay != null) {
+            player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.streak", streakDay).withStyle(ChatFormatting.GOLD));
+        }
+        if (hasRewards) {
+            player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.pending").withStyle(ChatFormatting.GREEN));
+            player.sendSystemMessage(Component.translatable("chat.arffornia.rewards.claim_hint", command).withStyle(ChatFormatting.YELLOW));
+        }
+
+        Component title = streakDay != null
+                ? Component.translatable("title.arffornia.rewards.streak", streakDay).withStyle(ChatFormatting.GOLD)
+                : Component.translatable("title.arffornia.rewards.pending").withStyle(ChatFormatting.GREEN);
+        player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
+        player.connection.send(new ClientboundSetTitleTextPacket(title));
+        if (hasRewards) {
+            player.connection.send(new ClientboundSetSubtitleTextPacket(
+                    Component.translatable("title.arffornia.rewards.claim_hint", Arffornia.CLAIM_REWARD_COMMAND.copy().withStyle(ChatFormatting.AQUA))
+                            .withStyle(ChatFormatting.YELLOW)));
+        }
+    }
+
+    /** The claim command, runnable by a click in the chat. */
+    static Component claimCommand() {
+        String command = Arffornia.CLAIM_REWARD_COMMAND.getString();
+        return Arffornia.CLAIM_REWARD_COMMAND.copy().withStyle(style -> style
+                .withColor(ChatFormatting.AQUA)
+                .withUnderlined(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("chat.arffornia.rewards.click_to_claim"))));
     }
 
     /** @return the claim flow, completed when every claim of this attempt has an outcome */

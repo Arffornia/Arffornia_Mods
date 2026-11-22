@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.api.backend;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -22,6 +23,15 @@ public interface ProgressionBackend {
 
     /** Progression (completed milestones, current target, retired), or null on failure. */
     CompletableFuture<ArfforniaApiDtos.ProgressionData> fetchProgressionData(long progressionId);
+
+    /** Keyed state of spec 017 (milestone keys, open stage), or null on failure or while no model is published. */
+    CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId);
+
+    /** The published model, revalidated with {@code etag} when not null. Never completes exceptionally. */
+    CompletableFuture<ArfforniaApiDtos.ModelReply> fetchProgressionModel(@Nullable String etag);
+
+    /** Sends at most 100 events to the idempotent events endpoint. Never completes exceptionally. */
+    CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events);
 
     /** Milestone details (requirements, unlocks), or null on failure. */
     CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int milestoneId);

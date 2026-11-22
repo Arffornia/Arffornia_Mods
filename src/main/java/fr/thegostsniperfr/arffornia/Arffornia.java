@@ -14,6 +14,7 @@ import fr.thegostsniperfr.arffornia.item.ModDataComponents;
 import fr.thegostsniperfr.arffornia.item.ModItems;
 import fr.thegostsniperfr.arffornia.network.ClientboundUpdateTargetNamePacket;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.ModCriteriaTriggers;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.ModRecipes;
 import fr.thegostsniperfr.arffornia.recipe.pack.RecipePack;
@@ -68,6 +69,7 @@ public class Arffornia {
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         ModAttachments.register(modEventBus);
+        ModCriteriaTriggers.register(modEventBus);
         ModRecipes.register(modEventBus);
         modEventBus.register(RecipePack.class);
 

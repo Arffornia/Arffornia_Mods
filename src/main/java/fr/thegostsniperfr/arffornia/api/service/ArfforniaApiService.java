@@ -59,6 +59,67 @@ public class ArfforniaApiService {
         return http.getJsonAsService("/progression/" + progressionId, ArfforniaApiDtos.ProgressionData.class, "progression " + progressionId, null);
     }
 
+    /** Keyed state of spec 017, read as the game server so private progressions are visible; null on failure. */
+    public CompletableFuture<ArfforniaApiDtos.ProgressionState> fetchProgressionState(long progressionId) {
+        return http.getJsonAsService("/progressions/" + progressionId + "/state", ArfforniaApiDtos.ProgressionState.class,
+                "progression state " + progressionId, null);
+    }
+
+    /** The published model; a matching {@code etag} answers 304 without a body. */
+    public CompletableFuture<ArfforniaApiDtos.ModelReply> fetchProgressionModel(@Nullable String etag) {
+        HttpRequest.Builder request = http.request("/progression/model").GET();
+        if (etag != null) {
+            request.header("If-None-Match", "\"" + etag + "\"");
+        }
+        return http.send(request.build())
+                .thenApply(response -> {
+                    String answeredEtag = response.headers().firstValue("ETag").map(tag -> tag.replaceFirst("^W/", "").replace("\"", "")).orElse(null);
+                    if (response.statusCode() != 200) {
+                        if (response.statusCode() != 304) {
+                            Arffornia.LOGGER.warn("API GET /progression/model answered {}", response.statusCode());
+                        }
+                        return new ArfforniaApiDtos.ModelReply(response.statusCode(), answeredEtag, null);
+                    }
+                    try {
+                        return new ArfforniaApiDtos.ModelReply(200, answeredEtag, gson.fromJson(response.body(), ArfforniaApiDtos.ModelDocument.class));
+                    } catch (RuntimeException e) {
+                        Arffornia.LOGGER.error("API GET /progression/model returned invalid JSON: {}", e.getMessage());
+                        return new ArfforniaApiDtos.ModelReply(0, null, null);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.warn("API GET /progression/model failed: {}", ex.getMessage());
+                    return new ArfforniaApiDtos.ModelReply(0, null, null);
+                });
+    }
+
+    /** Posts events to the idempotent events endpoint; the reply carries the status so the caller can decide to retry. */
+    public CompletableFuture<ArfforniaApiDtos.EventsReply> sendProgressionEvents(long progressionId, List<ArfforniaApiDtos.ProgressionEvent> events) {
+        JsonObject body = new JsonObject();
+        body.add("events", gson.toJsonTree(events));
+        String path = "/progressions/" + progressionId + "/events";
+        return http.sendAuthenticated(http.jsonPost(path, gson.toJson(body)))
+                .thenApply(response -> {
+                    if (response == null) {
+                        return ArfforniaApiDtos.EventsReply.noAnswer();
+                    }
+                    if (!ApiHttp.isSuccess(response.statusCode())) {
+                        Arffornia.LOGGER.warn("API POST {} answered {}: {}", path, response.statusCode(), response.body());
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), null);
+                    }
+                    try {
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), gson.fromJson(response.body(), ArfforniaApiDtos.EventsResponse.class));
+                    } catch (RuntimeException e) {
+                        Arffornia.LOGGER.error("API POST {} returned invalid JSON: {}", path, e.getMessage());
+                        return new ArfforniaApiDtos.EventsReply(response.statusCode(), null);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.warn("API POST {} failed: {}", path, ex.getMessage());
+                    return ArfforniaApiDtos.EventsReply.noAnswer();
+                });
+    }
+
     /**
      * Fetches the PROGRESSION DATA for a specific player (completed milestones, target).
      *

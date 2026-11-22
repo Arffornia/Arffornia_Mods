@@ -31,6 +31,9 @@ public final class Progressions {
     private static final Map<Long, Long> PROGRESSION_APPLIED = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> PLAYER_APPLIED = new ConcurrentHashMap<>();
 
+    private record Fetched(ArfforniaApiDtos.ProgressionData legacy, ArfforniaApiDtos.ProgressionState keyed) {
+    }
+
     private Progressions() {
     }
 
@@ -81,6 +84,9 @@ public final class Progressions {
             long previous = activeProgressionOf(player);
             long current = playerData.activeProgressionId();
             player.setData(ModAttachments.ACTIVE_PROGRESSION, current);
+            if (previous != current) {
+                MilestoneAdvancements.recheckInventoryLater(player);
+            }
             CompletableFuture<Void> refreshCurrent = refreshProgression(server, current);
             if (previous != current && previous != ModAttachments.NO_PROGRESSION) {
                 return CompletableFuture.allOf(refreshCurrent, refreshProgression(server, previous));
@@ -89,11 +95,19 @@ public final class Progressions {
         }, server);
     }
 
-    /** Re-reads one progression from the website, stores it and syncs it to the online players it is active for. */
+    /**
+     * Re-reads one progression from the website, stores it and syncs it to the online players it is active for.
+     * The old route still gives the milestone row ids the current datapack gates by; the keyed state of spec 017 gives
+     * milestone keys and the open stage. When only the keyed state fails (no model published yet), the last known keys stay.
+     */
     public static CompletableFuture<Void> refreshProgression(MinecraftServer server, long progressionId) {
         long request = REQUESTS.incrementAndGet();
-        return ProgressionBackends.get().fetchProgressionData(progressionId)
-                .thenAcceptAsync(data -> {
+        CompletableFuture<ArfforniaApiDtos.ProgressionData> legacy = ProgressionBackends.get().fetchProgressionData(progressionId);
+        CompletableFuture<ArfforniaApiDtos.ProgressionState> keyed = ProgressionBackends.get().fetchProgressionState(progressionId);
+        return legacy.thenCombine(keyed, Fetched::new)
+                .thenAcceptAsync(fetched -> {
+                    ArfforniaApiDtos.ProgressionData data = fetched.legacy();
+                    ArfforniaApiDtos.ProgressionState state = fetched.keyed();
                     if (!isNewest(PROGRESSION_APPLIED, progressionId, request)) {
                         return;
                     }
@@ -101,8 +115,43 @@ public final class Progressions {
                         Arffornia.LOGGER.warn("Could not refresh progression {}; keeping the last known state.", progressionId);
                         return;
                     }
-                    store(server, toSnapshot(progressionId, data));
+                    ProgressionSnapshot previous = find(server, progressionId).orElse(null);
+                    ProgressionSnapshot fresh = toSnapshot(progressionId, data);
+                    if (state != null) {
+                        ProgressionModels.ensureVersion(server, state.snapshotVersion());
+                        fresh = withKeyedState(server, fresh, state);
+                    } else if (previous != null) {
+                        fresh = fresh.withKeyedState(previous.completedKeys(), previous.openStage(), false);
+                    }
+                    store(server, fresh);
                 }, server);
+    }
+
+    /**
+     * Applies a keyed state the website just answered (state read or events reply). Milestones still waiting in the
+     * outbox stay completed: the website has not seen them yet. Call on the server thread.
+     */
+    public static void applyKeyedState(MinecraftServer server, long progressionId, ArfforniaApiDtos.ProgressionState state) {
+        find(server, progressionId).ifPresent(snapshot -> {
+            PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
+            store(server, withKeyedState(server, snapshot, state));
+        });
+    }
+
+    private static ProgressionSnapshot withKeyedState(MinecraftServer server, ProgressionSnapshot snapshot, ArfforniaApiDtos.ProgressionState state) {
+        Set<String> keys = new HashSet<>(ProgressionEventOutbox.get(server).pendingKeys(snapshot.id()));
+        if (state.completed() != null) {
+            state.completed().forEach(milestone -> keys.add(milestone.key()));
+        }
+        return snapshot.withKeyedState(keys, Math.max(1, state.openStage()), state.retired());
+    }
+
+    /** Records a milestone completed in game before the website confirms it, so gating sees it at once. */
+    public static void recordCompletedKey(MinecraftServer server, long progressionId, String milestoneKey) {
+        find(server, progressionId).ifPresent(snapshot -> {
+            PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
+            store(server, snapshot.withCompletedKey(milestoneKey));
+        });
     }
 
     /** Re-reads every stored progression, so machines learn about retirements that happened while the server was down. */
@@ -111,12 +160,27 @@ public final class Progressions {
     }
 
     public static void store(MinecraftServer server, ProgressionSnapshot snapshot) {
-        ProgressionStore.get(server).put(snapshot);
+        ProgressionStore store = ProgressionStore.get(server);
+        Optional<ProgressionSnapshot> previous = store.find(snapshot.id());
+        store.put(snapshot);
+        boolean moreAvailable = previous.map(before -> mayHaveMoreAvailable(before, snapshot)).orElse(true);
+        if (moreAvailable) {
+            ProgressionEventSender.forgetRefusals(snapshot.id());
+        }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (activeProgressionOf(player) == snapshot.id()) {
                 PacketDistributor.sendToPlayer(player, new ClientboundProgressionStatePacket(snapshot));
+                MilestoneAdvancements.reconcile(player, snapshot);
+                if (moreAvailable) {
+                    MilestoneAdvancements.recheckInventoryLater(player);
+                }
             }
         }
+    }
+
+    /** A milestone done or a stage opened may make other milestones available (rule 3). */
+    private static boolean mayHaveMoreAvailable(ProgressionSnapshot before, ProgressionSnapshot after) {
+        return Math.max(1, after.openStage()) > Math.max(1, before.openStage()) || !before.completedKeys().containsAll(after.completedKeys());
     }
 
     /** Sends the player's last known state, without waiting for the website. */
@@ -131,13 +195,19 @@ public final class Progressions {
         return winner == request;
     }
 
+    /** Drops a milestone the website refused, so gating stops using it before the next refresh. */
+    public static void dropCompletedKey(MinecraftServer server, long progressionId, String milestoneKey) {
+        find(server, progressionId).ifPresent(snapshot -> {
+            PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
+            store(server, snapshot.withoutCompletedKey(milestoneKey));
+        });
+    }
+
     /** Records a milestone the website just confirmed, so checks see it before the next refresh answers. */
     public static void recordCompleted(MinecraftServer server, long progressionId, int milestoneId) {
         find(server, progressionId).ifPresent(snapshot -> {
             PROGRESSION_APPLIED.merge(progressionId, REQUESTS.incrementAndGet(), Math::max);
-            Set<Integer> completed = new HashSet<>(snapshot.completedMilestones());
-            completed.add(milestoneId);
-            store(server, new ProgressionSnapshot(progressionId, completed, snapshot.currentMilestoneId(), snapshot.retired()));
+            store(server, snapshot.withCompletedMilestone(milestoneId));
         });
     }
 

@@ -171,7 +171,11 @@ public final class SmelterGameTests {
 
     /** Raw iron + coal into iron ingots, behind milestone {@code id}; ingredients unique to the test so recipes do not collide. */
     private static MachineRecipe ironRecipe(int id, Item input) {
-        return new MachineRecipe(MachineTypes.SMELTER.id(), Optional.of(Stages.milestoneStage(id)),
+        return ironRecipe(Stages.milestoneStage(id), input);
+    }
+
+    private static MachineRecipe ironRecipe(String gate, Item input) {
+        return new MachineRecipe(MachineTypes.SMELTER.id(), Optional.of(gate),
                 List.of(SizedIngredient.of(input, 2)), List.of(new ItemStack(Items.IRON_INGOT, 1)), 100, 10);
     }
 
@@ -273,6 +277,27 @@ public final class SmelterGameTests {
 
         helper.assertTrue(locked == Multiblocks.Result.LOCKED, "Formation must wait for the milestone, got " + locked);
         helper.assertTrue(unlocked == Multiblocks.Result.FORMED, "Formation should succeed once unlocked, got " + unlocked);
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void machineOfTheNextStageDoesNotFormAtTheCurrentStage(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        MinecraftServer server = helper.getLevel().getServer();
+        Built built = build(helper, Rotation.NONE, Mirror.NONE);
+        FakePlayer player = playerOnProgression(helper, id);
+        Progressions.store(server, Progressions.find(server, id).orElseThrow().withOpenStage(2));
+        MultiblockDefinition smelter = MultiblockDefinitions.forTrigger(helper.getLevel(), ModBlocks.SMELTER_CONTROLLER.get()).orElseThrow();
+        MultiblockDefinition stageThree = new MultiblockDefinition(smelter.id(), smelter.shape(), smelter.trigger(), smelter.master(),
+                Optional.of(Stages.stage(3)));
+        BlockPos controller = helper.absolutePos(built.at(CONTROLLER));
+
+        Multiblocks.Result atStageTwo = Multiblocks.tryForm(helper.getLevel(), controller, player, stageThree);
+        Progressions.store(server, Progressions.find(server, id).orElseThrow().withOpenStage(3));
+        Multiblocks.Result atStageThree = Multiblocks.tryForm(helper.getLevel(), controller, player, stageThree);
+
+        helper.assertTrue(atStageTwo == Multiblocks.Result.LOCKED, "A stage 3 machine must not form at stage 2, got " + atStageTwo);
+        helper.assertTrue(atStageThree == Multiblocks.Result.FORMED, "It forms once stage 3 is open, got " + atStageThree);
         helper.succeed();
     }
 
@@ -488,6 +513,23 @@ public final class SmelterGameTests {
                 helper.assertTrue(out.is(Items.IRON_INGOT), "The Smelter should smelt once its progression has the stage");
                 helper.assertTrue(machine.energy().getEnergyStored() <= 10_000 - 100, "A craft should cost its energy, left " + machine.energy().getEnergyStored());
             });
+        });
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 200)
+    public static void smelterWaitsForItsMilestoneKeyThenSmelts(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        String key = "gametest/smelter_" + id;
+        registerRecipe(helper, id, ironRecipe(Stages.milestoneStage(key), Items.RAW_IRON_BLOCK));
+        MultiblockMachineBlockEntity machine = formed(helper, id);
+        machine.items().setStackInSlot(0, new ItemStack(Items.RAW_IRON_BLOCK, 4));
+        machine.energy().receiveEnergy(10_000, false);
+
+        helper.runAfterDelay(40, () -> {
+            helper.assertTrue(machine.status() == MachineStatus.LOCKED, "A recipe behind an undone milestone key must not run, got " + machine.status());
+            Progressions.recordCompletedKey(helper.getLevel().getServer(), id, key);
+            helper.succeedWhen(() -> helper.assertTrue(machine.items().getStackInSlot(MachineTypes.SMELTER.layout().outputSlot(0)).is(Items.IRON_INGOT),
+                    "The Smelter should smelt once the milestone key is done"));
         });
     }
 

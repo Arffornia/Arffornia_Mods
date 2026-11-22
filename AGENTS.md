@@ -62,6 +62,12 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 - A machine belongs to the progression it was placed for (#18): linked synchronously from the placer's synced
   progression, it keeps it across team changes and stops while that progression is retired (team soft-deleted).
   `-1` (pre-#18 saves) means unlinked: pick it up and place it again. Gameplay reads `Progressions`, never HTTP.
+- Spec 017 milestones are keyed by **key**, never row id. Gates are `arffornia:stage/<n>`, `arffornia:milestone/<key>`
+  or the legacy `arffornia:milestone/<id>` (all digits, what today's datapack emits). Detection: a hidden advancement
+  `arffornia:milestone/<key>` (no display; `inventory_changed` for obtain, `arffornia:item_crafted` for craft) completes
+  the milestone for the player's active progression at once, only when it is available (rule 3, from the model read
+  with its ETag into `ProgressionModels`; otherwise the advancement is revoked); the event waits in `ProgressionEventOutbox` (SavedData)
+  until `POST /progressions/{id}/events` acknowledges it, with retry. Stages are opened by the website only.
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.

@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.progression;
 
+import fr.thegostsniperfr.arffornia.util.ServerLang;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
@@ -56,16 +57,16 @@ public sealed interface MilestoneResult {
     default Component message(String milestoneName, Function<String, String> titleOf) {
         String prefix = "message.arffornia.milestone.";
         return switch (this) {
-            case Completed ignored -> Component.translatable(prefix + "completed", milestoneName).withStyle(ChatFormatting.GREEN);
-            case AlreadyDone ignored -> Component.translatable(prefix + "already_done", milestoneName).withStyle(ChatFormatting.YELLOW);
-            case StageClosed closed -> Component.translatable(prefix + "stage_closed", milestoneName, closed.stage()).withStyle(ChatFormatting.RED);
-            case MissingPrerequisites missing -> Component.translatable(prefix + "missing_prerequisites", milestoneName,
+            case Completed ignored -> ServerLang.translatable(prefix + "completed", milestoneName).withStyle(ChatFormatting.GREEN);
+            case AlreadyDone ignored -> ServerLang.translatable(prefix + "already_done", milestoneName).withStyle(ChatFormatting.YELLOW);
+            case StageClosed closed -> ServerLang.translatable(prefix + "stage_closed", milestoneName, closed.stage()).withStyle(ChatFormatting.RED);
+            case MissingPrerequisites missing -> ServerLang.translatable(prefix + "missing_prerequisites", milestoneName,
                     String.join(", ", missing.milestoneKeys().stream().map(titleOf).toList())).withStyle(ChatFormatting.RED);
-            case UnknownMilestone ignored -> Component.translatable(prefix + "unknown", milestoneName).withStyle(ChatFormatting.RED);
-            case NoProgression ignored -> Component.translatable(prefix + "no_progression").withStyle(ChatFormatting.RED);
-            case Retired ignored -> Component.translatable(prefix + "retired").withStyle(ChatFormatting.RED);
-            case NotReady ignored -> Component.translatable(prefix + "not_ready").withStyle(ChatFormatting.YELLOW);
-            case Refused ignored -> Component.translatable(prefix + "refused", milestoneName).withStyle(ChatFormatting.RED);
+            case UnknownMilestone ignored -> ServerLang.translatable(prefix + "unknown", milestoneName).withStyle(ChatFormatting.RED);
+            case NoProgression ignored -> ServerLang.translatable(prefix + "no_progression").withStyle(ChatFormatting.RED);
+            case Retired ignored -> ServerLang.translatable(prefix + "retired").withStyle(ChatFormatting.RED);
+            case NotReady ignored -> ServerLang.translatable(prefix + "not_ready").withStyle(ChatFormatting.YELLOW);
+            case Refused ignored -> ServerLang.translatable(prefix + "refused", milestoneName).withStyle(ChatFormatting.RED);
         };
     }
 }

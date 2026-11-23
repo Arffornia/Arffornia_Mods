@@ -57,4 +57,14 @@ public final class HttpProgressionBackend implements ProgressionBackend {
     public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId) {
         return api.setTargetMilestone(playerUuid, milestoneId);
     }
+
+    @Override
+    public CompletableFuture<Boolean> setTargetMilestoneKey(UUID playerUuid, String milestoneKey) {
+        return api.setTargetMilestoneKey(playerUuid, milestoneKey);
+    }
+
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.EmbedToken> mintEmbedToken(UUID playerUuid) {
+        return api.mintEmbedToken(playerUuid);
+    }
 }

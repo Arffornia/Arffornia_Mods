@@ -27,6 +27,8 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     private final Map<Long, Set<Integer>> completedByProgression = new ConcurrentHashMap<>();
     private final Map<Integer, ArfforniaApiDtos.MilestoneDetails> milestones = new ConcurrentHashMap<>();
     private final Map<String, Integer> targetByPlayer = new ConcurrentHashMap<>();
+    private final Map<String, String> targetKeyByPlayer = new ConcurrentHashMap<>();
+    private final Map<String, Integer> embedTokensByPlayer = new ConcurrentHashMap<>();
     private final Set<Long> retiredProgressions = ConcurrentHashMap.newKeySet();
     private final Map<Long, Set<String>> completedKeysByProgression = new ConcurrentHashMap<>();
     private final Map<Long, Integer> openStageByProgression = new ConcurrentHashMap<>();
@@ -195,11 +197,37 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
 
     @Override
     public CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId) {
+        targetKeyByPlayer.remove(compact(playerUuid));
         if (milestoneId == null) {
             targetByPlayer.remove(compact(playerUuid));
         } else {
             targetByPlayer.put(compact(playerUuid), milestoneId);
         }
         return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> setTargetMilestoneKey(UUID playerUuid, String milestoneKey) {
+        targetKeyByPlayer.put(compact(playerUuid), milestoneKey);
+        targetByPlayer.remove(compact(playerUuid));
+        return CompletableFuture.completedFuture(true);
+    }
+
+    /** The key last targeted through {@link #setTargetMilestoneKey}, or null after a clear or when none was. */
+    @Nullable
+    public String targetKeyOf(UUID playerUuid) {
+        return targetKeyByPlayer.get(compact(playerUuid));
+    }
+
+    /** Offline dev runs point the page at a local website ({@code php artisan serve}). */
+    @Override
+    public CompletableFuture<ArfforniaApiDtos.EmbedToken> mintEmbedToken(UUID playerUuid) {
+        int minted = embedTokensByPlayer.merge(compact(playerUuid), 1, Integer::sum);
+        String url = System.getProperty("arffornia.embedUrl", "http://127.0.0.1:8000/embed/progression");
+        return CompletableFuture.completedFuture(new ArfforniaApiDtos.EmbedToken("fake-embed-token-" + minted, System.currentTimeMillis() / 1000 + 900, url));
+    }
+
+    public int embedTokensMinted(UUID playerUuid) {
+        return embedTokensByPlayer.getOrDefault(compact(playerUuid), 0);
     }
 }

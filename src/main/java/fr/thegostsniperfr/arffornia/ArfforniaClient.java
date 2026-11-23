@@ -4,6 +4,9 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.client.multiblock.MultiblockMachineRenderer;
 import fr.thegostsniperfr.arffornia.client.Keybindings;
+import fr.thegostsniperfr.arffornia.client.web.ProgressionWebSession;
+import fr.thegostsniperfr.arffornia.client.web.WebProgression;
+import fr.thegostsniperfr.arffornia.progression.web.ProgressionWebHooks;
 import fr.thegostsniperfr.arffornia.client.crate.CrateKeyModels;
 import fr.thegostsniperfr.arffornia.client.crate.CratePreviewScreen;
 import fr.thegostsniperfr.arffornia.client.crate.CrateRenderer;
@@ -40,6 +43,8 @@ public class ArfforniaClient {
 
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         CrateClientHooks.set(CratePreviewScreen::open);
+        ProgressionWebHooks.set(ProgressionWebSession.INSTANCE);
+        WebProgression.init();
 
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.CRAFTER_BLOCK.get(), RenderType.cutout());

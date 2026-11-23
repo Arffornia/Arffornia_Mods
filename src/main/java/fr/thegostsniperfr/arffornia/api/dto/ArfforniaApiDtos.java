@@ -176,4 +176,19 @@ public class ArfforniaApiDtos {
             return new EventsReply(0, null);
         }
     }
+
+    /**
+     * Read-only token of the in-game progression page ({@code POST /progression/embed-tokens}) and the page URL.
+     * {@link #toString()} hides the token so it never reaches a log line.
+     */
+    public record EmbedToken(String token, @SerializedName("expires_at") long expiresAt, String url) {
+        public boolean isComplete() {
+            return token != null && !token.isBlank() && url != null && !url.isBlank() && expiresAt > 0;
+        }
+
+        @Override
+        public String toString() {
+            return "EmbedToken[url=" + url + ", expiresAt=" + expiresAt + "]";
+        }
+    }
 }

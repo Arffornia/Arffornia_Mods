@@ -43,4 +43,10 @@ public interface ProgressionBackend {
 
     /** Sets (or clears, with null) the player's target milestone. */
     CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId);
+
+    /** Targets a milestone by key; false when the backend refuses it. */
+    CompletableFuture<Boolean> setTargetMilestoneKey(UUID playerUuid, String milestoneKey);
+
+    /** A read-only token of the in-game progression page, or null. */
+    CompletableFuture<ArfforniaApiDtos.EmbedToken> mintEmbedToken(UUID playerUuid);
 }

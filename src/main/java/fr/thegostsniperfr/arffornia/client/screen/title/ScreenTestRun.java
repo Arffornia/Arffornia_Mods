@@ -20,8 +20,8 @@ import net.neoforged.neoforge.client.event.RenderFrameEvent;
  * Layer 2 of the spec 007 screen tests, inert unless {@code -Darffornia.screens.test=<dir>} is set
  * (the {@code clientScreens} dev run): screenshots the title screen at each GUI scale in the language
  * of {@code options.txt} once it has rendered for a while, writes the GL renderer next to them, then
- * quits. One run per language: with WebGUI loaded, the resource reload of a language switch crashed
- * the JVM in libharfbuzz on the Ubuntu CI runner.
+ * halts. With WebGUI loaded, closing the TTF fonts (on a language switch's reload or on a normal quit)
+ * crashed the JVM in libharfbuzz on the Ubuntu CI runner: one run per language, no clean shutdown.
  */
 @EventBusSubscriber(modid = Arffornia.MODID, value = Dist.CLIENT)
 public final class ScreenTestRun {
@@ -58,7 +58,7 @@ public final class ScreenTestRun {
         }
         if (next >= GUI_SCALES.size()) {
             Arffornia.LOGGER.info("Screen test done: {} shots in {}", GUI_SCALES.size(), dir);
-            mc.stop();
+            Runtime.getRuntime().halt(0);
             return;
         }
         int guiScale = GUI_SCALES.get(next);

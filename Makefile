@@ -51,10 +51,12 @@ screens:
 	test -f $(WEBGUI_JAR) || curl -fsSL -o $(WEBGUI_JAR) $(WEBGUI_URL)
 	echo "$(WEBGUI_SHA1)  $(WEBGUI_JAR)" | sha1sum -c --quiet
 	printf 'earlyWindowProvider = "arffornia"\nearlyWindowFBScale = 2\nearlyWindowWidth = 1920\nearlyWindowHeight = 1080\n' > run/screens/config/fml.toml
-	printf 'onboardAccessibility:false\nlang:en_us\n' > run/screens/options.txt
 	mkdir -p run/screens/arffornia
 	printf '{"id":1,"title":"Season 2 opens Friday","date":"2026-11-20","url":"http://127.0.0.1:8000/news/1"}' > run/screens/arffornia/news.json
-	$(GRADLE) $(GRADLE_ARGS) runClientScreens
+	for lang in en_us fr_fr; do \
+		printf 'onboardAccessibility:false\nlang:%s\n' $$lang > run/screens/options.txt && \
+		$(GRADLE) $(GRADLE_ARGS) runClientScreens || exit 1; \
+	done
 	python3 tools/screens/screens.py compare build/screens-report $(SCREENS_DIRS)
 
 ## screens-approve: copy the last screens run into src/test/screens/baselines

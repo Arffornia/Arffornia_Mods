@@ -18,21 +18,20 @@ import net.neoforged.neoforge.client.event.RenderFrameEvent;
 
 /**
  * Layer 2 of the spec 007 screen tests, inert unless {@code -Darffornia.screens.test=<dir>} is set
- * (the {@code clientScreens} dev run): screenshots the title screen in each language and GUI scale
- * once it has rendered for a while, writes the GL renderer next to them, then quits.
+ * (the {@code clientScreens} dev run): screenshots the title screen at each GUI scale in the language
+ * of {@code options.txt} once it has rendered for a while, writes the GL renderer next to them, then
+ * quits. One run per language: with WebGUI loaded, the resource reload of a language switch crashed
+ * the JVM in libharfbuzz on the Ubuntu CI runner.
  */
 @EventBusSubscriber(modid = Arffornia.MODID, value = Dist.CLIENT)
 public final class ScreenTestRun {
     static final String PROPERTY = "arffornia.screens.test";
     private static final int FRAMES = 60;
     private static final long SETTLE_MS = 4000;
-    private record Shot(String language, int guiScale) {}
-
-    private static final List<Shot> SHOTS = List.of(new Shot("en_us", 2), new Shot("en_us", 4), new Shot("fr_fr", 2), new Shot("fr_fr", 4));
+    private static final List<Integer> GUI_SCALES = List.of(2, 4);
     private static int next;
     private static int frames;
     private static long shownAt;
-    private static boolean waitingForReload;
     private static boolean started;
 
     private ScreenTestRun() {}
@@ -57,30 +56,18 @@ public final class ScreenTestRun {
             Files.createDirectories(dir);
             Files.writeString(dir.resolve("gl.txt"), GlUtil.getRenderer() + "\n" + GlUtil.getOpenGLVersion() + "\n", StandardCharsets.UTF_8);
         }
-        if (next >= SHOTS.size()) {
-            Arffornia.LOGGER.info("Screen test done: {} shots in {}", SHOTS.size(), dir);
+        if (next >= GUI_SCALES.size()) {
+            Arffornia.LOGGER.info("Screen test done: {} shots in {}", GUI_SCALES.size(), dir);
             mc.stop();
             return;
         }
-        Shot shot = SHOTS.get(next);
-        if (waitingForReload) {
-            waitingForReload = false;
-            show(mc, shot);
-            return;
-        }
-        if (!mc.options.languageCode.equals(shot.language())) {
-            mc.options.languageCode = shot.language();
-            mc.getLanguageManager().setSelected(shot.language());
-            waitingForReload = true;
-            mc.reloadResourcePacks();
-            return;
-        }
-        if (mc.options.guiScale().get() != shot.guiScale() || shownAt == 0) {
-            show(mc, shot);
+        int guiScale = GUI_SCALES.get(next);
+        if (mc.options.guiScale().get() != guiScale || shownAt == 0) {
+            show(mc, guiScale);
             return;
         }
         if (++frames < FRAMES || Util.getMillis() - shownAt < SETTLE_MS) return;
-        Path file = dir.resolve("title.%s.gui%d.png".formatted(shot.language(), shot.guiScale()));
+        Path file = dir.resolve("title.%s.gui%d.png".formatted(mc.options.languageCode, guiScale));
         try (NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget())) {
             image.writeToFile(file);
         }
@@ -89,8 +76,8 @@ public final class ScreenTestRun {
         shownAt = 0;
     }
 
-    private static void show(Minecraft mc, Shot shot) {
-        mc.options.guiScale().set(shot.guiScale());
+    private static void show(Minecraft mc, int guiScale) {
+        mc.options.guiScale().set(guiScale);
         mc.resizeDisplay();
         mc.setScreen(new ArfTitleScreen());
         frames = 0;

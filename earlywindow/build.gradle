@@ -58,6 +58,9 @@ tasks.named('jar', Jar).configure {
 
 tasks.named('test', Test).configure {
     useJUnitPlatform()
+    // FML's classes start log4j, which writes logs/ into the working directory.
+    workingDir = layout.buildDirectory.dir('test-run').get().asFile
+    doFirst { workingDir.mkdirs() }
 }
 
 tasks.withType(JavaCompile).configureEach {

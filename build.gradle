@@ -108,6 +108,15 @@ neoForge {
             programArgument('--uuid=2e37710b-badc-3da5-9394-c457da548c14')
         }
 
+        // Spec 007 screen tests, layer 2: screenshots the title screen and quits (see make screens).
+        clientScreens {
+            client()
+            gameDirectory = project.file('run/screens')
+            systemProperty 'arffornia.screens.test', project.file('build/screens').absolutePath
+            systemProperty 'arffornia.screens.testClock', '2500'
+            programArgument('--username=ScreenTest')
+        }
+
         server {
             server()
             programArgument '--nogui'

@@ -115,7 +115,7 @@ final class WebProgressionScreen extends Screen {
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
         WebBrowser browser = WebProgression.browser();
-        if (browser != null) {
+        if (browser != null && !WebProgression.sendPrintableKey(browser, true, keyCode, scanCode, modifiers)) {
             browser.sendKeyPress(keyCode, scanCode, modifiers);
         }
         return true;
@@ -124,7 +124,7 @@ final class WebProgressionScreen extends Screen {
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         WebBrowser browser = WebProgression.browser();
-        if (browser != null) {
+        if (browser != null && !WebProgression.sendPrintableKey(browser, false, keyCode, scanCode, modifiers)) {
             browser.sendKeyRelease(keyCode, scanCode, modifiers);
         }
         return true;

@@ -11,9 +11,14 @@ import net.minecraft.client.Minecraft;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
+import org.cef.browser.OffscreenBrowser;
 import org.cef.callback.CefQueryCallback;
 import org.cef.handler.CefMessageRouterHandlerAdapter;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
+
+import java.awt.event.KeyEvent;
+import java.lang.reflect.Method;
 
 /**
  * The website's progression viewer in WebGUI's embedded Chromium (spec 018 D2 a). One browser for the session,
@@ -30,6 +35,8 @@ public final class WebProgression {
     @Nullable private static WebBrowser browser;
     @Nullable private static CefMessageRouter router;
     private static boolean bridgeInstalled;
+    @Nullable private static Method offscreenOf;
+    private static boolean offscreenUnavailable;
 
     private WebProgression() {
     }
@@ -37,6 +44,16 @@ public final class WebProgression {
     /** From client setup: installs the bridge once the browser runtime is up. */
     public static void init() {
         ProgressionWebSession.INSTANCE.onUrl(WebProgression::reload);
+        WebBrowser.addListener(new WebBrowser.Listener() {
+            @Override
+            public void onLoadEnd(WebBrowser loaded, String url, int status) {
+                Minecraft.getInstance().execute(() -> {
+                    if (loaded == browser) {
+                        applyZoom(loaded);
+                    }
+                });
+            }
+        });
         WebBrowser.whenReady(() -> Minecraft.getInstance().execute(WebProgression::installBridge));
     }
 
@@ -78,6 +95,7 @@ public final class WebProgression {
             return;
         }
         current.resize(pixelWidth, pixelHeight);
+        applyZoom(current);
         current.setWindowlessFrameRate(ClientConfig.WEB_FPS.get());
         current.setFocus(true);
         current.executeJavaScript("window.dispatchEvent(new Event('arffornia:shown'))", "", 0);
@@ -87,6 +105,47 @@ public final class WebProgression {
         if (browser != null) {
             browser.setFocus(false);
             browser.setWindowlessFrameRate(HIDDEN_FPS);
+        }
+    }
+
+    /** Chromium keeps the zoom per host and drops one set before the page loaded, hence also on every load end. */
+    private static void applyZoom(WebBrowser target) {
+        target.setZoomLevel(PageKeys.zoomLevel(Minecraft.getInstance().getWindow().getGuiScale()));
+    }
+
+    /** True when the key went to the page with its character; false leaves it to WebGUI's own forwarding. */
+    static boolean sendPrintableKey(WebBrowser target, boolean pressed, int glfwKey, int scanCode, int glfwMods) {
+        char keyChar = PageKeys.keyChar(GLFW.glfwGetKeyName(glfwKey, scanCode), glfwMods);
+        if (keyChar == KeyEvent.CHAR_UNDEFINED) {
+            return false;
+        }
+        OffscreenBrowser offscreen = offscreen(target);
+        if (offscreen == null) {
+            return false;
+        }
+        offscreen.send(new KeyEvent(offscreen.eventSource(), pressed ? KeyEvent.KEY_PRESSED : KeyEvent.KEY_RELEASED,
+                System.currentTimeMillis(), PageKeys.awtModifiers(glfwMods), PageKeys.awtKeyCode(glfwKey), keyChar));
+        return true;
+    }
+
+    /** WebGUI 2.0.0 has no public way to send a key event with its character, so reach its JCEF browser. */
+    @Nullable
+    private static OffscreenBrowser offscreen(WebBrowser target) {
+        Object view = target.view();
+        if (view == null || offscreenUnavailable) {
+            return null;
+        }
+        try {
+            if (offscreenOf == null) {
+                Method method = view.getClass().getDeclaredMethod("browser");
+                method.setAccessible(true);
+                offscreenOf = method;
+            }
+            return offscreenOf.invoke(view) instanceof OffscreenBrowser offscreen ? offscreen : null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            offscreenUnavailable = true;
+            Arffornia.LOGGER.warn("Progression viewer: cannot send typed keys to the page, shortcuts may not work ({})", e.toString());
+            return null;
         }
     }
 

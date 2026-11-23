@@ -18,17 +18,18 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The round 4b early window of spec 007 (Assets `early/window-line.html`): night backdrop, the
- * assembly line as a seamless 12 fps clip cross-faded between frames, the baked logo and wordmark, then every line a player reads
+ * assembly line drawn live from baked layers ({@link EarlyFactory}), the baked logo and wordmark, then every line a player reads
  * drawn live in their language. Coordinates are the mock-up's 854x480 CSS pixels.
  */
 final class EarlyScene {
     static final String FIRST_FRAME_MARKER = "[arffornia-earlywindow] FIRST_FRAME";
     private static final Logger LOGGER = LoggerFactory.getLogger("ArfforniaEarlyWindow");
     private static final AtomicReference<Shot> SHOT = new AtomicReference<>();
+    /** Test hook: told the start and end (nanoTime) of every paint. */
+    static volatile java.util.function.BiConsumer<Long, Long> paintProbe;
     // Above the 12 units Minecraft's GlStateManager tracks, so the overlay phase cannot clobber them.
     private static final int UNIT = 20;
-    private static final int LINE_FRAMES = 80;
-    private static final float LINE_FPS = 12, LINE_X = 187, LINE_Y = 20, LINE_W = 480, LINE_H = 288;
+    private static final float LINE_X = 187, LINE_Y = 20, LINE_W = 480, LINE_H = 288;
     private static final float BAR_X = 252, BAR_Y = 416, BAR_W = 350, BAR_H = 4;
     private static final float MOTD_MAX_WIDTH = 760;
 
@@ -41,7 +42,7 @@ final class EarlyScene {
     private final LoadingProgress progress = new LoadingProgress();
     private final SimpleBufferBuilder bb = new SimpleBufferBuilder(1);
     private EarlyTexture backdrop, overlay;
-    private EarlyClip line;
+    private EarlyFactory line;
     private EarlyFont small, legal, motdFont, motdFontSmall;
     private boolean firstFrameAnnounced;
 
@@ -61,8 +62,8 @@ final class EarlyScene {
     private void init(int scale) {
         String suffix = scale >= 2 ? "@2x" : "";
         backdrop = EarlyTexture.load("backdrop" + suffix + ".png");
-        overlay = EarlyTexture.load("overlay" + suffix + ".png");
-        line = new EarlyClip("line", LINE_FRAMES, LINE_FPS);
+        overlay = EarlyTexture.load("overlay" + (scale >= 3 ? "@4x" : suffix) + ".png", true, false);
+        line = new EarlyFactory("factory");
         ByteBuffer ttf = EarlyTexture.resource("ChakraPetch-Medium.ttf");
         small = new EarlyFont(ttf, 10.5f, scale);
         legal = new EarlyFont(ttf, 10f, scale);
@@ -71,6 +72,7 @@ final class EarlyScene {
     }
 
     void paint(RenderElement.DisplayContext ctx) {
+        long started = System.nanoTime();
         int s = ctx.scale();
         if (backdrop == null) {
             init(s);
@@ -81,9 +83,8 @@ final class EarlyScene {
         int alpha = 255;
 
         image(shader, backdrop, 0, 0, 854, 480, 0, 0, 1, 1, s, white(alpha));
-        var clip = line.at(t);
-        image(shader, clip.current(), LINE_X, LINE_Y, LINE_W, LINE_H, 0, 0, 1, 1, s, white(alpha));
-        image(shader, clip.next(), LINE_X, LINE_Y, LINE_W, LINE_H, 0, 0, 1, 1, s, white(Math.round(alpha * clip.mix())));
+        float k = LINE_W / line.width();
+        line.draw((texture, xy, u0, v0, u1, v1, colour) -> quad(shader, texture, xy, LINE_X, LINE_Y, k, u0, v0, u1, v1, s, colour), t, alpha);
         image(shader, overlay, 0, 0, 854, 480, 0, 0, 1, 1, s, white(alpha));
 
         bar(shader, snap.fraction(), s, alpha);
@@ -107,6 +108,11 @@ final class EarlyScene {
             System.out.println(FIRST_FRAME_MARKER);
             System.out.flush();
             LOGGER.info("First frame drawn ({}x scale, language {})", s, strings.language());
+        }
+        var probe = paintProbe;
+        if (probe != null) {
+            glFinish();
+            probe.accept(started, System.nanoTime());
         }
         Shot shot = SHOT.getAndSet(null);
         if (shot != null) {
@@ -134,6 +140,20 @@ final class EarlyScene {
         bb.pos((x + w) * s, y * s).tex(u1, v0).colour(colour).endVertex();
         bb.pos(x * s, (y + h) * s).tex(u0, v1).colour(colour).endVertex();
         bb.pos((x + w) * s, (y + h) * s).tex(u1, v1).colour(colour).endVertex();
+        bb.draw();
+    }
+
+    /** A quad from scene px corners (top-left, top-right, bottom-left, bottom-right), placed at x, y in window px. */
+    private void quad(ElementShader shader, int texture, float[] xy, float x, float y, float k, float u0, float v0, float u1, float v1, int s, int colour) {
+        glActiveTexture(GL_TEXTURE0 + UNIT);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        shader.updateTextureUniform(UNIT);
+        shader.updateRenderTypeUniform(ElementShader.RenderType.TEXTURE);
+        bb.begin(SimpleBufferBuilder.Format.POS_TEX_COLOR, SimpleBufferBuilder.Mode.QUADS);
+        bb.pos((x + xy[0] * k) * s, (y + xy[1] * k) * s).tex(u0, v0).colour(colour).endVertex();
+        bb.pos((x + xy[2] * k) * s, (y + xy[3] * k) * s).tex(u1, v0).colour(colour).endVertex();
+        bb.pos((x + xy[4] * k) * s, (y + xy[5] * k) * s).tex(u0, v1).colour(colour).endVertex();
+        bb.pos((x + xy[6] * k) * s, (y + xy[7] * k) * s).tex(u1, v1).colour(colour).endVertex();
         bb.draw();
     }
 

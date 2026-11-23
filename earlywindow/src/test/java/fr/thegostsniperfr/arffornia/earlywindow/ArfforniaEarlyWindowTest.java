@@ -21,6 +21,11 @@ class ArfforniaEarlyWindowTest {
     }
 
     @Test
+    void fmlDisplayWindowStillPaintsThroughRenderThreadFunc() {
+        assertDoesNotThrow(() -> DisplayWindow.class.getDeclaredMethod("renderThreadFunc"));
+    }
+
+    @Test
     void isRegisteredAsAnImmediateWindowProviderService() throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/META-INF/services/net.neoforged.neoforgespi.earlywindow.ImmediateWindowProvider")) {
             assertEquals(ArfforniaEarlyWindow.class.getName(), new String(in.readAllBytes(), StandardCharsets.UTF_8).strip());

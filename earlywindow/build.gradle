@@ -34,12 +34,15 @@ dependencies {
     compileOnly "org.lwjgl:lwjgl-opengl:${lwjglVersion}"
     compileOnly "org.lwjgl:lwjgl-stb:${lwjglVersion}"
     compileOnly 'org.slf4j:slf4j-api:2.0.9'
+    // FML's own JSON library, on the classpath before Minecraft
+    compileOnly 'com.google.code.gson:gson:2.10.1'
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation "net.neoforged.fancymodloader:earlydisplay:${fmlVersion}"
     testImplementation "net.neoforged.fancymodloader:loader:${fmlVersion}"
+    testImplementation 'com.google.code.gson:gson:2.10.1'
     ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-stb', 'lwjgl-tinyfd'].each { lib ->
         testImplementation "org.lwjgl:${lib}:${lwjglVersion}"
         lwjglNatives.each { testRuntimeOnly "org.lwjgl:${lib}:${lwjglVersion}:${it}" }
@@ -81,6 +84,19 @@ tasks.withType(JavaCompile).configureEach {
         outputs.dir out
         outputs.upToDateWhen { false }
     }
+}
+
+// The early window in motion at a given window size (see EarlyWindowMotion): -Pmotion=<w>x<h>
+tasks.register('motionTest', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'fr.thegostsniperfr.arffornia.earlywindow.EarlyWindowMotion'
+    def size = (project.findProperty('motion') ?: '1708x960').toString().split('x')
+    def out = layout.buildDirectory.dir('motion')
+    workingDir = layout.buildDirectory.dir('visual-test').get().asFile
+    doFirst { workingDir.mkdirs() }
+    args out.get().asFile.absolutePath, size[0], size[1], (project.findProperty('motionFps') ?: '30'), (project.findProperty('motionSeconds') ?: '7')
+    outputs.upToDateWhen { false }
 }
 
 tasks.register('visualTest') {

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import net.neoforged.fml.earlydisplay.ColourScheme;
@@ -28,6 +29,7 @@ public class ArfforniaEarlyWindow extends DisplayWindow {
     public static final String NAME = "arffornia";
     private static final Logger LOGGER = LoggerFactory.getLogger("ArfforniaEarlyWindow");
 
+    private static final int MAX_SCALE = 4;
     private EarlyScene scene;
 
     @Override
@@ -68,10 +70,67 @@ public class ArfforniaEarlyWindow extends DisplayWindow {
     private void takeOver() {
         write("colourScheme", ColourScheme.BLACK);
         RenderElement.DisplayContext ctx = context();
+        int scale = nativeScale(ctx.scale());
         // Letterboxing and the overlay's edge fill use the scheme's background: black, not FML red.
-        write("context", new RenderElement.DisplayContext(ctx.width(), ctx.height(), ctx.scale(), ctx.elementShader(), ColourScheme.BLACK, ctx.performance()));
+        var display = new RenderElement.DisplayContext(ctx.width(), ctx.height(), scale, ctx.elementShader(), ColourScheme.BLACK, ctx.performance());
+        if (scale != ctx.scale()) replaceFramebuffer(display);
+        write("context", display);
         write("elements", new SceneElements(this, scene));
-        LOGGER.info("Arffornia early window active");
+        // FML paints every 50 ms (20 fps); the factory moves every frame, so it is painted every 16 ms.
+        // The tick stays in windowTick, which FML cancels before handing the window to Minecraft.
+        ScheduledExecutorService renderThread = read("renderScheduler");
+        Method paint = method("renderThreadFunc");
+        ScheduledFuture<?> fmlTick = read("windowTick");
+        fmlTick.cancel(false);
+        write("windowTick", renderThread.scheduleAtFixedRate(() -> invoke(paint), 16, 16, TimeUnit.MILLISECONDS));
+        LOGGER.info("Arffornia early window active ({}x framebuffer)", scale);
+    }
+
+    /**
+     * FML renders into 854x480 x earlyWindowFBScale and stretches that to the window. A big window (a
+     * maximised one on a 4K screen) would show it upscaled, so the framebuffer follows the window, up to 4x.
+     */
+    private int nativeScale(int configured) {
+        long window = read("window");
+        int[] w = new int[1], h = new int[1];
+        org.lwjgl.glfw.GLFW.glfwGetFramebufferSize(window, w, h);
+        int wanted = (int) Math.ceil(Math.max(w[0] / 854.0, h[0] / 480.0));
+        return Math.max(configured, Math.min(MAX_SCALE, wanted));
+    }
+
+    private void replaceFramebuffer(RenderElement.DisplayContext ctx) {
+        long window = read("window");
+        org.lwjgl.glfw.GLFW.glfwMakeContextCurrent(window);
+        try {
+            Class<?> type = Class.forName("net.neoforged.fml.earlydisplay.EarlyFramebuffer");
+            var make = type.getDeclaredConstructor(RenderElement.DisplayContext.class);
+            make.setAccessible(true);
+            Object old = read("framebuffer");
+            write("framebuffer", make.newInstance(ctx));
+            type.getMethod("close").invoke(old);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("FML EarlyFramebuffer changed: update the Arffornia early window", e);
+        } finally {
+            org.lwjgl.glfw.GLFW.glfwMakeContextCurrent(0);
+        }
+    }
+
+    private static Method method(String name) {
+        try {
+            Method m = DisplayWindow.class.getDeclaredMethod(name);
+            m.setAccessible(true);
+            return m;
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("FML DisplayWindow." + name + " changed: update the Arffornia early window", e);
+        }
+    }
+
+    private void invoke(Method m) {
+        try {
+            m.invoke(this);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("FML DisplayWindow." + m.getName() + " failed", e);
+        }
     }
 
     static String argument(String[] arguments, String name, String fallback) {
@@ -140,6 +199,6 @@ public class ArfforniaEarlyWindow extends DisplayWindow {
     }
 
     static List<String> requiredFields() {
-        return List.of("renderScheduler", "colourScheme", "context", "elements", "loadingOverlay");
+        return List.of("renderScheduler", "colourScheme", "context", "elements", "loadingOverlay", "window", "framebuffer", "windowTick");
     }
 }

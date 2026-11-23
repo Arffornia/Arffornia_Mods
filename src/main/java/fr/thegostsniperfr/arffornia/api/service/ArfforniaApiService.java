@@ -247,6 +247,15 @@ public class ArfforniaApiService {
      * @param playerName The player's current username.
      * @return A CompletableFuture that resolves to true if the player exists or was created successfully.
      */
+    /** Reports the player's running playtime total for a UTC day; the website never lowers a stored total. */
+    public CompletableFuture<Boolean> sendDailyPlaytime(UUID playerUuid, java.time.LocalDate day, long seconds) {
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.addProperty("day", day.toString());
+        body.addProperty("seconds", seconds);
+        return postAndCheckSuccess("/players/playtime", body, "sendDailyPlaytime", playerUuid);
+    }
+
     public CompletableFuture<Boolean> ensurePlayerExists(UUID playerUuid, String playerName) {
         JsonObject body = new JsonObject();
         body.addProperty("uuid", compactUuid(playerUuid));

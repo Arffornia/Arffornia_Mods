@@ -110,7 +110,8 @@ public final class WebProgression {
 
     /** Chromium keeps the zoom per host and drops one set before the page loaded, hence also on every load end. */
     private static void applyZoom(WebBrowser target) {
-        target.setZoomLevel(PageKeys.zoomLevel(Minecraft.getInstance().getWindow().getGuiScale()));
+        var window = Minecraft.getInstance().getWindow();
+        target.setZoomLevel(PageZoom.level(PageZoom.factor(window.getGuiScale(), window.getWidth(), window.getHeight())));
     }
 
     /** True when the key went to the page with its character; false leaves it to WebGUI's own forwarding. */

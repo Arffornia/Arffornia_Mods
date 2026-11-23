@@ -39,14 +39,4 @@ class PageKeysTest {
     void controlReachesThePageForShortcutsLikeCtrlK() {
         assertEquals(InputEvent.CTRL_DOWN_MASK, PageKeys.awtModifiers(GLFW_MOD_CONTROL));
     }
-
-    @Test
-    void oneCssPixelIsOneGuiPixel() {
-        assertEquals(4.0, Math.pow(1.2, PageKeys.zoomLevel(4)), 1e-9);
-    }
-
-    @Test
-    void guiScaleOneLeavesThePageUnzoomed() {
-        assertEquals(0.0, PageKeys.zoomLevel(1));
-    }
 }

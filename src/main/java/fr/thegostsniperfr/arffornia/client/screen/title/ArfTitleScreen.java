@@ -1,12 +1,12 @@
 package fr.thegostsniperfr.arffornia.client.screen.title;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.SharedConstants;
 import net.minecraft.Util;
@@ -38,25 +38,12 @@ import org.lwjgl.glfw.GLFW;
  * the mock-up's 1920x1080 design pixels and scaled to fit.
  */
 public class ArfTitleScreen extends Screen {
-    static final ResourceLocation BACKGROUND = rl("textures/gui/title/background.png");
     static final ResourceLocation LOGO = rl("textures/gui/title/logo.png");
     static final ResourceLocation ELEVATOR = rl("textures/gui/title/space_elevator.png");
-    static final ResourceLocation DISPLAY_FONT = rl("display");
-    static final ResourceLocation UI_FONT = rl("ui");
-    static final ResourceLocation LABEL_FONT = rl("label");
-    static final ResourceLocation BODY_FONT = rl("body");
-    static final ResourceLocation STRONG_FONT = rl("strong");
-    /** Same face with a lower oversample, for text at 16 design pixels or less. */
-    private static final Map<ResourceLocation, ResourceLocation> SMALL_FONTS = Map.of(
-            LABEL_FONT, rl("label_small"), BODY_FONT, rl("body_small"), STRONG_FONT, rl("strong_small"));
+    static final String DISPLAY_FONT = "display", UI_FONT = "ui", LABEL_FONT = "label", BODY_FONT = "body", STRONG_FONT = "strong";
     private static final int DESIGN_W = 1920, DESIGN_H = 1080;
     private static final float HEX_W = 250, HEX_H = 216.5f, CX = 1440, CY = 560;
     private static final int INK = 0xffffff, MUTED = 0xb3a7c2, TEAL = 0x4fd1c5, GREEN = 0x42d392, HOT = 0xff7300, T1 = 0xffb36b, T2 = 0xe0703c;
-    /**
-     * TTF fonts in assets/arffornia/font are declared with size 12. Glyph textures are sampled without
-     * filtering, so each font's oversample matches the sizes it is drawn at (at 1080p) to avoid aliasing.
-     */
-    private static final float TTF_EM = 12f;
     private static final float SUBTITLE_MAX_W = 150, SUBTITLE_LINE = 19, BAR_W = 96, BAR_H = 4, BAR_GAP = 6;
 
     record Tile(String id, int q, int r, float x, float y) {}
@@ -64,6 +51,7 @@ public class ArfTitleScreen extends Screen {
     private final List<Tile> tiles = new ArrayList<>();
     private final List<float[]> ghosts = new ArrayList<>();
     private final long openedAt = Util.getMillis();
+    private final TitleBackground background = new TitleBackground();
     private final MotdStore motdStore = new MotdStore(FMLPaths.GAMEDIR.get());
     private final NewsStore newsStore = new NewsStore(FMLPaths.GAMEDIR.get());
     private TitleStatus status;
@@ -127,6 +115,7 @@ public class ArfTitleScreen extends Screen {
     @Override
     public void removed() {
         status.close();
+        background.close();
         showCursor();
     }
 
@@ -271,7 +260,7 @@ public class ArfTitleScreen extends Screen {
         float slide = easeOutBack(clamp((now - movedAt) / 240f));
         float sx = from.x() + (target.x() - from.x()) * slide, sy = from.y() + (target.y() - from.y()) * slide;
 
-        drawBackground(g, sx, sy);
+        drawBackground(g, sx, sy, t);
         var pose = g.pose();
         pose.pushPose();
         pose.translate(ox, oy, 0);
@@ -297,16 +286,25 @@ public class ArfTitleScreen extends Screen {
         return tiles.stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow();
     }
 
-    private void drawBackground(GuiGraphics g, float sx, float sy) {
-        float cover = Math.max(width / 1280f, height / 720f) * 1.02f;
-        float w = 1280 * cover, h = 720 * cover;
+    private void drawBackground(GuiGraphics g, float sx, float sy, float t) {
+        int bw = TitleBackground.WIDTH, bh = TitleBackground.HEIGHT;
+        float cover = Math.max(width / (float) bw, height / (float) bh) * 1.02f;
+        float w = bw * cover, h = bh * cover;
         // The factory slides a little against the selection: depth without a camera move.
         float px = -(sx - CX) / 190f * 10f * k, py = -(sy - CY) / 216f * 6f * k;
         var pose = g.pose();
         pose.pushPose();
         pose.translate((width - w) / 2f + px, (height - h) / 2f + py, 0);
         pose.scale(cover, cover, 1);
-        g.blit(BACKGROUND, 0, 0, 1280, 720, 0, 0, 1280, 720, 1280, 720);
+        var layers = background.at(t);
+        g.blit(layers.current(), 0, 0, bw, bh, 0, 0, bw, bh, bw, bh);
+        if (layers.next() != null && layers.mix() > 0) {
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            g.setColor(1, 1, 1, layers.mix());
+            g.blit(layers.next(), 0, 0, bw, bh, 0, 0, bw, bh, bw, bh);
+            g.setColor(1, 1, 1, 1);
+        }
         pose.popPose();
     }
 
@@ -527,34 +525,43 @@ public class ArfTitleScreen extends Screen {
         return Component.translatable(key, args).getString();
     }
 
-    private static ResourceLocation forSize(ResourceLocation fontId, float size) {
-        return size <= 16 ? SMALL_FONTS.getOrDefault(fontId, fontId) : fontId;
+    /** The family's tier for text {@code size} design pixels tall, at the window's current physical scale. */
+    private ResourceLocation fontFor(String family, float size) {
+        return TitleFonts.font(family, size * k * (float) minecraft.getWindow().getGuiScale());
+    }
+
+    /**
+     * Width in GUI units from the glyph advances, unrounded. Not {@code Font.width}: it rounds up, and mods
+     * such as Emojiful replace it with the width of the plain string in Minecraft's default font.
+     */
+    private float advance(FormattedCharSequence text) {
+        return font.getSplitter().stringWidth(text);
     }
 
     private FormattedCharSequence sequence(String text, ResourceLocation fontId) {
         return Language.getInstance().getVisualOrder(FormattedText.of(text, Style.EMPTY.withFont(fontId)));
     }
 
-    private float textWidth(String text, ResourceLocation fontId, float size, float tracking) {
-        fontId = forSize(fontId, size);
-        float scale = size / TTF_EM;
-        if (tracking == 0) return font.width(sequence(text, fontId)) * scale;
+    private float textWidth(String text, String family, float size, float tracking) {
+        ResourceLocation fontId = fontFor(family, size);
+        float scale = size / TitleFonts.EM;
+        if (tracking == 0) return advance(sequence(text, fontId)) * scale;
         float w = 0;
-        for (int i = 0; i < text.length(); i++) w += font.width(sequence(text.substring(i, i + 1), fontId)) * scale + tracking;
+        for (int i = 0; i < text.length(); i++) w += advance(sequence(text.substring(i, i + 1), fontId)) * scale + tracking;
         return text.isEmpty() ? 0 : w - tracking;
     }
 
     /** Draws {@code text} with the top of its em box at {@code top}, {@code size} design pixels tall. */
-    private void text(GuiGraphics g, String text, ResourceLocation fontId, float size, float x, float top, int argb, float tracking, Align align) {
+    private void text(GuiGraphics g, String text, String family, float size, float x, float top, int argb, float tracking, Align align) {
         if ((argb >>> 24) < 4) return;
-        fontId = forSize(fontId, size);
-        float width = textWidth(text, fontId, size, tracking);
+        ResourceLocation fontId = fontFor(family, size);
+        float width = textWidth(text, family, size, tracking);
         float left = switch (align) {
             case LEFT -> x;
             case CENTER -> x - width / 2;
             case RIGHT -> x - width;
         };
-        float scale = size / TTF_EM;
+        float scale = size / TitleFonts.EM;
         var pose = g.pose();
         pose.pushPose();
         pose.translate(left, top, 0);
@@ -569,21 +576,21 @@ public class ArfTitleScreen extends Screen {
                 pose.translate(cursor, 0, 0);
                 g.drawString(font, c, 0, 0, argb, false);
                 pose.popPose();
-                cursor += font.width(c) + tracking / scale;
+                cursor += advance(c) + tracking / scale;
             }
         }
         pose.popPose();
     }
 
     /** A line that may carry its own colours (no tracking): unstyled parts take {@code argb}. */
-    private void text(GuiGraphics g, FormattedText line, ResourceLocation fontId, float size, float x, float top, int argb, Align align) {
+    private void text(GuiGraphics g, FormattedText line, String family, float size, float x, float top, int argb, Align align) {
         if ((argb >>> 24) < 4) return;
-        ResourceLocation id = forSize(fontId, size);
+        ResourceLocation id = fontFor(family, size);
         FormattedText styled = line instanceof Component c
                 ? Component.empty().append(c).withStyle(s -> s.withFont(id))
                 : FormattedText.of(line.getString(), Style.EMPTY.withFont(id));
-        float scale = size / TTF_EM;
-        float width = font.width(styled) * scale;
+        float scale = size / TitleFonts.EM;
+        float width = font.getSplitter().stringWidth(styled) * scale;
         float left = switch (align) {
             case LEFT -> x;
             case CENTER -> x - width / 2;

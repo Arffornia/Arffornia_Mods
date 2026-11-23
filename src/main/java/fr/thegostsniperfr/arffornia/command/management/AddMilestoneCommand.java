@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.command.management;
 
+import fr.thegostsniperfr.arffornia.util.ServerLang;
 import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -32,7 +33,7 @@ public class AddMilestoneCommand {
                                     ProgressionBackends.get().fetchMilestoneDetails(milestoneId, null)
                                             .thenAcceptAsync(details -> {
                                                 if (details == null || details.key() == null) {
-                                                    source.sendSystemMessage(Component.translatable("commands.arffornia.add.not_found", milestoneId)
+                                                    source.sendSystemMessage(ServerLang.translatable("commands.arffornia.add.not_found", milestoneId)
                                                             .withStyle(ChatFormatting.RED));
                                                     return;
                                                 }

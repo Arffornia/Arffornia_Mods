@@ -71,6 +71,9 @@ tasks.named('jar', Jar).configure {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+// The release also carries the early-window provider jar (spec 007), a separate SERVICE-layer jar.
+evaluationDependsOn(':earlywindow')
+
 githubRelease {
     def githubToken = System.getenv("GITHUB_TOKEN")
     if (githubToken) {
@@ -86,7 +89,7 @@ githubRelease {
     tagName = "v${project.version}"
     releaseName = "Release ${project.version}"
 
-    releaseAssets.from(tasks.jar.outputs.files)
+    releaseAssets.from(tasks.jar.outputs.files, project(':earlywindow').tasks.named('jar'))
 }
 
 neoForge {

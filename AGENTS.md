@@ -24,6 +24,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
 | `client/jei/` | JEI plugin, reads Crafter recipes from the synced `RecipeManager` |
 | `src/main/resources/` | lang, models, blockstates, loot tables, recipes, tags |
 | `src/main/templates/META-INF/neoforge.mods.toml` | Mod metadata (expanded from `gradle.properties`) |
+| `earlywindow/` (Gradle subproject, own jar `arffornia-earlywindow.jar`) | Spec 007 early loading window: an FML `ImmediateWindowProvider` (`earlyWindowProvider = "arffornia"` in `config/fml.toml`) loaded on the SERVICE layer before Minecraft; no Minecraft classes. The factory line is drawn live every frame (`EarlyFactory`, `FactoryScene`) from layers baked by Arffornia_Assets `node early/scene.mjs` (`out/scene/early/` -> `arffornia_earlywindow/factory/`): a still, sprites, mattes and per-element motion that loops on its own period, so it has no seam. The other PNG layers come from `node early/window-line.mjs` (`out/early/`). The provider paints every 16 ms (FML: 50 ms) and sizes its framebuffer to the window, up to 4x. `make`-free check of the motion: `xvfb-run -a -s "-screen 0 3840x2160x24" ./gradlew :earlywindow:motionTest -Pmotion=3840x2160` (frames and paint timings in `earlywindow/build/motion/`) |
 | `.github/workflows/` | `ci.yml` (PR build), `build.yml` (tag release), `prerelease.yml` (`edge` and `pr-<n>` test pre-releases), `security.yml` (Trivy) |
 
 ## Commands
@@ -76,6 +77,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.
 - `space_elevator.json` needs SophisticatedStorage; FTB Teams/SophisticatedStorage are not declared in `mods.toml`.
+- The early window extends FML 4.0.x `DisplayWindow` and replaces private fields by reflection (no theming API on 1.21.1).
+  `ArfforniaEarlyWindowTest` fails when those fields move; after any NeoForge bump run
+  `xvfb-run -a ./gradlew :earlywindow:visualTest` and look at `earlywindow/build/screens/`.
 - `build.gradle` dev client run hardcodes a username/UUID.
 - The COMMON config is shipped to clients too: never add secrets to SERVER-type configs (they sync to clients).
 

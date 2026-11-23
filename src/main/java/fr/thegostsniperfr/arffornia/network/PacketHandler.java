@@ -12,19 +12,14 @@ public final class PacketHandler {
     // 1.2: progression_state syncs the player's active progression.
     // 1.3: multiblocks syncs the structure templates for the Wrench hologram.
     // 1.4: crate definitions, opening sequence and preview (spec 020).
-    // 1.5: in-game progression page: session token and targeting by milestone key (spec 018 D2 a).
+    // 1.5: in-game progression page: session token and targeting by milestone key (spec 018 D2 a);
+    //      set_target_milestone (by id) removed with the native graph screen.
     private static final String PROTOCOL_VERSION = "1.5";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar(Arffornia.MODID)
                 .versioned(PROTOCOL_VERSION);
-
-        registrar.playToServer(
-                ServerboundSetTargetMilestonePacket.TYPE,
-                ServerboundSetTargetMilestonePacket.STREAM_CODEC,
-                ServerboundSetTargetMilestonePacket::handle
-        );
 
         registrar.playToClient(
                 ClientboundUpdateTargetNamePacket.TYPE,

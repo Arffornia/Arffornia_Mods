@@ -8,7 +8,6 @@ import fr.thegostsniperfr.arffornia.config.ClientConfig;
 import fr.thegostsniperfr.arffornia.network.ServerPayloadChecks;
 import land.webgui.browser.WebBrowser;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
@@ -20,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
  * The website's progression viewer in WebGUI's embedded Chromium (spec 018 D2 a). One browser for the session,
  * loaded off-screen once the server sent the page URL and kept at {@link #HIDDEN_FPS} while the screen is closed
  * (the bundled JCEF has no "was hidden"; 1 fps already brings it under 1 % of a core). Closed on leaving the server.
- * Only loaded when WebGUI is installed.
+ * WebGUI is a required client dependency; when its runtime fails the screen shows an error instead.
  * <p>
  * The page talks to the game through {@code window.arfforniaQuery}, a CEF message router of its own (WebGUI's
  * {@code cefQuery} can run commands for trusted origins; this one cannot), answered only for the page's origin.
@@ -41,19 +40,19 @@ public final class WebProgression {
         WebBrowser.whenReady(() -> Minecraft.getInstance().execute(WebProgression::installBridge));
     }
 
-    /** False when the browser runtime failed to start (missing system libraries, no download): use the native screen. */
+    /** False when the browser runtime failed to start (missing system libraries, no download). */
     public static boolean usable() {
         return WebBrowser.usable();
+    }
+
+    public static void open() {
+        Minecraft.getInstance().setScreen(new WebProgressionScreen());
     }
 
     /** On joining a server: get the page URL and a token, so the first open is already rendered. */
     public static void prewarm() {
         ProgressionWebSession.INSTANCE.requestSession(false, session -> {
         });
-    }
-
-    public static Screen screen() {
-        return new WebProgressionScreen();
     }
 
     /** On leaving a server. */

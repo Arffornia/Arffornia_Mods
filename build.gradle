@@ -168,7 +168,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.tngtech.archunit:archunit:1.5.1'
 
-    // Embedded browser for the progression screen (spec 018 D2 a); optional, the native screen is the fallback.
+    // Embedded browser for the progression screen (spec 018 D2 a); required on the client, provided by the pack.
     compileOnly "maven.modrinth:webgui:2.0.0+mc1.21.1-neoforge"
 
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"

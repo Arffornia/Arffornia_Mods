@@ -26,12 +26,4 @@ class ApiTextTest {
         // A malformed region is dropped, the language is kept.
         assertEquals("fr", ApiText.toLanguageTag("fr_!!"));
     }
-
-    @Test
-    void itemFallbackPrefersTheApiNameThenTheId() {
-        assertEquals("Osmium Ingot", ApiText.itemFallbackName("mekanism:ingot_osmium", "Osmium Ingot"));
-        assertEquals("mekanism:ingot_osmium", ApiText.itemFallbackName("mekanism:ingot_osmium", " "));
-        assertEquals("mekanism:ingot_osmium", ApiText.itemFallbackName("mekanism:ingot_osmium", null));
-        assertEquals("", ApiText.itemFallbackName(null, null));
-    }
 }

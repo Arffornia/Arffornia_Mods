@@ -5,7 +5,7 @@ Guide for AI agents and newcomers. Read this before changing anything.
 ## Purpose
 NeoForge 1.21.1 mod (`modid` `arffornia`, package `fr.thegostsniperfr.arffornia`) for the Arffornia server and client:
 milestone progression backed by the website API, Space Elevator, FE Crafter with milestone-unlocked recipes,
-recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
+recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (website page in WebGUI), JEI.
 
 ## Repo map
 | Path (under `src/main/java/fr/thegostsniperfr/arffornia/`) | What |
@@ -13,8 +13,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
 | `Arffornia.java`, `ArfforniaClient.java`, `Config.java` | Mod entry points, lifecycle events, config spec |
 | `api/service/ArfforniaApiService.java`, `api/dto/` | HTTP client singleton (Gson) to the Laravel API, DTO records |
 | `block/`, `block/entity/` | Crafter + Space Elevator (2-block: master + invisible part block), block entities |
-| `screen/`, `client/screen/` | Menus (server) and screens (client); `ProgressionGraphScreen` is the graph UI |
-| `network/` | Payloads registered in `PacketHandler` (4 serverbound, 2 clientbound) |
+| `screen/`, `client/screen/` | Menus (server) and screens (client) |
+| `client/web/` | Progression viewer: the website page in WebGUI's Chromium (`WebProgression`, `WebProgressionScreen`) |
+| `network/` | Payloads registered in `PacketHandler` (5 serverbound, 8 clientbound) |
 | `progression/` | Server-side progression state: player attachment (active progression), `ProgressionStore` SavedData, `Progressions` refresh/sync, machine rules |
 | `recipe/` | `arffornia:machine` recipe type (`MachineRecipe`, `ModRecipes`), `CrafterRecipes`; `recipe/pack/` downloads the website recipe datapack and loads it as a required pack |
 | `command/` | `/arffornia progression ...` and `/arffornia shop ...` |
@@ -70,7 +71,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
   ETag into `ProgressionModels`); the Elevator consumes items only on `COMPLETED`. `arffornia:milestone/*` advancements
   in an older website datapack are inert (craft ones fail to parse and are skipped). The event waits in `ProgressionEventOutbox` (SavedData)
   until `POST /progressions/{id}/events` acknowledges it, with retry. Stages are opened by the website only.
-- The progression key opens the website viewer in WebGUI's Chromium (`client/web/`, spec 018 D2 a); `arffornia-client.toml` `progression.screen = NATIVE`, or no WebGUI, opens the old `ProgressionGraphScreen`. One browser per session, loaded on join at 1 fps, `webFps` (30) while open, closed on leaving. The page gets the player's read-only website token through `window.arfforniaQuery` (a CEF message router of ours, answered only for the page origin the server sent), never in a URL; never log it. Targets go page → `ServerboundTargetMilestoneKeyPacket` → rule 3 on the server (`ServerPayloadChecks.canTarget`) → website `set-target` by key.
+- The progression key opens the website viewer in WebGUI's Chromium (`client/web/`, spec 018 D2 a). WebGUI is a required CLIENT dependency (`neoforge.mods.toml`, shipped by Provisioning); servers start without it. There is no other progression screen: when the browser runtime fails, the screen shows an error. `make run-client` needs the WebGUI 2.0.0 jar in `run/mods/` (it is `compileOnly`, so GameTests run without it). One browser per session, loaded on join at 1 fps, `webFps` (30) while open, closed on leaving. The page gets the player's read-only website token through `window.arfforniaQuery` (a CEF message router of ours, answered only for the page origin the server sent), never in a URL; never log it. Targets go page → `ServerboundTargetMilestoneKeyPacket` → rule 3 on the server (`ServerPayloadChecks.canTarget`) → website `set-target` by key; it is the only targeting payload.
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.

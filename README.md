@@ -4,7 +4,7 @@ Official mod of the Arffornia Minecraft server (MC **1.21.1**, NeoForge **21.1.x
 the client. It implements the progression gameplay: a graph of milestones (stages, unlocks, requirements) stored and
 edited on the Arffornia website, the **Space Elevator** that completes milestones from delivered items, the FE-powered
 **Crafter** that runs the custom recipes milestones unlock, recipe banning for gated items, shop/vote reward claiming,
-FTB Teams sync, a progression graph screen (key `G`), a HUD target label and JEI integration.
+FTB Teams sync, an in-game progression viewer (key `G`, the website page in the WebGUI embedded browser, required on the client), a HUD target label and JEI integration.
 It talks to the Laravel website API (`ApiConfig.baseUrl`) over HTTP.
 
 Architecture docs (coming soon): https://arffornia.github.io/docs/

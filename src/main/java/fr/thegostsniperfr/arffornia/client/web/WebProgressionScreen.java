@@ -6,9 +6,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import org.lwjgl.glfw.GLFW;
 
-/** Shows the warm progression page full screen and forwards mouse and keyboard to it. */
+/** Shows the warm progression page full screen and forwards mouse and keyboard to it, or an error when the browser runtime failed. */
 final class WebProgressionScreen extends Screen {
     WebProgressionScreen() {
         super(Component.translatable("screen.arffornia.progression"));
@@ -16,6 +17,9 @@ final class WebProgressionScreen extends Screen {
 
     @Override
     protected void init() {
+        if (!WebProgression.usable()) {
+            return;
+        }
         var window = Minecraft.getInstance().getWindow();
         WebProgression.shown(Math.max(1, window.getWidth()), Math.max(1, window.getHeight()));
     }
@@ -27,6 +31,12 @@ final class WebProgressionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (!WebProgression.usable()) {
+            super.renderBackground(graphics, mouseX, mouseY, partialTick);
+            drawWrapped(graphics, Component.translatable("gui.arffornia.progression.browser_failed"), height / 2 - 20, 0xFF5555);
+            drawWrapped(graphics, Component.translatable("gui.arffornia.progression.browser_failed.hint"), height / 2 + 6, 0xAAAAAA);
+            return;
+        }
         WebBrowser browser = WebProgression.browser();
         ResourceLocation texture = browser != null && browser.isTextureReady() ? browser.getTextureIdentifier() : null;
         if (texture == null) {
@@ -35,6 +45,14 @@ final class WebProgressionScreen extends Screen {
             return;
         }
         graphics.blit(texture, 0, 0, 0.0f, 0.0f, width, height, width, height);
+    }
+
+    private void drawWrapped(GuiGraphics graphics, Component text, int top, int color) {
+        int y = top;
+        for (FormattedCharSequence line : font.split(text, Math.max(40, width - 40))) {
+            graphics.drawCenteredString(font, line, width / 2, y, color);
+            y += font.lineHeight + 2;
+        }
     }
 
     @Override

@@ -6,7 +6,6 @@ import fr.thegostsniperfr.arffornia.client.web.WebProgression;
 import fr.thegostsniperfr.arffornia.progression.SyncedProgressionState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -18,13 +17,13 @@ public class ClientEvents {
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
         if (Keybindings.OPEN_GRAPH_KEY.consumeClick()) {
-            ProgressionScreens.open();
+            WebProgression.open();
         }
     }
 
     @SubscribeEvent
     public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        if (ProgressionScreens.webEnabled() && WebProgression.usable()) {
+        if (WebProgression.usable()) {
             WebProgression.prewarm();
         }
     }
@@ -33,9 +32,7 @@ public class ClientEvents {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         SyncedProgressionState.clear();
         ProgressionWebSession.INSTANCE.clear();
-        if (ModList.get().isLoaded(ProgressionScreens.WEBGUI)) {
-            WebProgression.release();
-        }
+        WebProgression.release();
     }
 
     @SubscribeEvent

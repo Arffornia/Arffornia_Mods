@@ -11,7 +11,6 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>Requests made for a player carry that player's game language in {@code Accept-Language}, so the
  *       API can answer in it (the website falls back to English).</li>
- *   <li>Item names stored by the API are only a fallback: the game's own, translated item name wins.</li>
  * </ul>
  * Pure Java on purpose (no game classes), so it is unit-tested without booting Minecraft.
  */
@@ -42,16 +41,5 @@ public final class ApiText {
             return parts[0] + "-" + parts[1].toUpperCase(Locale.ROOT);
         }
         return parts[0];
-    }
-
-    /**
-     * Name to show for an item that this game does not know (otherwise its translated name is used):
-     * the API's display name, else the raw item id, else an empty string.
-     */
-    public static String itemFallbackName(@Nullable String itemId, @Nullable String apiDisplayName) {
-        if (apiDisplayName != null && !apiDisplayName.isBlank()) {
-            return apiDisplayName;
-        }
-        return itemId == null ? "" : itemId;
     }
 }

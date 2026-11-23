@@ -1,6 +1,5 @@
 package fr.thegostsniperfr.arffornia.client.screen.title;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
@@ -51,7 +50,7 @@ public class ArfTitleScreen extends Screen {
     private final List<Tile> tiles = new ArrayList<>();
     private final List<float[]> ghosts = new ArrayList<>();
     private final long openedAt = Util.getMillis();
-    private final TitleBackground background = new TitleBackground();
+    private final TitleFactory factory = new TitleFactory();
     private final MotdStore motdStore = new MotdStore(FMLPaths.GAMEDIR.get());
     private final NewsStore newsStore = new NewsStore(FMLPaths.GAMEDIR.get());
     private TitleStatus status;
@@ -115,7 +114,7 @@ public class ArfTitleScreen extends Screen {
     @Override
     public void removed() {
         status.close();
-        background.close();
+        factory.close();
         showCursor();
     }
 
@@ -287,7 +286,7 @@ public class ArfTitleScreen extends Screen {
     }
 
     private void drawBackground(GuiGraphics g, float sx, float sy, float t) {
-        int bw = TitleBackground.WIDTH, bh = TitleBackground.HEIGHT;
+        int bw = factory.width(), bh = factory.height();
         float cover = Math.max(width / (float) bw, height / (float) bh) * 1.02f;
         float w = bw * cover, h = bh * cover;
         // The factory slides a little against the selection: depth without a camera move.
@@ -296,15 +295,7 @@ public class ArfTitleScreen extends Screen {
         pose.pushPose();
         pose.translate((width - w) / 2f + px, (height - h) / 2f + py, 0);
         pose.scale(cover, cover, 1);
-        var layers = background.at(t);
-        g.blit(layers.current(), 0, 0, bw, bh, 0, 0, bw, bh, bw, bh);
-        if (layers.next() != null && layers.mix() > 0) {
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            g.setColor(1, 1, 1, layers.mix());
-            g.blit(layers.next(), 0, 0, bw, bh, 0, 0, bw, bh, bw, bh);
-            g.setColor(1, 1, 1, 1);
-        }
+        factory.draw(g, t);
         pose.popPose();
     }
 

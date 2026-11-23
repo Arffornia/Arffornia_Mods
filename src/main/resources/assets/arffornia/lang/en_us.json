@@ -206,5 +206,26 @@
   "gui.arffornia.crate.claimed": "Claimed",
   "gui.arffornia.crate.streak": "Streak: %s day(s) · Best: %s",
   "gui.arffornia.crate.hint_open": "Right-click the crate with its key to open it.",
-  "gui.arffornia.crate.hint_skip": "Sneak + right-click during the roll to skip it."
+  "gui.arffornia.crate.hint_skip": "Sneak + right-click during the roll to skip it.",
+
+  "gui.arffornia.brand.eyebrow": "MODDED MINECRAFT · NEOFORGE %s",
+  "gui.arffornia.brand.wordmark": "ARFFORNIA",
+  "gui.arffornia.brand.disclaimer": "NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.",
+  "gui.arffornia.title.tagline": "Progression that keeps every mod worth playing.",
+  "gui.arffornia.title.play": "Play",
+  "gui.arffornia.title.play.on": "on %s",
+  "gui.arffornia.title.play.choose": "Choose a server",
+  "gui.arffornia.title.server.online": "Server online, %s players",
+  "gui.arffornia.title.server.checking": "Checking the server…",
+  "gui.arffornia.title.server.offline": "Server offline",
+  "gui.arffornia.title.milestones": "Milestones",
+  "gui.arffornia.title.milestones.done": "%s done",
+  "gui.arffornia.title.progress": "Stage %s · %s milestones done",
+  "gui.arffornia.title.mods.loaded": "%s loaded",
+  "gui.arffornia.title.news": "News",
+  "gui.arffornia.title.news.open": "On the website",
+  "gui.arffornia.title.keys.move": "Move",
+  "gui.arffornia.title.keys.select": "Select",
+  "gui.arffornia.title.version": "Arffornia %s, NeoForge %s",
+  "gui.arffornia.title.narration": "Arffornia title screen"
 }

@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.VertexSorting;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import fr.thegostsniperfr.arffornia.client.screen.title.ArfTitleScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -67,7 +68,7 @@ public final class ItemIconExport {
                 finished = true;
                 return;
             }
-            if (mc.getOverlay() != null || !(mc.screen instanceof TitleScreen)) {
+            if (mc.getOverlay() != null || !(mc.screen instanceof TitleScreen || mc.screen instanceof ArfTitleScreen)) {
                 return;
             }
             run = new Run(Path.of(dir), IconFiles.parseSizes(System.getProperty(SIZES_PROPERTY, "36,128")));

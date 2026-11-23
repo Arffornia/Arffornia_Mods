@@ -94,6 +94,14 @@ description='''${mod_description}'''
     ordering="NONE"
     side="SERVER"
 
+# Embedded browser (its own Chromium) for the progression screen; without it the native screen opens.
+[[dependencies.${mod_id}]]
+    modId="webgui"
+    type="optional"
+    versionRange="[2.0.0,)"
+    ordering="AFTER"
+    side="CLIENT"
+
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.

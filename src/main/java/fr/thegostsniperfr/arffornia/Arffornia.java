@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia;
 import net.minecraft.ChatFormatting;
 import com.mojang.logging.LogUtils;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.config.ClientConfig;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
@@ -79,6 +80,7 @@ public class Arffornia {
         NeoForge.EVENT_BUS.register(RecipePackUpdater.class);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC, "arffornia-client.toml");
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

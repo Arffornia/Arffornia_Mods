@@ -273,6 +273,41 @@ public class ArfforniaApiService {
         return postAndCheckSuccess("/progression/set-target", body, "setTargetMilestone", playerUuid);
     }
 
+    /** Targets a milestone by key; the website refuses one that is done or not available (spec 017 rule 3). */
+    public CompletableFuture<Boolean> setTargetMilestoneKey(UUID playerUuid, String milestoneKey) {
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        body.addProperty("milestone_key", milestoneKey);
+        return postAndCheckSuccess("/progression/set-target", body, "setTargetMilestoneKey", playerUuid);
+    }
+
+    /** A read-only token of the in-game progression page for this player, or null. Never logs the response body. */
+    public CompletableFuture<ArfforniaApiDtos.EmbedToken> mintEmbedToken(UUID playerUuid) {
+        JsonObject body = new JsonObject();
+        body.addProperty("player_uuid", compactUuid(playerUuid));
+        return http.sendAuthenticated(http.jsonPost("/progression/embed-tokens", gson.toJson(body)))
+                .thenApply(response -> {
+                    if (response == null) {
+                        return null;
+                    }
+                    if (!ApiHttp.isSuccess(response.statusCode())) {
+                        Arffornia.LOGGER.warn("API POST /progression/embed-tokens answered {} for player {}", response.statusCode(), playerUuid);
+                        return null;
+                    }
+                    try {
+                        ArfforniaApiDtos.EmbedToken token = gson.fromJson(response.body(), ArfforniaApiDtos.EmbedToken.class);
+                        return token != null && token.isComplete() ? token : null;
+                    } catch (RuntimeException e) {
+                        Arffornia.LOGGER.warn("API POST /progression/embed-tokens returned an unreadable answer ({})", e.getClass().getSimpleName());
+                        return null;
+                    }
+                })
+                .exceptionally(ex -> {
+                    Arffornia.LOGGER.warn("API POST /progression/embed-tokens failed: {}", ex.getMessage());
+                    return null;
+                });
+    }
+
     /**
      * Adds an item unlock to a specific milestone via the API.
      * This is an admin-only action.

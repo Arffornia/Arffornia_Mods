@@ -12,7 +12,8 @@ public final class PacketHandler {
     // 1.2: progression_state syncs the player's active progression.
     // 1.3: multiblocks syncs the structure templates for the Wrench hologram.
     // 1.4: crate definitions, opening sequence and preview (spec 020).
-    private static final String PROTOCOL_VERSION = "1.4";
+    // 1.5: in-game progression page: session token and targeting by milestone key (spec 018 D2 a).
+    private static final String PROTOCOL_VERSION = "1.5";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
@@ -59,6 +60,30 @@ public final class PacketHandler {
                 ClientboundCratePreviewPacket.TYPE,
                 ClientboundCratePreviewPacket.STREAM_CODEC,
                 ClientboundCratePreviewPacket::handle
+        );
+
+        registrar.playToServer(
+                ServerboundEmbedSessionPacket.TYPE,
+                ServerboundEmbedSessionPacket.STREAM_CODEC,
+                ServerboundEmbedSessionPacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundEmbedSessionPacket.TYPE,
+                ClientboundEmbedSessionPacket.STREAM_CODEC,
+                ClientboundEmbedSessionPacket::handle
+        );
+
+        registrar.playToServer(
+                ServerboundTargetMilestoneKeyPacket.TYPE,
+                ServerboundTargetMilestoneKeyPacket.STREAM_CODEC,
+                ServerboundTargetMilestoneKeyPacket::handle
+        );
+
+        registrar.playToClient(
+                ClientboundTargetMilestoneResultPacket.TYPE,
+                ClientboundTargetMilestoneResultPacket.STREAM_CODEC,
+                ClientboundTargetMilestoneResultPacket::handle
         );
 
         registrar.playToServer(

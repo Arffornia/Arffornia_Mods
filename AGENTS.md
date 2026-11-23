@@ -70,6 +70,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, progression graph UI, JEI.
   ETag into `ProgressionModels`); the Elevator consumes items only on `COMPLETED`. `arffornia:milestone/*` advancements
   in an older website datapack are inert (craft ones fail to parse and are skipped). The event waits in `ProgressionEventOutbox` (SavedData)
   until `POST /progressions/{id}/events` acknowledges it, with retry. Stages are opened by the website only.
+- The progression key opens the website viewer in WebGUI's Chromium (`client/web/`, spec 018 D2 a); `arffornia-client.toml` `progression.screen = NATIVE`, or no WebGUI, opens the old `ProgressionGraphScreen`. One browser per session, loaded on join at 1 fps, `webFps` (30) while open, closed on leaving. The page gets the player's read-only website token through `window.arfforniaQuery` (a CEF message router of ours, answered only for the page origin the server sent), never in a URL; never log it. Targets go page → `ServerboundTargetMilestoneKeyPacket` → rule 3 on the server (`ServerPayloadChecks.canTarget`) → website `set-target` by key.
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.

@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Data Transfer Objects (DTOs) that directly map to the JSON structure of the Arffornia API.
@@ -97,6 +98,7 @@ public class ArfforniaApiDtos {
      */
     public record MilestoneDetails(
             int id,
+            @Nullable String key,
             String name,
             String description,
             @SerializedName("stage_id") int stageId,
@@ -141,7 +143,7 @@ public class ArfforniaApiDtos {
     public record ModelDocument(int version, List<ModelMilestone> milestones) {
     }
 
-    public record ModelMilestone(String key, int stage, @Nullable List<String> requires) {
+    public record ModelMilestone(String key, int stage, @Nullable List<String> requires, @Nullable Map<String, String> title) {
     }
 
     /**

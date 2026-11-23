@@ -41,9 +41,6 @@ public interface ProgressionBackend {
         return fetchMilestoneDetails(milestoneId);
     }
 
-    /** Completes a milestone in a given progression (false when it is unknown or retired). */
-    CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId);
-
     /** Sets (or clears, with null) the player's target milestone. */
     CompletableFuture<Boolean> setTargetMilestone(UUID playerUuid, @Nullable Integer milestoneId);
 }

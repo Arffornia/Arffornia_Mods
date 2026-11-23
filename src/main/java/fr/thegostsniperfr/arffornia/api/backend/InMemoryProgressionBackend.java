@@ -16,23 +16,17 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * In-memory backend for GameTests and offline dev runs ({@code -Darffornia.backend=fake}).
- * Reads complete immediately; {@link #addMilestoneToProgression} completes after a short delay, like a network call.
+ * Reads complete immediately; {@link #sendProgressionEvents} completes after a short delay, like a network call.
  * State is shared, so tests should use distinct ids.
  */
 public final class InMemoryProgressionBackend implements ProgressionBackend {
     /** Delay applied to write calls to mimic network latency. */
     private static final long ASYNC_DELAY_MS = 50;
 
-    /** A recorded {@link #addMilestoneToProgression} call. */
-    public record AddMilestoneCall(long progressionId, int milestoneId) {
-    }
-
     private final Map<String, Long> activeProgressionByPlayer = new ConcurrentHashMap<>();
     private final Map<Long, Set<Integer>> completedByProgression = new ConcurrentHashMap<>();
     private final Map<Integer, ArfforniaApiDtos.MilestoneDetails> milestones = new ConcurrentHashMap<>();
     private final Map<String, Integer> targetByPlayer = new ConcurrentHashMap<>();
-    private final List<AddMilestoneCall> addMilestoneCalls = new CopyOnWriteArrayList<>();
-    private final Set<Integer> failingMilestones = ConcurrentHashMap.newKeySet();
     private final Set<Long> retiredProgressions = ConcurrentHashMap.newKeySet();
     private final Map<Long, Set<String>> completedKeysByProgression = new ConcurrentHashMap<>();
     private final Map<Long, Integer> openStageByProgression = new ConcurrentHashMap<>();
@@ -76,12 +70,6 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         return this;
     }
 
-    /** Makes {@link #addMilestoneToProgression} report failure for this milestone id (per id, so parallel tests do not interfere). */
-    public InMemoryProgressionBackend failAddMilestoneFor(int milestoneId) {
-        failingMilestones.add(milestoneId);
-        return this;
-    }
-
     public InMemoryProgressionBackend setOpenStage(long progressionId, int stage) {
         openStageByProgression.put(progressionId, stage);
         return this;
@@ -89,7 +77,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
 
     /** Adds a milestone to the published model (shared by every test, so use distinct keys). */
     public InMemoryProgressionBackend putModelMilestone(String key, int stage, String... requires) {
-        modelMilestones.put(key, new ArfforniaApiDtos.ModelMilestone(key, stage, List.of(requires)));
+        modelMilestones.put(key, new ArfforniaApiDtos.ModelMilestone(key, stage, List.of(requires), null));
         return this;
     }
 
@@ -129,10 +117,6 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
 
     public boolean isCompleted(long progressionId, int milestoneId) {
         return completedByProgression.getOrDefault(progressionId, Set.of()).contains(milestoneId);
-    }
-
-    public List<AddMilestoneCall> addMilestoneCalls() {
-        return Collections.unmodifiableList(addMilestoneCalls);
     }
 
     // ---- ProgressionBackend -----------------------------------------------------------------------------------
@@ -207,22 +191,6 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
     @Override
     public CompletableFuture<ArfforniaApiDtos.MilestoneDetails> fetchMilestoneDetails(int milestoneId) {
         return CompletableFuture.completedFuture(milestones.get(milestoneId));
-    }
-
-    /**
-     * Completes asynchronously after a short delay, like the real HTTP call, so callers' in-flight guards are exercised.
-     */
-    @Override
-    public CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId) {
-        addMilestoneCalls.add(new AddMilestoneCall(progressionId, milestoneId));
-        return CompletableFuture.supplyAsync(() -> {
-            if (failingMilestones.contains(milestoneId) || retiredProgressions.contains(progressionId)
-                    || !completedByProgression.containsKey(progressionId)) {
-                return false;
-            }
-            completeMilestone(progressionId, milestoneId);
-            return true;
-        }, CompletableFuture.delayedExecutor(ASYNC_DELAY_MS, TimeUnit.MILLISECONDS));
     }
 
     @Override

@@ -57,13 +57,4 @@ final class PageKeys {
         }
         return awt;
     }
-
-    /**
-     * Chromium zoom level that makes one CSS pixel one Minecraft GUI pixel. The browser surface is the framebuffer
-     * size, so without it the page renders at 1 CSS px per screen pixel and is tiny on high resolution screens.
-     * Zoom keeps text crisp: Chromium lays out larger and still rasterizes at the full framebuffer resolution.
-     */
-    static double zoomLevel(double guiScale) {
-        return Math.log(Math.max(1.0, guiScale)) / Math.log(1.2);
-    }
 }

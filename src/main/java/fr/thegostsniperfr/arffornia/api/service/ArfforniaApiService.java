@@ -195,12 +195,8 @@ public class ArfforniaApiService {
      * The backend ignores observations older than the last one it applied, so calls may arrive in any order.
      */
     public CompletableFuture<Boolean> syncPlayerTeam(UUID playerUuid, @Nullable UUID teamUuid, @Nullable String teamName, long observedAtMillis) {
-        JsonObject body = new JsonObject();
-        body.addProperty("player_uuid", compactUuid(playerUuid));
-        body.addProperty("team_uuid", teamUuid != null ? teamUuid.toString() : null);
-        body.addProperty("team_name", teamName);
-        body.addProperty("observed_at", observedAtMillis);
-        return sendAndCheckSuccess(http.jsonPut("/teams/player/sync", gson.toJson(body)), "teams/player/sync", playerUuid);
+        String json = TeamSyncBody.toJson(playerUuid, teamUuid, teamName, observedAtMillis);
+        return sendAndCheckSuccess(http.jsonPut("/teams/player/sync", json), "teams/player/sync", playerUuid);
     }
 
     /**

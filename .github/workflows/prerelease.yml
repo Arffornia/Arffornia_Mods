@@ -52,15 +52,15 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
-          jar=build/libs/arffornia.jar
-          test -f "$jar"
+          jars=(build/libs/arffornia.jar earlywindow/build/libs/arffornia-earlywindow.jar)
+          for jar in "${jars[@]}"; do test -f "$jar"; done
           if [ -n "$PR_URL" ]; then src="$PR_URL"; else src="main"; fi
           notes="Test build of ${src} at ${SHA} ($(date -u +%Y-%m-%dT%H:%MZ)). Not for players: the pack uses the latest v* release."
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$jar" --clobber
+            gh release upload "$TAG" "${jars[@]}" --clobber
             gh release edit "$TAG" --prerelease --latest=false --notes "$notes"
           else
-            gh release create "$TAG" "$jar" --prerelease --latest=false --target "$SHA" \
+            gh release create "$TAG" "${jars[@]}" --prerelease --latest=false --target "$SHA" \
               --title "$TAG (test build)" --notes "$notes"
           fi
           echo "Published \`$TAG\` from \`${SHA}\`." >> "$GITHUB_STEP_SUMMARY"

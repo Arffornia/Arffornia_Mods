@@ -1,0 +1,87 @@
+plugins {
+    id 'java-library'
+}
+
+// FML loads this jar on the SERVICE module layer, before Minecraft and mods exist: no Minecraft
+// classes here, only FML's early display (LGPL-2.1, extended, not copied) and LWJGL.
+version = rootProject.version
+group = rootProject.group
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    maven {
+        name = 'NeoForged'
+        url = 'https://maven.neoforged.net/releases'
+    }
+    maven {
+        name = 'Mojang'
+        url = 'https://libraries.minecraft.net'
+        content { includeGroup 'com.mojang' }
+    }
+    mavenCentral()
+}
+
+def fmlVersion = '4.0.39'
+def lwjglVersion = '3.3.3'
+def lwjglNatives = ['natives-linux', 'natives-windows', 'natives-macos', 'natives-macos-arm64']
+
+dependencies {
+    compileOnly "net.neoforged.fancymodloader:earlydisplay:${fmlVersion}"
+    compileOnly "net.neoforged.fancymodloader:loader:${fmlVersion}"
+    compileOnly "org.lwjgl:lwjgl:${lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-glfw:${lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-opengl:${lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-stb:${lwjglVersion}"
+    compileOnly 'org.slf4j:slf4j-api:2.0.9'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation "net.neoforged.fancymodloader:earlydisplay:${fmlVersion}"
+    testImplementation "net.neoforged.fancymodloader:loader:${fmlVersion}"
+    ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-stb', 'lwjgl-tinyfd'].each { lib ->
+        testImplementation "org.lwjgl:${lib}:${lwjglVersion}"
+        lwjglNatives.each { testRuntimeOnly "org.lwjgl:${lib}:${lwjglVersion}:${it}" }
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    archiveFileName.set('arffornia-earlywindow.jar')
+    manifest {
+        attributes(
+                'Automatic-Module-Name': 'arffornia_earlywindow',
+                'Implementation-Title': 'Arffornia early window',
+                'Implementation-Version': project.version)
+    }
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Layer 1 of the spec 007 screen tests: the provider without Minecraft, frozen clock, scripted
+// progress, frames written from inside the provider. Needs a display (xvfb-run in CI).
+['en_us', 'fr_fr'].each { locale ->
+    tasks.register("visualTest_${locale}", JavaExec) {
+        group = 'verification'
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = 'fr.thegostsniperfr.arffornia.earlywindow.EarlyWindowShots'
+        def out = layout.buildDirectory.dir('screens')
+        workingDir = layout.buildDirectory.dir('visual-test').get().asFile
+        doFirst { workingDir.mkdirs() }
+        args out.get().asFile.absolutePath, locale
+        outputs.dir out
+        outputs.upToDateWhen { false }
+    }
+}
+
+tasks.register('visualTest') {
+    group = 'verification'
+    description = 'Renders the early window at fixed times in EN and FR into build/screens/ (needs a display)'
+    dependsOn 'visualTest_en_us', 'visualTest_fr_fr'
+}

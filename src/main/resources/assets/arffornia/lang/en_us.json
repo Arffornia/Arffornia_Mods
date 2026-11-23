@@ -220,6 +220,8 @@
   "gui.arffornia.title.server.offline": "Server offline",
   "gui.arffornia.title.milestones": "Milestones",
   "gui.arffornia.title.milestones.done": "%s done",
+  "gui.arffornia.title.milestones.count": "%s",
+  "gui.arffornia.title.milestones.stage": "%s of %s done",
   "gui.arffornia.title.progress": "Stage %s · %s milestones done",
   "gui.arffornia.title.mods.loaded": "%s loaded",
   "gui.arffornia.title.news": "News",

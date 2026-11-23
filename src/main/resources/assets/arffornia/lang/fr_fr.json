@@ -220,6 +220,8 @@
   "gui.arffornia.title.server.offline": "Serveur hors ligne",
   "gui.arffornia.title.milestones": "Jalons",
   "gui.arffornia.title.milestones.done": "%s terminés",
+  "gui.arffornia.title.milestones.count": "%s",
+  "gui.arffornia.title.milestones.stage": "%s sur %s terminés",
   "gui.arffornia.title.progress": "Palier %s · %s jalons terminés",
   "gui.arffornia.title.mods.loaded": "%s chargés",
   "gui.arffornia.title.news": "Actualités",

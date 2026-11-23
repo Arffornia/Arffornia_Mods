@@ -18,7 +18,8 @@ import org.slf4j.Logger;
 /**
  * The title screen's live data (spec 007 item 7): the first server of the player's list (the launcher
  * writes it, so it follows the chosen environment), pinged like the server list, and the player's
- * progression from the website. Nothing blocks the render thread; anything slower than 3 s counts as
+ * progression and the latest news headline from the website (the headline cached on disk for offline
+ * starts). Nothing blocks the render thread; anything slower than 3 s counts as
  * unavailable.
  */
 final class TitleStatus {
@@ -33,16 +34,21 @@ final class TitleStatus {
     });
     // Fetched once per game session: reopening the title screen must not hit the website again.
     private static CompletableFuture<ArfforniaApiDtos.ProgressionState> progression;
+    private static CompletableFuture<ArfforniaApiDtos.NewsHeadline> news;
 
     private final ServerStatusPinger pinger = new ServerStatusPinger();
     private final MotdStore motdStore;
+    private final NewsStore newsStore;
+    @Nullable private final ArfforniaApiDtos.NewsHeadline cachedNews;
     @Nullable private final ServerData server;
     private final long startedAt = Util.getMillis();
     private volatile boolean pinged;
     private volatile boolean failed;
 
-    TitleStatus(Minecraft minecraft, MotdStore motdStore) {
+    TitleStatus(Minecraft minecraft, MotdStore motdStore, NewsStore newsStore) {
         this.motdStore = motdStore;
+        this.newsStore = newsStore;
+        this.cachedNews = newsStore.read().orElse(null);
         ServerList list = new ServerList(minecraft);
         list.load();
         this.server = list.size() > 0 ? list.get(0) : null;
@@ -63,6 +69,17 @@ final class TitleStatus {
                     .<ArfforniaApiDtos.ProgressionState>getJson("/players/" + uuid + "/progression/state", ArfforniaApiDtos.ProgressionState.class, "title screen progression")
                     .orTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .exceptionally(e -> null);
+        }
+        if (news == null) {
+            news = ArfforniaApiService.getInstance().http()
+                    .<ArfforniaApiDtos.NewsFeed>getJson("/news/latest", ArfforniaApiDtos.NewsFeed.class, "title screen news")
+                    .orTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    .thenApply(feed -> feed == null || feed.news() == null ? null
+                            : feed.news().stream().filter(NewsStore::isValid).findFirst().orElse(null))
+                    .exceptionally(e -> null);
+            news.thenAccept(headline -> {
+                if (headline != null) newsStore.write(headline);
+            });
         }
     }
 
@@ -101,5 +118,11 @@ final class TitleStatus {
     @Nullable
     ArfforniaApiDtos.ProgressionState progression() {
         return progression != null && progression.isDone() ? progression.getNow(null) : null;
+    }
+
+    @Nullable
+    ArfforniaApiDtos.NewsHeadline news() {
+        ArfforniaApiDtos.NewsHeadline fresh = news != null && news.isDone() ? news.getNow(null) : null;
+        return fresh != null ? fresh : cachedNews;
     }
 }

@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
 
 /**
- * Flat-colour shapes the GUI API lacks: hexagons and discs with vertical or radial gradients, and
+ * Flat-colour shapes the GUI API lacks: hexagons, discs and round-ended bars with vertical or radial gradients, and
  * thick line segments for the tile icons. Coordinates are in the current pose (design pixels).
  */
 final class TitlePainter {
@@ -77,6 +77,32 @@ final class TitlePainter {
             b.addVertex(m, cx, cy, 0).setColor(inner);
             b.addVertex(m, cx + (float) Math.cos(a0) * r, cy + (float) Math.sin(a0) * r, 0).setColor(outer);
             b.addVertex(m, cx + (float) Math.cos(a1) * r, cy + (float) Math.sin(a1) * r, 0).setColor(outer);
+        }
+        end(g, b);
+    }
+
+    /** Horizontal bar with round ends, {@code w} x {@code h} from its top-left corner. */
+    static void roundedBar(GuiGraphics g, float x, float y, float w, float h, int colour) {
+        Matrix4f m = g.pose().last().pose();
+        BufferBuilder b = begin();
+        float r = Math.min(h, w) / 2, cy = y + h / 2, left = x + r, right = x + w - r;
+        if (right > left) {
+            b.addVertex(m, left, y, 0).setColor(colour);
+            b.addVertex(m, right, y, 0).setColor(colour);
+            b.addVertex(m, right, y + h, 0).setColor(colour);
+            b.addVertex(m, left, y, 0).setColor(colour);
+            b.addVertex(m, right, y + h, 0).setColor(colour);
+            b.addVertex(m, left, y + h, 0).setColor(colour);
+        }
+        int n = 8;
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI / 2 + Math.PI * i / n, a1 = Math.PI / 2 + Math.PI * (i + 1) / n;
+            b.addVertex(m, left, cy, 0).setColor(colour);
+            b.addVertex(m, left + (float) Math.cos(a0) * r, cy - (float) Math.sin(a0) * r, 0).setColor(colour);
+            b.addVertex(m, left + (float) Math.cos(a1) * r, cy - (float) Math.sin(a1) * r, 0).setColor(colour);
+            b.addVertex(m, right, cy, 0).setColor(colour);
+            b.addVertex(m, right - (float) Math.cos(a0) * r, cy - (float) Math.sin(a0) * r, 0).setColor(colour);
+            b.addVertex(m, right - (float) Math.cos(a1) * r, cy - (float) Math.sin(a1) * r, 0).setColor(colour);
         }
         end(g, b);
     }

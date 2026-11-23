@@ -6,6 +6,7 @@ import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
 import fr.thegostsniperfr.arffornia.config.ApiConfig;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.SharedConstants;
 import net.minecraft.Util;
@@ -41,9 +42,13 @@ public class ArfTitleScreen extends Screen {
     static final ResourceLocation LOGO = rl("textures/gui/title/logo.png");
     static final ResourceLocation ELEVATOR = rl("textures/gui/title/space_elevator.png");
     static final ResourceLocation DISPLAY_FONT = rl("display");
-    static final ResourceLocation BOLD_FONT = rl("bold");
     static final ResourceLocation UI_FONT = rl("ui");
-    private static final ResourceLocation UI_SMALL_FONT = rl("ui_small");
+    static final ResourceLocation LABEL_FONT = rl("label");
+    static final ResourceLocation BODY_FONT = rl("body");
+    static final ResourceLocation STRONG_FONT = rl("strong");
+    /** Same face with a lower oversample, for text at 16 design pixels or less. */
+    private static final Map<ResourceLocation, ResourceLocation> SMALL_FONTS = Map.of(
+            LABEL_FONT, rl("label_small"), BODY_FONT, rl("body_small"), STRONG_FONT, rl("strong_small"));
     private static final int DESIGN_W = 1920, DESIGN_H = 1080;
     private static final float HEX_W = 250, HEX_H = 216.5f, CX = 1440, CY = 560;
     private static final int INK = 0xffffff, MUTED = 0xb3a7c2, TEAL = 0x4fd1c5, GREEN = 0x42d392, HOT = 0xff7300, T1 = 0xffb36b, T2 = 0xe0703c;
@@ -52,6 +57,7 @@ public class ArfTitleScreen extends Screen {
      * filtering, so each font's oversample matches the sizes it is drawn at (at 1080p) to avoid aliasing.
      */
     private static final float TTF_EM = 12f;
+    private static final float SUBTITLE_MAX_W = 150, SUBTITLE_LINE = 19, BAR_W = 96, BAR_H = 4, BAR_GAP = 6;
 
     record Tile(String id, int q, int r, float x, float y) {}
 
@@ -59,6 +65,7 @@ public class ArfTitleScreen extends Screen {
     private final List<float[]> ghosts = new ArrayList<>();
     private final long openedAt = Util.getMillis();
     private final MotdStore motdStore = new MotdStore(FMLPaths.GAMEDIR.get());
+    private final NewsStore newsStore = new NewsStore(FMLPaths.GAMEDIR.get());
     private TitleStatus status;
     private String current = "play", previous = "play";
     private long movedAt = -10_000, pressedAt = -10_000;
@@ -106,7 +113,7 @@ public class ArfTitleScreen extends Screen {
 
     @Override
     protected void init() {
-        if (status == null) status = new TitleStatus(minecraft, motdStore);
+        if (status == null) status = new TitleStatus(minecraft, motdStore, newsStore);
         k = Math.min(width / (float) DESIGN_W, height / (float) DESIGN_H);
         ox = (width - DESIGN_W * k) / 2f;
         oy = (height - DESIGN_H * k) / 2f;
@@ -237,7 +244,10 @@ public class ArfTitleScreen extends Screen {
             case "mods" -> minecraft.setScreen(new ModListScreen(this));
             case "options" -> minecraft.setScreen(new OptionsScreen(this, minecraft.options));
             case "quit" -> minecraft.stop();
-            case "news" -> ConfirmLinkScreen.confirmLinkNow(this, websiteRoot() + "/news");
+            case "news" -> {
+                ArfforniaApiDtos.NewsHeadline headline = status.news();
+                ConfirmLinkScreen.confirmLinkNow(this, headline != null ? headline.url() : websiteRoot() + "/news");
+            }
             default -> {}
         }
     }
@@ -351,27 +361,56 @@ public class ArfTitleScreen extends Screen {
             case "play" -> {
                 TitlePainter.disc(g, x, y - 34, 48, TitlePainter.alpha(0.78f, 0x14081e), TitlePainter.alpha(0, 0x14081e));
                 g.blit(ELEVATOR, (int) x - 50, (int) y - 84, 100, 100, 0, 0, 200, 200, 200, 200);
-                text(g, tr("gui.arffornia.title.play"), BOLD_FONT, 30, x, y + 22, TitlePainter.argb(255, INK), 0, Align.CENTER);
-                text(g, playSubtitle(), UI_FONT, 15, x, y + 58, TitlePainter.alpha(0.88f, INK), 0, Align.CENTER);
+                text(g, tr("gui.arffornia.title.play"), STRONG_FONT, 30, x, y + 22, TitlePainter.argb(255, INK), 0, Align.CENTER);
+                text(g, playSubtitle(), BODY_FONT, 15, x, y + 58, TitlePainter.alpha(0.88f, INK), 0, Align.CENTER);
             }
-            case "single" -> iconAndTitle(g, tile, "menu.singleplayer", null, small);
-            case "mile" -> {
-                ArfforniaApiDtos.ProgressionState p = status.progression();
-                iconAndTitle(g, tile, "gui.arffornia.title.milestones", p == null ? null : tr("gui.arffornia.title.milestones.done", p.completed().size()), small);
+            case "single" -> iconAndTitle(g, tile, "menu.singleplayer", List.of(), 0, small);
+            case "mile" -> drawMilestones(g, tile, small);
+            case "mods" -> iconAndTitle(g, tile, "fml.menu.mods", List.of(Component.translatable("gui.arffornia.title.mods.loaded", ModList.get().size())), 0, small);
+            case "options" -> iconAndTitle(g, tile, "menu.options", List.of(), 0, small);
+            case "quit" -> iconAndTitle(g, tile, "menu.quit", List.of(), 0, small);
+            case "news" -> {
+                ArfforniaApiDtos.NewsHeadline headline = status.news();
+                List<FormattedText> lines = headline == null
+                        ? List.of(Component.translatable("gui.arffornia.title.news.open"))
+                        : TextWrap.wrap(headline.title(), s -> textWidth(s, BODY_FONT, 15, 0), SUBTITLE_MAX_W, 2).stream().map(FormattedText::of).toList();
+                iconAndTitle(g, tile, "gui.arffornia.title.news", lines, 0, small);
             }
-            case "mods" -> iconAndTitle(g, tile, "fml.menu.mods", tr("gui.arffornia.title.mods.loaded", ModList.get().size()), small);
-            case "options" -> iconAndTitle(g, tile, "menu.options", null, small);
-            case "quit" -> iconAndTitle(g, tile, "menu.quit", null, small);
-            case "news" -> iconAndTitle(g, tile, "gui.arffornia.title.news", tr("gui.arffornia.title.news.open"), small);
             default -> {}
         }
     }
 
-    private void iconAndTitle(GuiGraphics g, Tile tile, String titleKey, @Nullable String subtitle, int smallColour) {
-        float y = tile.y() - (subtitle == null ? 14 : 26);
+    private void drawMilestones(GuiGraphics g, Tile tile, int smallColour) {
+        ArfforniaApiDtos.ProgressionState p = status.progression();
+        StageProgress stage = p == null ? null : StageProgress.of(p).orElse(null);
+        if (stage == null) {
+            List<FormattedText> lines = p == null ? List.of() : List.of(Component.translatable("gui.arffornia.title.milestones.done", p.completed().size()));
+            iconAndTitle(g, tile, "gui.arffornia.title.milestones", lines, 0, smallColour);
+            return;
+        }
+        Component count = Component.translatable("gui.arffornia.title.milestones.count", stage.done()).withColor(TEAL);
+        float bottom = iconAndTitle(g, tile, "gui.arffornia.title.milestones",
+                List.of(Component.translatable("gui.arffornia.title.milestones.stage", count, stage.required())), BAR_GAP + BAR_H, smallColour);
+        float left = tile.x() - BAR_W / 2, top = bottom + BAR_GAP;
+        TitlePainter.roundedBar(g, left, top, BAR_W, BAR_H, TitlePainter.alpha(0.25f, MUTED));
+        if (stage.fraction() > 0) TitlePainter.roundedBar(g, left, top, BAR_W * stage.fraction(), BAR_H, TitlePainter.argb(255, TEAL));
+    }
+
+    /**
+     * Icon, title and subtitle lines centred as one block on the tile, {@code extra} design pixels kept
+     * free below them; returns the bottom of the last line.
+     */
+    private float iconAndTitle(GuiGraphics g, Tile tile, String titleKey, List<? extends FormattedText> subtitle, float extra, int smallColour) {
+        float height = 28 + (subtitle.isEmpty() ? 0 : 24 + SUBTITLE_LINE * (subtitle.size() - 1)) + extra;
+        float y = tile.y() - height / 2;
         TitleIcons.draw(g, tile.id(), tile.x(), y - 22, 34, TitlePainter.alpha(0.9f, INK));
-        text(g, tr(titleKey), UI_FONT, 23, tile.x(), y + 4, TitlePainter.argb(255, INK), 0, Align.CENTER);
-        if (subtitle != null) text(g, subtitle, UI_FONT, 15, tile.x(), y + 38, smallColour, 0, Align.CENTER);
+        text(g, tr(titleKey), LABEL_FONT, 23, tile.x(), y + 4, TitlePainter.argb(255, INK), 0, Align.CENTER);
+        float lineTop = y + 38;
+        for (FormattedText line : subtitle) {
+            text(g, line, BODY_FONT, 15, tile.x(), lineTop, smallColour, Align.CENTER);
+            lineTop += SUBTITLE_LINE;
+        }
+        return lineTop - SUBTITLE_LINE + 15;
     }
 
     private String playSubtitle() {
@@ -450,33 +489,33 @@ public class ArfTitleScreen extends Screen {
         }
         keyHints(g);
         int legal = TitlePainter.alpha(0.6f, MUTED), foot = TitlePainter.alpha(0.75f, MUTED);
-        text(g, tr("gui.arffornia.brand.disclaimer"), UI_FONT, 12, 120, 1008, legal, 0.5f, Align.LEFT);
+        text(g, tr("gui.arffornia.brand.disclaimer"), LABEL_FONT, 12, 120, 1008, legal, 0.5f, Align.LEFT);
         String arffornia = ModList.get().getModContainerById(Arffornia.MODID).map(c -> c.getModInfo().getVersion().toString()).orElse("?");
-        text(g, tr("gui.arffornia.title.version", arffornia, FMLLoader.versionInfo().neoForgeVersion()), UI_FONT, 15, 120, 1034, foot, 0, Align.LEFT);
-        text(g, tr("title.credits"), UI_FONT, 15, 1880, 1034, foot, 0, Align.RIGHT);
+        text(g, tr("gui.arffornia.title.version", arffornia, FMLLoader.versionInfo().neoForgeVersion()), BODY_FONT, 15, 120, 1034, foot, 0, Align.LEFT);
+        text(g, tr("title.credits"), BODY_FONT, 15, 1880, 1034, foot, 0, Align.RIGHT);
     }
 
     private void statusLine(GuiGraphics g, float centreY, int colour, String label) {
         TitlePainter.disc(g, 126, centreY, 10, TitlePainter.alpha(0.18f, colour), TitlePainter.alpha(0.18f, colour));
         TitlePainter.disc(g, 126, centreY, 6, TitlePainter.argb(255, colour), TitlePainter.argb(255, colour));
-        text(g, label, UI_FONT, 22, 146, centreY - 13, TitlePainter.argb(255, INK), 0, Align.LEFT);
+        text(g, label, BODY_FONT, 22, 146, centreY - 13, TitlePainter.argb(255, INK), 0, Align.LEFT);
     }
 
     private void keyHints(GuiGraphics g) {
         float y = 924, x = 1440 - 172;
         for (String key : new String[] { "↑", "↓", "←", "→" }) x = keycap(g, key, x, y) + 10;
-        text(g, tr("gui.arffornia.title.keys.move"), UI_FONT, 16, x, y - 10, TitlePainter.alpha(0.8f, MUTED), 0, Align.LEFT);
-        x += textWidth(tr("gui.arffornia.title.keys.move"), UI_FONT, 16, 0) + 20;
+        text(g, tr("gui.arffornia.title.keys.move"), BODY_FONT, 16, x, y - 10, TitlePainter.alpha(0.8f, MUTED), 0, Align.LEFT);
+        x += textWidth(tr("gui.arffornia.title.keys.move"), BODY_FONT, 16, 0) + 20;
         x = keycap(g, tr("key.keyboard.enter"), x, y) + 10;
-        text(g, tr("gui.arffornia.title.keys.select"), UI_FONT, 16, x, y - 10, TitlePainter.alpha(0.8f, MUTED), 0, Align.LEFT);
+        text(g, tr("gui.arffornia.title.keys.select"), BODY_FONT, 16, x, y - 10, TitlePainter.alpha(0.8f, MUTED), 0, Align.LEFT);
     }
 
     private float keycap(GuiGraphics g, String label, float x, float centreY) {
-        float w = Math.max(30, textWidth(label, UI_FONT, 15, 0) + 14);
+        float w = Math.max(30, textWidth(label, STRONG_FONT, 15, 0) + 14);
         int left = Math.round(x), top = Math.round(centreY - 15), right = Math.round(x + w), bottom = Math.round(centreY + 15);
         g.fill(left, top, right, bottom, TitlePainter.alpha(0.5f, MUTED));
         g.fill(left + 1, top + 1, right - 1, bottom - 3, TitlePainter.alpha(0.9f, 0x16001f));
-        text(g, label, UI_FONT, 15, x + w / 2, centreY - 10, TitlePainter.argb(255, INK), 0, Align.CENTER);
+        text(g, label, STRONG_FONT, 15, x + w / 2, centreY - 10, TitlePainter.argb(255, INK), 0, Align.CENTER);
         return x + w;
     }
 
@@ -489,7 +528,7 @@ public class ArfTitleScreen extends Screen {
     }
 
     private static ResourceLocation forSize(ResourceLocation fontId, float size) {
-        return fontId.equals(UI_FONT) && size <= 16 ? UI_SMALL_FONT : fontId;
+        return size <= 16 ? SMALL_FONTS.getOrDefault(fontId, fontId) : fontId;
     }
 
     private FormattedCharSequence sequence(String text, ResourceLocation fontId) {
@@ -533,6 +572,28 @@ public class ArfTitleScreen extends Screen {
                 cursor += font.width(c) + tracking / scale;
             }
         }
+        pose.popPose();
+    }
+
+    /** A line that may carry its own colours (no tracking): unstyled parts take {@code argb}. */
+    private void text(GuiGraphics g, FormattedText line, ResourceLocation fontId, float size, float x, float top, int argb, Align align) {
+        if ((argb >>> 24) < 4) return;
+        ResourceLocation id = forSize(fontId, size);
+        FormattedText styled = line instanceof Component c
+                ? Component.empty().append(c).withStyle(s -> s.withFont(id))
+                : FormattedText.of(line.getString(), Style.EMPTY.withFont(id));
+        float scale = size / TTF_EM;
+        float width = font.width(styled) * scale;
+        float left = switch (align) {
+            case LEFT -> x;
+            case CENTER -> x - width / 2;
+            case RIGHT -> x - width;
+        };
+        var pose = g.pose();
+        pose.pushPose();
+        pose.translate(left, top, 0);
+        pose.scale(scale, scale, 1);
+        g.drawString(font, Language.getInstance().getVisualOrder(styled), 0, 0, argb, false);
         pose.popPose();
     }
 

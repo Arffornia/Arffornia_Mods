@@ -187,7 +187,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
         List<ArfforniaApiDtos.CompletedMilestone> completed = completedKeysByProgression.getOrDefault(progressionId, Set.of()).stream()
                 .sorted().map(key -> new ArfforniaApiDtos.CompletedMilestone(key, "2026-01-01T00:00:00Z")).toList();
         return new ArfforniaApiDtos.ProgressionState(progressionId, 1, retiredProgressions.contains(progressionId),
-                openStageByProgression.getOrDefault(progressionId, 1), completed);
+                openStageByProgression.getOrDefault(progressionId, 1), completed, null);
     }
 
     @Override

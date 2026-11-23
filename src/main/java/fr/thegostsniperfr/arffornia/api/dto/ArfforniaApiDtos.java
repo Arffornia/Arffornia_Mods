@@ -121,8 +121,20 @@ public class ArfforniaApiDtos {
             @SerializedName("snapshot_version") int snapshotVersion,
             boolean retired,
             @SerializedName("open_stage") int openStage,
-            List<CompletedMilestone> completed
+            List<CompletedMilestone> completed,
+            @Nullable List<StageState> stages
     ) {
+    }
+
+    /** One stage of {@code ProgressionState}: it opens the next one once {@code done / total >= threshold} and its module is delivered. */
+    public record StageState(int number, boolean open, int done, int total, double threshold) {
+    }
+
+    /** {@code GET /news/latest}: newest first. */
+    public record NewsFeed(List<NewsHeadline> news) {
+    }
+
+    public record NewsHeadline(long id, String title, String date, String url) {
     }
 
     public record CompletedMilestone(String key, @SerializedName("completed_at") String completedAt) {

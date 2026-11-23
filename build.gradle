@@ -117,6 +117,14 @@ neoForge {
             programArgument('--username=ScreenTest')
         }
 
+        // The title screen in motion (ScreenMotionRun): frame timings and frames to look at in build/motion.
+        clientMotion {
+            client()
+            gameDirectory = project.file('run/screens')
+            systemProperty 'arffornia.screens.motion', project.file('build/motion').absolutePath
+            programArgument('--username=ScreenTest')
+        }
+
         server {
             server()
             programArgument '--nogui'

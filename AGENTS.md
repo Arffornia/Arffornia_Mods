@@ -58,6 +58,9 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
   `xvfb-run -a -s "-screen 0 1920x1080x24" make screens` compares them with `src/test/screens/baselines`
   (1 % limit, `tools/screens/masks.json`); `make screens-approve` accepts an intended change. CI: `ui-tests.yml`
   (label `ui` on a PR, nightly). Other screens are checked by hand.
+  Motion (what a player sees, at 4K): `xvfb-run -a -s "-screen 0 3840x2160x24" ./gradlew :earlywindow:motionTest -Pmotion=3840x2160`
+  and `./gradlew runClientMotion` (`run/screens/config/fml.toml` window 3840x2160; GUI scale `-Darffornia.screens.motionGui`)
+  write paint/frame timings and 7 s of frames at 30 fps to `earlywindow/build/motion/` and `build/motion/`.
 
 ## Gotchas (from the audit)
 - Recipes and bans come from the website datapack (`<server>/arffornia/recipe-pack.zip`), fetched at boot before the

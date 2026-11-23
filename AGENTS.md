@@ -24,7 +24,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
 | `client/jei/` | JEI plugin, reads Crafter recipes from the synced `RecipeManager` |
 | `src/main/resources/` | lang, models, blockstates, loot tables, recipes, tags |
 | `src/main/templates/META-INF/neoforge.mods.toml` | Mod metadata (expanded from `gradle.properties`) |
-| `earlywindow/` (Gradle subproject, own jar `arffornia-earlywindow.jar`) | Spec 007 early loading window: an FML `ImmediateWindowProvider` (`earlyWindowProvider = "arffornia"` in `config/fml.toml`) loaded on the SERVICE layer before Minecraft; no Minecraft classes. Its PNGs are baked by Arffornia_Assets (`node early/line.mjs`, `node early/window-line.mjs`); copy them from `out/early/` when the line or the mock-up changes |
+| `earlywindow/` (Gradle subproject, own jar `arffornia-earlywindow.jar`) | Spec 007 early loading window: an FML `ImmediateWindowProvider` (`earlyWindowProvider = "arffornia"` in `config/fml.toml`) loaded on the SERVICE layer before Minecraft; no Minecraft classes. Its images are baked by Arffornia_Assets (`node early/window-line.mjs` for the PNG layers, then `node early/line.mjs` for the `line/` JPEG frames, a seamless 20/3 s loop at 12 fps); copy them from `out/early/` when the line or the mock-up changes |
 | `.github/workflows/` | `ci.yml` (PR build), `build.yml` (tag release), `prerelease.yml` (`edge` and `pr-<n>` test pre-releases), `security.yml` (Trivy) |
 
 ## Commands

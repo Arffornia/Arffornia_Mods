@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The round 4b early window of spec 007 (Assets `early/window-line.html`): night backdrop, the
- * assembly line as a 20 fps sprite loop, the baked logo and wordmark, then every line a player reads
+ * assembly line as a seamless 12 fps clip cross-faded between frames, the baked logo and wordmark, then every line a player reads
  * drawn live in their language. Coordinates are the mock-up's 854x480 CSS pixels.
  */
 final class EarlyScene {
@@ -27,8 +27,8 @@ final class EarlyScene {
     private static final AtomicReference<Shot> SHOT = new AtomicReference<>();
     // Above the 12 units Minecraft's GlStateManager tracks, so the overlay phase cannot clobber them.
     private static final int UNIT = 20;
-    private static final int SHEET_COLS = 6, SHEET_FRAMES = 60, SHEET_FPS = 20;
-    private static final float SHEET_X = 187, SHEET_Y = 20, CELL_W = 480, CELL_H = 288;
+    private static final int LINE_FRAMES = 80;
+    private static final float LINE_FPS = 12, LINE_X = 187, LINE_Y = 20, LINE_W = 480, LINE_H = 288;
     private static final float BAR_X = 252, BAR_Y = 416, BAR_W = 350, BAR_H = 4;
     private static final float MOTD_MAX_WIDTH = 760;
 
@@ -40,7 +40,8 @@ final class EarlyScene {
     private final EarlyClock clock = new EarlyClock();
     private final LoadingProgress progress = new LoadingProgress();
     private final SimpleBufferBuilder bb = new SimpleBufferBuilder(1);
-    private EarlyTexture backdrop, sheet, overlay;
+    private EarlyTexture backdrop, overlay;
+    private EarlyClip line;
     private EarlyFont small, legal, motdFont, motdFontSmall;
     private boolean firstFrameAnnounced;
 
@@ -61,7 +62,7 @@ final class EarlyScene {
         String suffix = scale >= 2 ? "@2x" : "";
         backdrop = EarlyTexture.load("backdrop" + suffix + ".png");
         overlay = EarlyTexture.load("overlay" + suffix + ".png");
-        sheet = EarlyTexture.load("line.png");
+        line = new EarlyClip("line", LINE_FRAMES, LINE_FPS);
         ByteBuffer ttf = EarlyTexture.resource("ChakraPetch-Medium.ttf");
         small = new EarlyFont(ttf, 10.5f, scale);
         legal = new EarlyFont(ttf, 10f, scale);
@@ -80,10 +81,9 @@ final class EarlyScene {
         int alpha = 255;
 
         image(shader, backdrop, 0, 0, 854, 480, 0, 0, 1, 1, s, white(alpha));
-        int frame = (int) Math.floor(t * SHEET_FPS) % SHEET_FRAMES;
-        float u0 = (frame % SHEET_COLS) * CELL_W / sheet.width();
-        float v0 = (frame / SHEET_COLS) * CELL_H / sheet.height();
-        image(shader, sheet, SHEET_X, SHEET_Y, CELL_W, CELL_H, u0, v0, u0 + CELL_W / sheet.width(), v0 + CELL_H / sheet.height(), s, white(alpha));
+        var clip = line.at(t);
+        image(shader, clip.current(), LINE_X, LINE_Y, LINE_W, LINE_H, 0, 0, 1, 1, s, white(alpha));
+        image(shader, clip.next(), LINE_X, LINE_Y, LINE_W, LINE_H, 0, 0, 1, 1, s, white(Math.round(alpha * clip.mix())));
         image(shader, overlay, 0, 0, 854, 480, 0, 0, 1, 1, s, white(alpha));
 
         bar(shader, snap.fraction(), s, alpha);
@@ -121,8 +121,12 @@ final class EarlyScene {
     }
 
     private void image(ElementShader shader, EarlyTexture tex, float x, float y, float w, float h, float u0, float v0, float u1, float v1, int s, int colour) {
+        image(shader, tex.id(), x, y, w, h, u0, v0, u1, v1, s, colour);
+    }
+
+    private void image(ElementShader shader, int texture, float x, float y, float w, float h, float u0, float v0, float u1, float v1, int s, int colour) {
         glActiveTexture(GL_TEXTURE0 + UNIT);
-        glBindTexture(GL_TEXTURE_2D, tex.id());
+        glBindTexture(GL_TEXTURE_2D, texture);
         shader.updateTextureUniform(UNIT);
         shader.updateRenderTypeUniform(ElementShader.RenderType.TEXTURE);
         bb.begin(SimpleBufferBuilder.Format.POS_TEX_COLOR, SimpleBufferBuilder.Mode.QUADS);

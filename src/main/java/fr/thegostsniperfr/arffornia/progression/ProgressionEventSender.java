@@ -23,7 +23,8 @@ import java.util.UUID;
 /**
  * Records milestones completed in game and sends them to the website's idempotent events endpoint (spec 017).
  * <p>
- * Everything here runs on the server from server-side detection; no client payload can complete a milestone.
+ * A milestone is completed only by a Space Elevator delivery or the admin {@code add} command, both on the server;
+ * no client payload can complete one.
  * The world is the runtime authority: a completion applies to the progression at once and waits in the
  * {@link ProgressionEventOutbox} until the website acknowledges it. A failed call is retried with a growing delay;
  * a website outage never locks or unlocks anything. Stages are opened by the website; the game learns it from the
@@ -50,45 +51,65 @@ public final class ProgressionEventSender {
     }
 
     /**
-     * The player met a milestone's validation. When the milestone is available to their active progression (rule 3) it
-     * is done now, for the whole progression, and the website is told.
-     *
-     * @return true when the milestone counts or was already done; false when it does not count (yet)
+     * Completes the milestone for the player's active progression when it is available (rule 3), and tells the website.
      */
-    public static boolean milestoneCompleted(ServerPlayer player, String milestoneKey) {
+    public static MilestoneResult milestoneCompleted(ServerPlayer player, String milestoneKey) {
         return milestoneCompleted(player.server, Progressions.activeProgressionOf(player), milestoneKey, player.getUUID());
     }
 
-    /** Same, for a given progression (a machine's) and the player who triggered it. */
-    public static boolean milestoneCompleted(MinecraftServer server, long progressionId, String milestoneKey, UUID actor) {
-        if (progressionId == ModAttachments.NO_PROGRESSION || UNKNOWN_KEYS.contains(milestoneKey)
-                || REFUSED.getOrDefault(progressionId, Set.of()).contains(milestoneKey)) {
-            return false;
-        }
-        Optional<ProgressionSnapshot> found = Progressions.find(server, progressionId);
-        if (found.isEmpty()) {
-            Progressions.ensureKnown(server, progressionId);
-            return false;
-        }
-        ProgressionSnapshot snapshot = found.get();
-        if (snapshot.retired()) {
-            return false;
-        }
-        if (snapshot.isCompleted(milestoneKey)) {
-            return true;
-        }
-        ProgressionModel model = ProgressionModels.current(server);
-        if (!model.isAvailable(milestoneKey, snapshot)) {
-            if (!model.milestones().containsKey(milestoneKey)) {
-                ProgressionModels.refresh(server, false);
-            }
-            return false;
+    /** Same, for a given progression (a machine's) and the player who triggered it. Only {@link MilestoneResult#COMPLETED} records anything. */
+    public static MilestoneResult milestoneCompleted(MinecraftServer server, long progressionId, String milestoneKey, UUID actor) {
+        Optional<MilestoneResult> refusal = refusal(server, progressionId, milestoneKey);
+        if (refusal.isPresent()) {
+            return refusal.get();
         }
         ProgressionEventOutbox.get(server).add(progressionId, UUID.randomUUID().toString().replace("-", ""), milestoneKey,
                 System.currentTimeMillis(), actor.toString().replace("-", ""));
         Progressions.recordCompletedKey(server, progressionId, milestoneKey);
         send(server, progressionId);
-        return true;
+        return MilestoneResult.COMPLETED;
+    }
+
+    /**
+     * Why {@code milestoneKey} cannot be completed for this progression now, without changing anything; empty when
+     * {@link #milestoneCompleted} would complete it. May start a refresh of the progression or the model.
+     */
+    public static Optional<MilestoneResult> refusal(MinecraftServer server, long progressionId, String milestoneKey) {
+        if (progressionId == ModAttachments.NO_PROGRESSION) {
+            return Optional.of(MilestoneResult.NO_PROGRESSION);
+        }
+        Optional<ProgressionSnapshot> found = Progressions.find(server, progressionId);
+        if (found.isEmpty()) {
+            Progressions.ensureKnown(server, progressionId);
+            return Optional.of(MilestoneResult.NOT_READY);
+        }
+        ProgressionSnapshot snapshot = found.get();
+        if (snapshot.retired()) {
+            return Optional.of(MilestoneResult.RETIRED);
+        }
+        if (snapshot.isCompleted(milestoneKey)) {
+            return Optional.of(MilestoneResult.ALREADY_DONE);
+        }
+        if (UNKNOWN_KEYS.contains(milestoneKey)) {
+            return Optional.of(MilestoneResult.UNKNOWN_MILESTONE);
+        }
+        if (REFUSED.getOrDefault(progressionId, Set.of()).contains(milestoneKey)) {
+            return Optional.of(MilestoneResult.REFUSED);
+        }
+        ProgressionModel model = ProgressionModels.current(server);
+        ProgressionModel.Rule rule = model.milestones().get(milestoneKey);
+        if (rule == null) {
+            ProgressionModels.refresh(server, false);
+            return Optional.of(model.milestones().isEmpty() ? MilestoneResult.NOT_READY : MilestoneResult.UNKNOWN_MILESTONE);
+        }
+        if (!snapshot.isStageOpen(rule.stage())) {
+            return Optional.of(new MilestoneResult.StageClosed(rule.stage()));
+        }
+        List<String> missing = model.missingRequirements(milestoneKey, snapshot);
+        if (!missing.isEmpty()) {
+            return Optional.of(new MilestoneResult.MissingPrerequisites(missing));
+        }
+        return Optional.empty();
     }
 
     /** The website refused these milestones for this progression; they are not tried again until its availability grows. */
@@ -194,11 +215,8 @@ public final class ProgressionEventSender {
             }
             outbox.remove(answered);
             RETRIES.remove(progressionId);
-            // A refused milestone (e.g. milestone_unavailable) stops counting in game; its advancement is revoked so it can fire again later.
-            refusedKeys.forEach(key -> {
-                Progressions.dropCompletedKey(server, progressionId, key);
-                MilestoneAdvancements.revokeForMembers(server, progressionId, key);
-            });
+            // A refused milestone (e.g. milestone_unavailable) stops counting in game.
+            refusedKeys.forEach(key -> Progressions.dropCompletedKey(server, progressionId, key));
             if (reply.body().state() != null) {
                 ProgressionModels.ensureVersion(server, reply.body().state().snapshotVersion());
                 Progressions.applyKeyedState(server, progressionId, reply.body().state());

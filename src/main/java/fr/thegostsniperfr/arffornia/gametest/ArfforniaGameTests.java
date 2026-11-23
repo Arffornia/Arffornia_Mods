@@ -28,6 +28,7 @@ import fr.thegostsniperfr.arffornia.block.entity.SpaceElevatorBlockEntity;
 import fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket;
 import fr.thegostsniperfr.arffornia.network.ServerboundPlaceRecipePacket;
 import fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket;
+import fr.thegostsniperfr.arffornia.progression.MilestoneResult;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.ProgressionEventOutbox;
 import fr.thegostsniperfr.arffornia.progression.ProgressionEventSender;
@@ -200,8 +201,8 @@ public final class ArfforniaGameTests {
         return milestone(helper, id, amount, 1);
     }
 
-    private static ArfforniaApiDtos.MilestoneDetails milestone(GameTestHelper helper, int id, int amount, int stage) {
-        fake().putModelMilestone(elevatorKey(id), stage);
+    private static ArfforniaApiDtos.MilestoneDetails milestone(GameTestHelper helper, int id, int amount, int stage, String... requires) {
+        fake().putModelMilestone(elevatorKey(id), stage, requires);
         ProgressionModels.apply(helper.getLevel().getServer(), ProgressionModel.of(fake().model(), "test-" + elevatorKey(id)));
         return new ArfforniaApiDtos.MilestoneDetails(id, elevatorKey(id), "Test milestone " + id, "", 1, 1, 0,
                 Collections.emptyList(),
@@ -542,23 +543,58 @@ public final class ArfforniaGameTests {
     }
 
     @GameTest(template = PLATFORM)
-    public static void elevatorKeepsItsItemsAndSendsNothingForAnUnavailableMilestone(GameTestHelper helper) {
+    public static void elevatorKeepsItsItemsAndSendsNothingWhenTheMilestonesStageIsClosed(GameTestHelper helper) {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
         // Stage 2 while the progression only opened stage 1.
         be.setCachedMilestoneDetails(milestone(helper, id, 2, 2));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 2));
-        openElevator(owner, be);
 
-        ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos()));
+        MilestoneResult result = be.launch(owner);
 
+        helper.assertTrue(result instanceof MilestoneResult.StageClosed closed && closed.stage() == 2, "Stage 2 is closed, got " + result);
         helper.runAfterDelay(5, () -> {
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Items must not be consumed for an unavailable milestone");
             helper.assertTrue(fake().receivedEvents(id).isEmpty(), "Nothing must be sent");
             helper.assertTrue(ProgressionEventOutbox.get(helper.getLevel().getServer()).pendingKeys(id).isEmpty(), "Nothing must wait in the outbox");
             helper.succeed();
         });
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void elevatorKeepsItsItemsWhenAPrerequisiteIsMissing(GameTestHelper helper) {
+        int id = nextId();
+        String prerequisite = elevatorKey(id) + "_pre";
+        fake().putModelMilestone(prerequisite, 1);
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
+        be.setCachedMilestoneDetails(milestone(helper, id, 2, 1, prerequisite));
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 2));
+
+        MilestoneResult result = be.launch(owner);
+
+        helper.assertTrue(result instanceof MilestoneResult.MissingPrerequisites missing && missing.milestoneKeys().equals(List.of(prerequisite)),
+                "The missing prerequisite is named, got " + result);
+        helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Items must not be consumed");
+        helper.assertTrue(ProgressionEventOutbox.get(helper.getLevel().getServer()).pendingKeys(id).isEmpty(), "Nothing must wait in the outbox");
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void elevatorKeepsItsItemsForAMilestoneAlreadyDone(GameTestHelper helper) {
+        int id = nextId();
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
+        be.setCachedMilestoneDetails(milestone(helper, id, 2));
+        Progressions.recordCompletedKey(helper.getLevel().getServer(), id, elevatorKey(id));
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 2));
+
+        MilestoneResult result = be.launch(owner);
+
+        helper.assertTrue(result == MilestoneResult.ALREADY_DONE, "The milestone is already done, got " + result);
+        helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Items must not be consumed");
+        helper.succeed();
     }
 
     @GameTest(template = PLATFORM, timeoutTicks = 200)

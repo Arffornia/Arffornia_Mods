@@ -102,7 +102,7 @@ public final class RecipePackValidator {
                 } else if (!json.isJsonObject()) {
                     throw new InvalidPackException(name + " is not a JSON object");
                 } else if (isAdvancement) {
-                    // Rewards can run functions and give loot; milestone detection never needs them.
+                    // Older website packs still ship inert milestone advancements; rewards would run functions and give loot.
                     if (json.getAsJsonObject().has("rewards")) {
                         throw new InvalidPackException(name + " has rewards");
                     }

@@ -84,9 +84,6 @@ public final class Progressions {
             long previous = activeProgressionOf(player);
             long current = playerData.activeProgressionId();
             player.setData(ModAttachments.ACTIVE_PROGRESSION, current);
-            if (previous != current) {
-                MilestoneAdvancements.recheckInventoryLater(player);
-            }
             CompletableFuture<Void> refreshCurrent = refreshProgression(server, current);
             if (previous != current && previous != ModAttachments.NO_PROGRESSION) {
                 return CompletableFuture.allOf(refreshCurrent, refreshProgression(server, previous));
@@ -170,10 +167,6 @@ public final class Progressions {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (activeProgressionOf(player) == snapshot.id()) {
                 PacketDistributor.sendToPlayer(player, new ClientboundProgressionStatePacket(snapshot));
-                MilestoneAdvancements.reconcile(player, snapshot);
-                if (moreAvailable) {
-                    MilestoneAdvancements.recheckInventoryLater(player);
-                }
             }
         }
     }

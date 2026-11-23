@@ -90,7 +90,6 @@ public final class ProgressionModels extends SavedData {
             // The website judged refused milestones with the old rules.
             ProgressionEventSender.forgetRefusals();
         }
-        server.getPlayerList().getPlayers().forEach(MilestoneAdvancements::recheckInventoryLater);
     }
 
     static void resetFetchState() {

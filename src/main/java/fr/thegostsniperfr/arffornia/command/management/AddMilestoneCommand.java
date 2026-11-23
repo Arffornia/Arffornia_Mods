@@ -4,7 +4,10 @@ import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
+import fr.thegostsniperfr.arffornia.progression.MilestoneResult;
 import fr.thegostsniperfr.arffornia.progression.ProgressionEventSender;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModel;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModels;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -21,17 +24,26 @@ public class AddMilestoneCommand {
                                 .executes(context -> {
                                     ServerPlayer target = EntityArgument.getPlayer(context, "player");
                                     int milestoneId = IntegerArgumentType.getInteger(context, "milestone_id");
+                                    CommandSourceStack source = context.getSource();
 
-                                    context.getSource().sendSystemMessage(Component.translatable("commands.arffornia.add.adding", milestoneId, target.getDisplayName()));
+                                    source.sendSystemMessage(Component.translatable("commands.arffornia.add.adding", milestoneId, target.getDisplayName()));
 
                                     MinecraftServer server = target.server;
                                     ProgressionBackends.get().fetchMilestoneDetails(milestoneId, null)
                                             .thenAcceptAsync(details -> {
-                                                boolean done = details != null && details.key() != null
-                                                        && ProgressionEventSender.milestoneCompleted(server, Progressions.activeProgressionOf(target), details.key(), target.getUUID());
-                                                context.getSource().sendSystemMessage(done
-                                                        ? Component.translatable("commands.arffornia.add.success").withStyle(ChatFormatting.GREEN)
-                                                        : Component.translatable("commands.arffornia.add.failed").withStyle(ChatFormatting.RED));
+                                                if (details == null || details.key() == null) {
+                                                    source.sendSystemMessage(Component.translatable("commands.arffornia.add.not_found", milestoneId)
+                                                            .withStyle(ChatFormatting.RED));
+                                                    return;
+                                                }
+                                                long progressionId = Progressions.activeProgressionOf(target);
+                                                MilestoneResult result = ProgressionEventSender.milestoneCompleted(server, progressionId, details.key(), target.getUUID());
+                                                if (result.isCompleted()) {
+                                                    Progressions.recordCompleted(server, progressionId, details.id());
+                                                }
+                                                ProgressionModel model = ProgressionModels.current(server);
+                                                String language = source.getPlayer() != null ? source.getPlayer().clientInformation().language() : "en_us";
+                                                source.sendSystemMessage(result.message(details.name(), key -> model.titleOf(key, language)));
                                             }, server);
                                     return 1;
                                 })

@@ -77,7 +77,7 @@ public final class InMemoryProgressionBackend implements ProgressionBackend {
 
     /** Adds a milestone to the published model (shared by every test, so use distinct keys). */
     public InMemoryProgressionBackend putModelMilestone(String key, int stage, String... requires) {
-        modelMilestones.put(key, new ArfforniaApiDtos.ModelMilestone(key, stage, List.of(requires)));
+        modelMilestones.put(key, new ArfforniaApiDtos.ModelMilestone(key, stage, List.of(requires), null));
         return this;
     }
 

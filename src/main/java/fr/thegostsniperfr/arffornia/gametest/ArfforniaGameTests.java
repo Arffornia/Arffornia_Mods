@@ -29,6 +29,10 @@ import fr.thegostsniperfr.arffornia.network.ServerboundLaunchElevatorPacket;
 import fr.thegostsniperfr.arffornia.network.ServerboundPlaceRecipePacket;
 import fr.thegostsniperfr.arffornia.network.ServerboundSelectRecipePacket;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
+import fr.thegostsniperfr.arffornia.progression.ProgressionEventOutbox;
+import fr.thegostsniperfr.arffornia.progression.ProgressionEventSender;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModel;
+import fr.thegostsniperfr.arffornia.progression.ProgressionModels;
 import fr.thegostsniperfr.arffornia.progression.ProgressionSnapshot;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
@@ -187,8 +191,19 @@ public final class ArfforniaGameTests {
         return menu;
     }
 
-    private static ArfforniaApiDtos.MilestoneDetails milestone(int id, int amount) {
-        return new ArfforniaApiDtos.MilestoneDetails(id, "Test milestone " + id, "", 1, 1, 0,
+    private static String elevatorKey(int id) {
+        return "gametest/elevator_" + id;
+    }
+
+    /** A stage 1 milestone without prerequisites, published in the model, so it is available. */
+    private static ArfforniaApiDtos.MilestoneDetails milestone(GameTestHelper helper, int id, int amount) {
+        return milestone(helper, id, amount, 1);
+    }
+
+    private static ArfforniaApiDtos.MilestoneDetails milestone(GameTestHelper helper, int id, int amount, int stage) {
+        fake().putModelMilestone(elevatorKey(id), stage);
+        ProgressionModels.apply(helper.getLevel().getServer(), ProgressionModel.of(fake().model(), "test-" + elevatorKey(id)));
+        return new ArfforniaApiDtos.MilestoneDetails(id, elevatorKey(id), "Test milestone " + id, "", 1, 1, 0,
                 Collections.emptyList(),
                 List.of(new ArfforniaApiDtos.MilestoneRequirement("minecraft:iron_ingot", "Iron Ingot", amount)));
     }
@@ -475,8 +490,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        fake().putMilestone(milestone(id, 3));
-        be.setCachedMilestoneDetails(milestone(id, 3));
+        be.setCachedMilestoneDetails(milestone(helper, id, 3));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 5));
 
         // Another player, on another progression, launches the elevator.
@@ -488,10 +502,9 @@ public final class ArfforniaGameTests {
         helper.assertTrue(ServerboundLaunchElevatorPacket.processOnServer(teammate, new ServerboundLaunchElevatorPacket(be.getBlockPos())),
                 "Launch from the open menu nearby should be accepted");
         helper.succeedWhen(() -> {
-            helper.assertTrue(fake().isCompleted(id, id), "Milestone should be completed in the elevator's progression");
-            helper.assertFalse(fake().isCompleted(id + 500_000L, id), "The launcher's own progression must not be credited");
+            helper.assertTrue(fake().isCompleted(id, elevatorKey(id)), "Milestone should be completed in the elevator's progression");
+            helper.assertFalse(fake().isCompleted(id + 500_000L, elevatorKey(id)), "The launcher's own progression must not be credited");
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Requirements should be consumed, left=" + be.countItems(Items.IRON_INGOT));
-            helper.assertFalse(be.isLaunching(), "Launch should be finished");
         });
     }
 
@@ -500,7 +513,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 1));
         FakePlayer far = player(helper, "far" + id, new Vec3(2.5, 1, 40.5));
         openElevator(far, be);
@@ -519,7 +532,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 1));
 
         helper.assertFalse(ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos())),
@@ -529,22 +542,51 @@ public final class ArfforniaGameTests {
     }
 
     @GameTest(template = PLATFORM)
-    public static void elevatorRefundsWhenBackendFails(GameTestHelper helper) {
+    public static void elevatorKeepsItsItemsAndSendsNothingForAnUnavailableMilestone(GameTestHelper helper) {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        fake().failAddMilestoneFor(id);
-        be.setCachedMilestoneDetails(milestone(id, 2));
+        // Stage 2 while the progression only opened stage 1.
+        be.setCachedMilestoneDetails(milestone(helper, id, 2, 2));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 2));
         openElevator(owner, be);
 
-        helper.assertTrue(ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos())),
-                "Launch should be attempted");
-        helper.succeedWhen(() -> {
-            helper.assertFalse(be.isLaunching(), "Launch should be finished");
-            helper.assertTrue(owner.getInventory().countItem(Items.IRON_INGOT) == 2, "Consumed items should be refunded to the launcher");
-            helper.assertFalse(fake().isCompleted(id, id), "Milestone must not be completed");
+        ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos()));
+
+        helper.runAfterDelay(5, () -> {
+            helper.assertTrue(be.countItems(Items.IRON_INGOT) == 2, "Items must not be consumed for an unavailable milestone");
+            helper.assertTrue(fake().receivedEvents(id).isEmpty(), "Nothing must be sent");
+            helper.assertTrue(ProgressionEventOutbox.get(helper.getLevel().getServer()).pendingKeys(id).isEmpty(), "Nothing must wait in the outbox");
+            helper.succeed();
         });
+    }
+
+    @GameTest(template = PLATFORM, timeoutTicks = 200)
+    public static void elevatorDeliveryDuringAnOutageWaitsInTheOutbox(GameTestHelper helper) {
+        int id = nextId();
+        MinecraftServer server = helper.getLevel().getServer();
+        FakePlayer owner = playerNearMachine(helper, "owner" + id);
+        SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
+        be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 1));
+        openElevator(owner, be);
+        fake().setUnreachable(id, true);
+
+        ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos()));
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    helper.assertTrue(be.countItems(Items.IRON_INGOT) == 0, "The delivery is consumed whatever the website does");
+                    helper.assertFalse(fake().isCompleted(id, elevatorKey(id)), "The website is down");
+                    helper.assertTrue(ProgressionEventOutbox.get(server).pendingKeys(id).contains(elevatorKey(id)), "The event waits in the outbox");
+                    fake().setUnreachable(id, false);
+                    ProgressionEventSender.send(server, id);
+                })
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(fake().isCompleted(id, elevatorKey(id)), "The waiting event is sent once the website is back");
+                    helper.assertTrue(ProgressionEventOutbox.get(server).pendingKeys(id).isEmpty(), "An acknowledged event leaves the outbox");
+                })
+                .thenSucceed();
     }
 
     @GameTest(template = PLATFORM)
@@ -552,7 +594,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 5));
         openElevator(owner, be);
 
@@ -560,9 +602,8 @@ public final class ArfforniaGameTests {
         ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
         ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
         helper.succeedWhen(() -> {
-            helper.assertFalse(be.isLaunching(), "Launch should be finished");
-            long calls = fake().addMilestoneCalls().stream().filter(c -> c.milestoneId() == id).count();
-            helper.assertTrue(calls == 1, "Exactly one completion call expected, got " + calls);
+            long calls = fake().receivedEvents(id).size();
+            helper.assertTrue(calls == 1, "Exactly one event expected, got " + calls);
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 4, "Requirements consumed once");
         });
     }
@@ -572,17 +613,15 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 5));
         openElevator(owner, be);
         ServerboundLaunchElevatorPacket packet = new ServerboundLaunchElevatorPacket(be.getBlockPos());
         ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
 
         helper.succeedWhen(() -> {
-            helper.assertFalse(be.isLaunching(), "First launch should be finished");
             // Same tick as the success: the follow-up refresh has not answered yet.
             ServerboundLaunchElevatorPacket.processOnServer(owner, packet);
-            helper.assertFalse(be.isLaunching(), "A completed milestone must not be launched again");
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 4, "Requirements consumed once, left=" + be.countItems(Items.IRON_INGOT));
         });
     }
@@ -666,7 +705,7 @@ public final class ArfforniaGameTests {
         int id = nextId();
         FakePlayer owner = playerNearMachine(helper, "owner" + id);
         SpaceElevatorBlockEntity be = placeElevator(helper, owner, id);
-        be.setCachedMilestoneDetails(milestone(id, 1));
+        be.setCachedMilestoneDetails(milestone(helper, id, 1));
         be.itemHandler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 1));
         openElevator(owner, be);
         Progressions.store(helper.getLevel().getServer(), new ProgressionSnapshot(id, Set.of(), null, true));
@@ -674,9 +713,8 @@ public final class ArfforniaGameTests {
         ServerboundLaunchElevatorPacket.processOnServer(owner, new ServerboundLaunchElevatorPacket(be.getBlockPos()));
 
         helper.runAfterDelay(5, () -> {
-            helper.assertFalse(be.isLaunching(), "No launch for a retired progression");
             helper.assertTrue(be.countItems(Items.IRON_INGOT) == 1, "Items must not be consumed");
-            helper.assertTrue(fake().addMilestoneCalls().stream().noneMatch(c -> c.milestoneId() == id), "The website must not be called");
+            helper.assertTrue(fake().receivedEvents(id).isEmpty(), "The website must not be called");
             helper.succeed();
         });
     }

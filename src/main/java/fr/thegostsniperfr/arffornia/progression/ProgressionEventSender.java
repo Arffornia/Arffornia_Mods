@@ -56,8 +56,11 @@ public final class ProgressionEventSender {
      * @return true when the milestone counts or was already done; false when it does not count (yet)
      */
     public static boolean milestoneCompleted(ServerPlayer player, String milestoneKey) {
-        MinecraftServer server = player.server;
-        long progressionId = Progressions.activeProgressionOf(player);
+        return milestoneCompleted(player.server, Progressions.activeProgressionOf(player), milestoneKey, player.getUUID());
+    }
+
+    /** Same, for a given progression (a machine's) and the player who triggered it. */
+    public static boolean milestoneCompleted(MinecraftServer server, long progressionId, String milestoneKey, UUID actor) {
         if (progressionId == ModAttachments.NO_PROGRESSION || UNKNOWN_KEYS.contains(milestoneKey)
                 || REFUSED.getOrDefault(progressionId, Set.of()).contains(milestoneKey)) {
             return false;
@@ -82,7 +85,7 @@ public final class ProgressionEventSender {
             return false;
         }
         ProgressionEventOutbox.get(server).add(progressionId, UUID.randomUUID().toString().replace("-", ""), milestoneKey,
-                System.currentTimeMillis(), player.getUUID().toString().replace("-", ""));
+                System.currentTimeMillis(), actor.toString().replace("-", ""));
         Progressions.recordCompletedKey(server, progressionId, milestoneKey);
         send(server, progressionId);
         return true;

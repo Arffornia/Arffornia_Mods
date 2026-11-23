@@ -230,26 +230,6 @@ public class ArfforniaApiService {
     }
 
     /**
-     * Adds a milestone to a player's active progression.
-     */
-    public CompletableFuture<Boolean> addMilestone(UUID playerUuid, int milestoneId) {
-        JsonObject body = new JsonObject();
-        body.addProperty("player_uuid", compactUuid(playerUuid));
-        body.addProperty("milestone_id", milestoneId);
-        return postAndCheckSuccess("/progression/add", body, "addMilestone", playerUuid);
-    }
-
-    /**
-     * Adds a milestone to a given progression. Fails when the progression is retired (its team was soft-deleted).
-     */
-    public CompletableFuture<Boolean> addMilestoneToProgression(long progressionId, int milestoneId) {
-        JsonObject body = new JsonObject();
-        body.addProperty("progression_id", progressionId);
-        body.addProperty("milestone_id", milestoneId);
-        return postAndCheckSuccess("/progression/add", body, "addMilestoneToProgression", null);
-    }
-
-    /**
      * Removes a milestone from a player's active progression.
      */
     public CompletableFuture<Boolean> removeMilestone(UUID playerUuid, int milestoneId) {

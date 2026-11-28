@@ -39,6 +39,7 @@ public class RewardHandler {
     private final MinecraftServer server;
     private final RewardDelivery delivery;
     private final Function<UUID, ServerPlayer> onlinePlayer;
+    private final ShopAnnouncement.Announcer announcer;
 
     private final Set<UUID> claimsInFlight = ConcurrentHashMap.newKeySet();
 
@@ -47,6 +48,11 @@ public class RewardHandler {
     }
 
     public RewardHandler(RewardsClient client, MinecraftServer server, Function<UUID, ServerPlayer> onlinePlayer) {
+        this(client, server, onlinePlayer, ShopAnnouncement.broadcastOn(server));
+    }
+
+    public RewardHandler(RewardsClient client, MinecraftServer server, Function<UUID, ServerPlayer> onlinePlayer, ShopAnnouncement.Announcer announcer) {
+        this.announcer = announcer;
         this.client = client;
         this.server = server;
         this.delivery = new RewardDelivery(server);
@@ -298,6 +304,9 @@ public class RewardHandler {
                     RewardDelivery.Prepared prepared = planned != null && planned.reward().contents().equals(reward.contents())
                             ? planned.prepared() : delivery.prepare(player, reward);
                     deliverClaimed(player, reward, prepared);
+                    if (reward.announce()) {
+                        announcer.announce(player.getName().getString(), reward);
+                    }
                     keys.add(reward.contents().stream().mapToInt(e -> e instanceof RewardEntry.Key k ? k.count() : 0).sum());
                 } catch (RuntimeException e) {
                     Arffornia.LOGGER.error("Reward {} for {} was claimed but delivery failed; redo it by hand: {}",

@@ -85,6 +85,17 @@ class HttpRewardsClientTest {
     }
 
     @Test
+    void announceAndLabelAreParsedAndDefaultWhenAbsent() throws Exception {
+        pendingBody = "{\"rewards\":[{\"id\":1,\"source\":\"shop\",\"announce\":true,\"label\":{\"en\":\"Pack\",\"fr\":\"Pack FR\"},\"contents\":[]},"
+                + "{\"id\":2,\"source\":\"vote\",\"contents\":[]}]}";
+
+        RewardsClient.PendingResult.Found found = assertInstanceOf(RewardsClient.PendingResult.Found.class, client.fetchPending(PLAYER).get(5, TimeUnit.SECONDS));
+
+        assertEquals(new PendingReward(1, "shop", List.of(), true, java.util.Map.of("en", "Pack", "fr", "Pack FR")), found.rewards().get(0));
+        assertEquals(new PendingReward(2, "vote", List.of()), found.rewards().get(1));
+    }
+
+    @Test
     void unknownPlayerIsNotLinked() throws Exception {
         pendingStatus = 404;
 

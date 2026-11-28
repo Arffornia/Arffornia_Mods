@@ -11,7 +11,9 @@ import org.slf4j.Logger;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -165,6 +167,22 @@ public final class HttpRewardsClient implements RewardsClient {
             entries.add(RewardEntry.parse(entry));
         }
         JsonElement source = json.get("source");
-        return new PendingReward(id.getAsLong(), source != null && source.isJsonPrimitive() ? source.getAsString() : "unknown", List.copyOf(entries));
+        JsonElement announce = json.get("announce");
+        return new PendingReward(id.getAsLong(), source != null && source.isJsonPrimitive() ? source.getAsString() : "unknown", List.copyOf(entries),
+                announce != null && announce.isJsonPrimitive() && announce.getAsJsonPrimitive().isBoolean() && announce.getAsBoolean(),
+                parseLabel(json.get("label")));
+    }
+
+    private static Map<String, String> parseLabel(@Nullable JsonElement label) {
+        if (label == null || !label.isJsonObject()) {
+            return Map.of();
+        }
+        Map<String, String> byLanguage = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : label.getAsJsonObject().entrySet()) {
+            if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
+                byLanguage.put(entry.getKey(), entry.getValue().getAsString());
+            }
+        }
+        return Map.copyOf(byLanguage);
     }
 }

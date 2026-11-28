@@ -113,6 +113,30 @@ public final class RewardHandlerGameTests {
         });
     }
 
+    private static void claimWithAnnouncer(GameTestHelper helper, PendingReward reward, java.util.function.Consumer<List<Long>> assertions) {
+        ServerPlayer player = player(helper);
+        ScriptedClient client = new ScriptedClient();
+        client.pending.add(new RewardsClient.PendingResult.Found(List.of(reward)));
+        client.claims.add(new RewardsClient.ClaimResult.Claimed(reward));
+        List<Long> announced = new CopyOnWriteArrayList<>();
+        RewardHandler handler = new RewardHandler(client, helper.getLevel().getServer(), uuid -> player,
+                (buyer, announcedReward) -> announced.add(announcedReward.id()));
+        runTwice(helper, handler, player, () -> assertions.accept(announced));
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void claimedAnnouncedRewardIsAnnouncedOnce(GameTestHelper helper) {
+        long id = NEXT_ID.incrementAndGet();
+        PendingReward reward = new PendingReward(id, "shop", List.of(new RewardEntry.Item("minecraft:diamond", 1)), true, java.util.Map.of("en", "Pack", "fr", "Pack"));
+
+        claimWithAnnouncer(helper, reward, announced -> helper.assertTrue(announced.equals(List.of(id)), "announced once, got " + announced));
+    }
+
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void claimedRewardWithoutAnnounceFlagIsNotAnnounced(GameTestHelper helper) {
+        claimWithAnnouncer(helper, diamonds(NEXT_ID.incrementAndGet(), 1), announced -> helper.assertTrue(announced.isEmpty(), "nothing announced, got " + announced));
+    }
+
     @GameTest(template = "platform", timeoutTicks = 100)
     public static void claimWithUnknownOutcomeIsRetriedWithTheSameKeyEvenWhenNoLongerPending(GameTestHelper helper) {
         ServerPlayer player = player(helper);

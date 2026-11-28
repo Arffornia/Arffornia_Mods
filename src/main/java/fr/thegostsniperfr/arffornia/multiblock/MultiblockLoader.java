@@ -34,14 +34,17 @@ import java.util.Optional;
 /**
  * Reads {@code data/<ns>/multiblock/<path>.json} and the structure template each one names, which lives at
  * {@code data/<ns>/structure/<path>.nbt} (saved with a structure block, or by datagen). Air and structure voids in the
- * template are not part of the structure. A broken file is logged and skipped.
+ * template are not part of the structure. Instead of {@code structure}, a file may declare a rule-based {@code shape}
+ * ({@link MultiblockShapes}). A broken file is logged and skipped.
  */
 public final class MultiblockLoader extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new Gson();
 
-    private record Json(ResourceLocation structure, Block trigger, Block master, Optional<String> stage) {
+    private record Json(Optional<ResourceLocation> structure, Optional<MultiblockShape> shape, Block trigger, Block master,
+                        Optional<String> stage) {
         static final Codec<Json> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                ResourceLocation.CODEC.fieldOf("structure").forGetter(Json::structure),
+                ResourceLocation.CODEC.optionalFieldOf("structure").forGetter(Json::structure),
+                MultiblockShapes.CODEC.optionalFieldOf("shape").forGetter(Json::shape),
                 BuiltInRegistries.BLOCK.byNameCodec().fieldOf("trigger").forGetter(Json::trigger),
                 BuiltInRegistries.BLOCK.byNameCodec().fieldOf("master").forGetter(Json::master),
                 ExtraCodecs.NON_EMPTY_STRING.optionalFieldOf("stage").forGetter(Json::stage)
@@ -71,7 +74,13 @@ public final class MultiblockLoader extends SimpleJsonResourceReloadListener {
         if (!(parsed.master() instanceof MultiblockMasterBlock master)) {
             throw new IllegalArgumentException(BuiltInRegistries.BLOCK.getKey(parsed.master()) + " is not a multiblock master block");
         }
-        ResourceLocation file = parsed.structure().withPath(path -> "structure/" + path + ".nbt");
+        if (parsed.structure().isPresent() == parsed.shape().isPresent()) {
+            throw new IllegalArgumentException("declare exactly one of structure and shape");
+        }
+        if (parsed.shape().isPresent()) {
+            return new MultiblockDefinition(id, parsed.shape().get(), parsed.trigger(), master, parsed.stage());
+        }
+        ResourceLocation file = parsed.structure().get().withPath(path -> "structure/" + path + ".nbt");
         Resource resource = resources.getResource(file).orElseThrow(() -> new IllegalArgumentException("missing structure " + file));
         CompoundTag template;
         try (InputStream stream = resource.open()) {

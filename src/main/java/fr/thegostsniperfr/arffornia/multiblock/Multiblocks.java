@@ -72,9 +72,10 @@ public final class Multiblocks {
         }
         Optional<Formation> formation = definition.shape().match(level, pos);
         if (formation.isEmpty()) {
-            int missing = definition.shape().missing(level, pos, player.getDirection().getOpposite()).size();
-            player.sendSystemMessage(Component.translatable("chat.arffornia.multiblock.incomplete", definition.master().getName(), missing)
-                    .withStyle(ChatFormatting.YELLOW));
+            Component problem = definition.shape().problem(level, pos, definition.master().getName()).orElseGet(() ->
+                    Component.translatable("chat.arffornia.multiblock.incomplete", definition.master().getName(),
+                            definition.shape().missing(level, pos, player.getDirection().getOpposite()).size()));
+            player.sendSystemMessage(problem.copy().withStyle(ChatFormatting.YELLOW));
             return Result.INCOMPLETE;
         }
         form(level, definition, formation.get(), progressionId);

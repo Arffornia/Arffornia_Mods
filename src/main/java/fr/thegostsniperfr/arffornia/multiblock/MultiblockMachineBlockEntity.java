@@ -37,11 +37,14 @@ import java.util.List;
  * ({@code geo/block/<block>.geo.json}), playing {@code working} while a recipe runs and {@code idle} otherwise.
  */
 public class MultiblockMachineBlockEntity extends MachineBlockEntity implements GeoBlockEntity {
+    private static final int IDLE_AFTER_TICKS = 20;
+
     private BlockState original = Blocks.AIR.defaultBlockState();
     private List<BlockPos> parts = List.of();
     private boolean mirrored;
     private boolean disassembling;
     private boolean working;
+    private int ticksSinceRunning = IDLE_AFTER_TICKS;
     private final AnimatableInstanceCache animations = GeckoLibUtil.createInstanceCache(this);
 
     public MultiblockMachineBlockEntity(BlockEntityType<?> blockEntityType, MachineType type, BlockPos pos, BlockState state) {
@@ -77,9 +80,11 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity implements 
     @Override
     public void serverTick(ServerLevel level) {
         super.serverTick(level);
-        boolean running = status() == MachineStatus.RUNNING;
-        if (running != working) {
-            working = running;
+        ticksSinceRunning = status() == MachineStatus.RUNNING ? 0 : Math.min(ticksSinceRunning + 1, IDLE_AFTER_TICKS);
+        // An underpowered machine alternates RUNNING and NO_ENERGY every few ticks; it should look like it keeps working.
+        boolean looksWorking = ticksSinceRunning < IDLE_AFTER_TICKS;
+        if (looksWorking != working) {
+            working = looksWorking;
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
     }

@@ -10,6 +10,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
 import software.bernie.geckolib.model.DefaultedBlockGeoModel;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
@@ -22,7 +23,13 @@ import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 public class MultiblockMachineRenderer extends GeoBlockRenderer<MultiblockMachineBlockEntity> {
     public MultiblockMachineRenderer(ResourceLocation model) {
         super(new DefaultedBlockGeoModel<>(model));
-        addRenderLayer(new AutoGlowingGeoLayer<>(this));
+        addRenderLayer(new AutoGlowingGeoLayer<>(this) {
+            /** GeckoLib's glow type culls faces, which hides every glowing face of a mirrored structure. */
+            @Override
+            protected RenderType getRenderType(MultiblockMachineBlockEntity machine) {
+                return RenderType.entityTranslucentEmissive(AutoGlowingTexture.getEmissiveResource(getTextureResource(machine)), false);
+            }
+        });
     }
 
     @Override

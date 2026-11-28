@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.multiblock;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.machine.MachineBlock;
+import fr.thegostsniperfr.arffornia.machine.MachineBlockEntity;
 import fr.thegostsniperfr.arffornia.network.ClientboundMultiblocksPacket;
 import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
@@ -84,9 +85,11 @@ public final class Multiblocks {
     /** Only a player on the progression a structure belongs to may change its ports. */
     public static boolean mayConfigure(ServerPlayer player, MultiblockPartBlockEntity part) {
         MultiblockMachineBlockEntity machine = part.machine();
-        if (machine == null) {
-            return false;
-        }
+        return machine != null && mayConfigure(player, machine);
+    }
+
+    /** Only a player on the progression a machine belongs to may change its faces. */
+    public static boolean mayConfigure(ServerPlayer player, MachineBlockEntity machine) {
         if (Progressions.activeProgressionOf(player) != machine.linkedProgressionId()) {
             player.sendSystemMessage(Component.translatable("chat.arffornia.multiblock.not_yours").withStyle(ChatFormatting.RED));
             return false;

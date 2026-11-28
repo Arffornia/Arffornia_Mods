@@ -54,14 +54,14 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation r
             return false;
         }
         CrafterBlockEntity be = menu.blockEntity;
-        if (!CrafterRecipes.isUnlocked(player.server, be.getLinkedProgressionId(), recipe.get().value())) {
+        if (!CrafterRecipes.isUnlocked(player.server, be.linkedProgressionId(), recipe.get().value())) {
             Arffornia.LOGGER.warn("Rejected recipe placement {} from {}: stage not unlocked.", packet.recipeId(), player.getName().getString());
             return false;
         }
         if (!placeRecipe(player, be, recipe.get().value())) {
             return false;
         }
-        be.setSelectedRecipe(packet.recipeId());
+        be.selectRecipe(packet.recipeId());
         menu.broadcastChanges();
         return true;
     }
@@ -74,7 +74,7 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation r
         Inventory inventory = player.getInventory();
         List<ItemStack> grid = new ArrayList<>();
         for (int slot = 0; slot < CrafterBlockEntity.INPUT_SLOTS; slot++) {
-            grid.add(be.itemHandler.getStackInSlot(slot).copy());
+            grid.add(be.items().getStackInSlot(slot).copy());
         }
 
         List<ItemStack> simulated = new ArrayList<>();
@@ -87,13 +87,13 @@ public record ServerboundPlaceRecipePacket(BlockPos blockPos, ResourceLocation r
         }
 
         for (int slot = 0; slot < CrafterBlockEntity.INPUT_SLOTS; slot++) {
-            be.itemHandler.setStackInSlot(slot, ItemStack.EMPTY);
+            be.items().setStackInSlot(slot, ItemStack.EMPTY);
         }
         List<ItemStack> pool = new ArrayList<>(inventory.items);
         pool.addAll(grid);
         List<ItemStack> placed = recipe.ingredients().stream().map(ingredient -> take(pool, ingredient)).toList();
         for (int slot = 0; slot < placed.size(); slot++) {
-            be.itemHandler.setStackInSlot(slot, placed.get(slot));
+            be.items().setStackInSlot(slot, placed.get(slot));
         }
         grid.stream().filter(stack -> !stack.isEmpty()).forEach(stack -> ItemHandlerHelper.giveItemToPlayer(player, stack));
         inventory.setChanged();

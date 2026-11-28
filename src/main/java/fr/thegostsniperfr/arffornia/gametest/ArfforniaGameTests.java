@@ -55,7 +55,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import fr.thegostsniperfr.arffornia.machine.SideMode;
+import net.minecraft.nbt.CompoundTag;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -152,7 +157,7 @@ public final class ArfforniaGameTests {
         setActiveProgression(owner, progressionId);
         placeMachine(helper, owner, ModBlocks.CRAFTER_BLOCK.get());
         CrafterBlockEntity be = (CrafterBlockEntity) helper.getBlockEntity(MACHINE);
-        helper.assertTrue(be.getLinkedProgressionId() == progressionId, "Crafter should be linked to progression " + progressionId);
+        helper.assertTrue(be.linkedProgressionId() == progressionId, "Crafter should be linked to progression " + progressionId);
         return be;
     }
 
@@ -174,9 +179,9 @@ public final class ArfforniaGameTests {
 
     private static CrafterBlockEntity readyToCraft(GameTestHelper helper, ServerPlayer owner, long progressionId, ResourceLocation recipeId) {
         CrafterBlockEntity be = placeCrafter(helper, owner, progressionId);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
-        ((IEnergyStorage) be.energyStorage).receiveEnergy(1000, false);
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.energy().receiveEnergy(1000, false);
+        be.selectRecipe(recipeId);
         return be;
     }
 
@@ -218,14 +223,14 @@ public final class ArfforniaGameTests {
         ResourceLocation recipeId = registerRecipe(helper, id, recipe(id, 10, 20));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
         unlock(helper, id, id);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
-        ((IEnergyStorage) be.energyStorage).receiveEnergy(1000, false);
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.energy().receiveEnergy(1000, false);
+        be.selectRecipe(recipeId);
 
         helper.succeedWhen(() -> {
-            ItemStack out = be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS);
+            ItemStack out = be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS);
             helper.assertTrue(out.is(Items.STONE) && out.getCount() >= 1, "Crafter should produce stone");
-            helper.assertTrue(be.getEnergy() <= 1000 - 20, "One craft of 20 ticks should draw at least 1 FE per tick, energy=" + be.getEnergy());
+            helper.assertTrue(be.energy().getEnergyStored() <= 1000 - 20, "One craft of 20 ticks should draw at least 1 FE per tick, energy=" + be.energy().getEnergyStored());
         });
     }
 
@@ -235,13 +240,13 @@ public final class ArfforniaGameTests {
         ResourceLocation recipeId = registerRecipe(helper, id, recipe(id, 400, 20));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
         unlock(helper, id, id);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.selectRecipe(recipeId);
 
         helper.runAfterDelay(60, () -> {
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).isEmpty(), "No output without energy");
-            helper.assertTrue(be.getProgress() == 0, "No progress without energy");
-            helper.assertTrue(be.itemHandler.getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).isEmpty(), "No output without energy");
+            helper.assertTrue(be.progress() == 0, "No progress without energy");
+            helper.assertTrue(be.items().getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
             helper.succeed();
         });
     }
@@ -252,12 +257,12 @@ public final class ArfforniaGameTests {
         ResourceLocation recipeId = registerRecipe(helper, id, recipe(id, 0, 5));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
         unlock(helper, id, id);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
-        be.itemHandler.setStackInSlot(CrafterBlockEntity.INPUT_SLOTS, new ItemStack(Items.STONE, 64));
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.items().setStackInSlot(CrafterBlockEntity.INPUT_SLOTS, new ItemStack(Items.STONE, 64));
+        be.selectRecipe(recipeId);
 
         helper.runAfterDelay(40, () -> {
-            helper.assertTrue(be.itemHandler.getStackInSlot(0).getCount() == 4, "Inputs must not be consumed when the output is full");
+            helper.assertTrue(be.items().getStackInSlot(0).getCount() == 4, "Inputs must not be consumed when the output is full");
             helper.succeed();
         });
     }
@@ -270,15 +275,15 @@ public final class ArfforniaGameTests {
                 List.of(new ItemStack(Items.STONE, 2), new ItemStack(Items.STICK, 1)), 0, 5);
         ResourceLocation recipeId = registerRecipe(helper, id, recipe);
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.OAK_LOG, 2));
-        be.itemHandler.setStackInSlot(4, new ItemStack(Items.BIRCH_LOG, 2));
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.OAK_LOG, 2));
+        be.items().setStackInSlot(4, new ItemStack(Items.BIRCH_LOG, 2));
+        be.selectRecipe(recipeId);
 
         helper.succeedWhen(() -> {
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE)
-                    && be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).getCount() == 2, "Main result should be 2 stone");
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS + 1).is(Items.STICK), "Second result should be a stick");
-            int logsLeft = be.itemHandler.getStackInSlot(0).getCount() + be.itemHandler.getStackInSlot(4).getCount();
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE)
+                    && be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).getCount() == 2, "Main result should be 2 stone");
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS + 1).is(Items.STICK), "Second result should be a stick");
+            int logsLeft = be.items().getStackInSlot(0).getCount() + be.items().getStackInSlot(4).getCount();
             helper.assertTrue(logsLeft == 1, "Three logs of any kind should be consumed, left=" + logsLeft);
         });
     }
@@ -288,19 +293,69 @@ public final class ArfforniaGameTests {
         int id = nextId();
         ResourceLocation recipeId = registerRecipe(helper, id, recipe(id, 0, 200));
         CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
-        be.itemHandler.setStackInSlot(3, new ItemStack(Items.COBBLESTONE, 7));
-        ((IEnergyStorage) be.energyStorage).receiveEnergy(500, false);
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(3, new ItemStack(Items.COBBLESTONE, 7));
+        be.energy().receiveEnergy(500, false);
+        be.selectRecipe(recipeId);
 
         var registries = helper.getLevel().registryAccess();
         var tag = be.saveWithoutMetadata(registries);
         CrafterBlockEntity copy = new CrafterBlockEntity(be.getBlockPos(), be.getBlockState());
         copy.loadWithComponents(tag, registries);
 
-        helper.assertTrue(copy.itemHandler.getStackInSlot(3).getCount() == 7, "Inventory should round-trip");
-        helper.assertTrue(copy.getEnergy() == 500, "Energy should round-trip");
-        helper.assertTrue(copy.getLinkedProgressionId() == id, "Linked progression should round-trip");
-        helper.assertTrue(recipeId.equals(copy.getSelectedRecipeId()), "Selected recipe should round-trip");
+        helper.assertTrue(copy.items().getStackInSlot(3).getCount() == 7, "Inventory should round-trip");
+        helper.assertTrue(copy.energy().getEnergyStored() == 500, "Energy should round-trip");
+        helper.assertTrue(copy.linkedProgressionId() == id, "Linked progression should round-trip");
+        helper.assertTrue(recipeId.equals(copy.selectedRecipeId()), "Selected recipe should round-trip");
+        helper.succeed();
+    }
+
+    /** The keys a Crafter saved before it ran on the machine framework, as found in existing worlds. */
+    @GameTest(template = PLATFORM)
+    public static void crafterLoadsASaveFromBeforeTheMachineFramework(GameTestHelper helper) {
+        int id = nextId();
+        ResourceLocation recipeId = registerRecipe(helper, id, recipe(id, 0, 200));
+        var registries = helper.getLevel().registryAccess();
+        ItemStackHandler savedInventory = new ItemStackHandler(11);
+        savedInventory.setStackInSlot(3, new ItemStack(Items.COBBLESTONE, 7));
+        savedInventory.setStackInSlot(10, new ItemStack(Items.STICK, 2));
+        CompoundTag saved = new CompoundTag();
+        saved.put("inventory", savedInventory.serializeNBT(registries));
+        saved.putInt("energy", 4321);
+        saved.putLong("linkedProgressionId", id);
+        saved.putString("selectedRecipe", recipeId.toString());
+        saved.putInt("progress", 50);
+        saved.putInt("maxProgress", 200);
+        CrafterBlockEntity be = new CrafterBlockEntity(helper.absolutePos(MACHINE), ModBlocks.CRAFTER_BLOCK.get().defaultBlockState());
+
+        be.loadWithComponents(saved, registries);
+
+        helper.assertTrue(be.items().getStackInSlot(3).is(Items.COBBLESTONE) && be.items().getStackInSlot(3).getCount() == 7, "Inputs should be kept");
+        helper.assertTrue(be.items().getStackInSlot(10).is(Items.STICK) && be.items().getStackInSlot(10).getCount() == 2, "Outputs should be kept");
+        helper.assertTrue(be.energy().getEnergyStored() == 4321, "Energy should be kept, got " + be.energy().getEnergyStored());
+        helper.assertTrue(be.linkedProgressionId() == id, "Linked progression should be kept");
+        helper.assertTrue(recipeId.equals(be.selectedRecipeId()), "Selected recipe should be kept");
+        helper.assertTrue(be.progress() == 50, "Progress should be kept, got " + be.progress());
+        helper.succeed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void crafterFacesTakeInputsAndGiveOutputsUntilWrenched(GameTestHelper helper) {
+        int id = nextId();
+        CrafterBlockEntity be = placeCrafter(helper, playerNearMachine(helper, "owner" + id), id);
+        be.items().setStackInSlot(CrafterBlockEntity.INPUT_SLOTS, new ItemStack(Items.STONE, 3));
+        BlockPos pos = be.getBlockPos();
+        IItemHandler north = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, pos, Direction.NORTH);
+        IItemHandler bottom = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, pos, Direction.DOWN);
+
+        helper.assertTrue(north.insertItem(0, new ItemStack(Items.COBBLESTONE), false).isEmpty(), "A side face should accept inputs");
+        helper.assertTrue(be.items().getStackInSlot(0).is(Items.COBBLESTONE), "The input should land in the grid");
+        helper.assertTrue(ItemHandlerHelper.insertItem(bottom, new ItemStack(Items.COBBLESTONE), true).getCount() == 1, "The bottom face must not accept inputs");
+        helper.assertTrue(bottom.extractItem(0, 1, false).is(Items.STONE), "The bottom face should give outputs");
+        helper.assertTrue(north.extractItem(0, 1, true).isEmpty(), "A side face must not give inputs back");
+
+        helper.assertTrue(be.cycleSide(Direction.NORTH).orElseThrow() == SideMode.OUTPUT, "The wrench should switch the face to output");
+        IItemHandler wrenched = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, pos, Direction.NORTH);
+        helper.assertTrue(wrenched.extractItem(0, 1, false).is(Items.STONE), "A face switched to output should give outputs");
         helper.succeed();
     }
 
@@ -326,7 +381,7 @@ public final class ArfforniaGameTests {
 
         helper.assertTrue(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), Optional.of(recipeId))),
                 "Selection should be accepted");
-        helper.assertTrue(recipeId.equals(be.getSelectedRecipeId()), "Recipe should be selected");
+        helper.assertTrue(recipeId.equals(be.selectedRecipeId()), "Recipe should be selected");
         helper.succeed();
     }
 
@@ -340,7 +395,7 @@ public final class ArfforniaGameTests {
 
         helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), Optional.of(recipeId))),
                 "Selection must be rejected");
-        helper.assertTrue(be.getSelectedRecipeId() == null, "No recipe must be selected");
+        helper.assertTrue(be.selectedRecipeId() == null, "No recipe must be selected");
         helper.succeed();
     }
 
@@ -354,7 +409,7 @@ public final class ArfforniaGameTests {
 
         helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(), Optional.of(recipeId))),
                 "Selection must be rejected");
-        helper.assertTrue(be.getSelectedRecipeId() == null, "No recipe must be selected");
+        helper.assertTrue(be.selectedRecipeId() == null, "No recipe must be selected");
         helper.succeed();
     }
 
@@ -370,7 +425,7 @@ public final class ArfforniaGameTests {
 
         helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(far, new ServerboundSelectRecipePacket(be.getBlockPos(), Optional.of(recipeId))),
                 "Remote selection must be rejected");
-        helper.assertTrue(be.getSelectedRecipeId() == null, "No recipe must be selected");
+        helper.assertTrue(be.selectedRecipeId() == null, "No recipe must be selected");
         helper.succeed();
     }
 
@@ -383,7 +438,7 @@ public final class ArfforniaGameTests {
 
         helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(player, new ServerboundSelectRecipePacket(be.getBlockPos(),
                 Optional.of(ResourceLocation.withDefaultNamespace("stick")))), "A vanilla recipe must be rejected");
-        helper.assertTrue(be.getSelectedRecipeId() == null, "No recipe must be selected");
+        helper.assertTrue(be.selectedRecipeId() == null, "No recipe must be selected");
         helper.succeed();
     }
 
@@ -399,8 +454,8 @@ public final class ArfforniaGameTests {
 
         helper.assertTrue(ServerboundPlaceRecipePacket.processOnServer(player, new ServerboundPlaceRecipePacket(be.getBlockPos(), recipeId)),
                 "Placement should be accepted");
-        helper.assertTrue(recipeId.equals(be.getSelectedRecipeId()), "Recipe should be selected");
-        helper.assertTrue(be.itemHandler.getStackInSlot(0).is(Items.COBBLESTONE) && be.itemHandler.getStackInSlot(0).getCount() == 1,
+        helper.assertTrue(recipeId.equals(be.selectedRecipeId()), "Recipe should be selected");
+        helper.assertTrue(be.items().getStackInSlot(0).is(Items.COBBLESTONE) && be.items().getStackInSlot(0).getCount() == 1,
                 "One cobblestone should be in the grid");
         helper.assertTrue(player.getInventory().countItem(Items.COBBLESTONE) == 9, "One cobblestone should leave the inventory");
         helper.succeed();
@@ -417,7 +472,7 @@ public final class ArfforniaGameTests {
 
         helper.assertFalse(ServerboundPlaceRecipePacket.processOnServer(player, new ServerboundPlaceRecipePacket(be.getBlockPos(), recipeId)),
                 "Placement must be rejected");
-        helper.assertTrue(be.getSelectedRecipeId() == null, "No recipe must be selected");
+        helper.assertTrue(be.selectedRecipeId() == null, "No recipe must be selected");
         helper.assertTrue(player.getInventory().countItem(Items.COBBLESTONE) == 10, "Inventory must be untouched");
         helper.succeed();
     }
@@ -675,7 +730,7 @@ public final class ArfforniaGameTests {
         placeMachine(helper, placer, ModBlocks.CRAFTER_BLOCK.get());
 
         CrafterBlockEntity be = (CrafterBlockEntity) helper.getBlockEntity(MACHINE);
-        helper.assertTrue(be.getLinkedProgressionId() == id, "Crafter should be linked in the same tick, got " + be.getLinkedProgressionId());
+        helper.assertTrue(be.linkedProgressionId() == id, "Crafter should be linked in the same tick, got " + be.linkedProgressionId());
         helper.succeed();
     }
 
@@ -708,8 +763,8 @@ public final class ArfforniaGameTests {
 
         helper.succeedWhen(() -> {
             helper.assertTrue(Progressions.activeProgressionOf(owner) == teamProgression, "Player should now be on the team progression");
-            helper.assertTrue(be.getLinkedProgressionId() == id, "Crafter must stay on the progression it was placed for");
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should keep crafting for its progression");
+            helper.assertTrue(be.linkedProgressionId() == id, "Crafter must stay on the progression it was placed for");
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should keep crafting for its progression");
         });
     }
 
@@ -728,8 +783,8 @@ public final class ArfforniaGameTests {
 
         helper.runAfterDelay(60, () -> {
             helper.assertTrue(Progressions.find(helper.getLevel().getServer(), id).orElseThrow().retired(), "Progression should be known as retired");
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).isEmpty(), "A retired progression's Crafter must not craft");
-            helper.assertTrue(be.itemHandler.getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).isEmpty(), "A retired progression's Crafter must not craft");
+            helper.assertTrue(be.items().getStackInSlot(0).getCount() == 4, "Inputs must not be consumed");
             helper.assertFalse(ServerboundSelectRecipePacket.processOnServer(owner, new ServerboundSelectRecipePacket(be.getBlockPos(), Optional.of(recipeId))),
                     "Recipe selection must be rejected");
             helper.succeed();
@@ -766,14 +821,14 @@ public final class ArfforniaGameTests {
         var tag = be.saveWithoutMetadata(registries);
         tag.putLong("linkedProgressionId", id);
         be.loadWithComponents(tag, registries);
-        be.itemHandler.setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
-        be.setSelectedRecipe(recipeId);
+        be.items().setStackInSlot(0, new ItemStack(Items.COBBLESTONE, 4));
+        be.selectRecipe(recipeId);
 
         be.onLoad();
 
         helper.succeedWhen(() -> {
             helper.assertTrue(Progressions.find(helper.getLevel().getServer(), id).isPresent(), "Progression should be fetched");
-            helper.assertTrue(be.itemHandler.getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should craft once its progression is known");
+            helper.assertTrue(be.items().getStackInSlot(CrafterBlockEntity.INPUT_SLOTS).is(Items.STONE), "Crafter should craft once its progression is known");
         });
     }
 }

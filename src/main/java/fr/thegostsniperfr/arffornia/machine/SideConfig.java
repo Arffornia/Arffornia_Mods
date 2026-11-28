@@ -29,6 +29,14 @@ public final class SideConfig {
         return modes.get(face);
     }
 
+    public SideConfig set(Direction face, SideMode mode) {
+        if (!cycle.contains(mode)) {
+            throw new IllegalArgumentException(mode + " is not one of " + cycle);
+        }
+        modes.put(face, mode);
+        return this;
+    }
+
     public SideMode cycle(Direction face) {
         int next = (cycle.indexOf(modes.get(face)) + 1) % cycle.size();
         modes.put(face, cycle.get(next));

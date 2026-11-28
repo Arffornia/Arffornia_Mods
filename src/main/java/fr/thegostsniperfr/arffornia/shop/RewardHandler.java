@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.shop;
 
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.metrics.ArfforniaMetrics;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -296,6 +297,7 @@ public class RewardHandler {
                 ServerPlayer player = deliverableTarget(uuid);
                 if (player == null) {
                     Arffornia.LOGGER.info("Reward {} claimed while {} is away; it will be delivered on their next claim", rewardId, uuid);
+                    ArfforniaMetrics.increment(ArfforniaMetrics.REWARD_CLAIMS, "result", "away");
                     return false;
                 }
                 ledger.close(rewardId);
@@ -308,18 +310,23 @@ public class RewardHandler {
                         announcer.announce(player.getName().getString(), reward);
                     }
                     keys.add(reward.contents().stream().mapToInt(e -> e instanceof RewardEntry.Key k ? k.count() : 0).sum());
+                    ArfforniaMetrics.increment(ArfforniaMetrics.REWARD_CLAIMS, "result", "delivered");
+                    ArfforniaMetrics.increment(ArfforniaMetrics.REWARDS_DELIVERED, "source", reward.source());
                 } catch (RuntimeException e) {
                     Arffornia.LOGGER.error("Reward {} for {} was claimed but delivery failed; redo it by hand: {}",
                             rewardId, player.getName().getString(), claimed.reward().contents(), e);
+                    ArfforniaMetrics.increment(ArfforniaMetrics.REWARD_CLAIMS, "result", "delivery_failed");
                     return false;
                 }
                 return true;
             }
             case RewardsClient.ClaimResult.Rejected rejected -> {
                 ledger.close(rewardId);
+                ArfforniaMetrics.increment(ArfforniaMetrics.REWARD_CLAIMS, "result", "rejected");
                 return false;
             }
             case RewardsClient.ClaimResult.Failed failed -> {
+                ArfforniaMetrics.increment(ArfforniaMetrics.REWARD_CLAIMS, "result", "failed");
                 return false;
             }
         }

@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.progression;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.backend.ProgressionBackends;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.metrics.ArfforniaMetrics;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -66,6 +67,7 @@ public final class ProgressionEventSender {
         ProgressionEventOutbox.get(server).add(progressionId, UUID.randomUUID().toString().replace("-", ""), milestoneKey,
                 System.currentTimeMillis(), actor.toString().replace("-", ""));
         Progressions.recordCompletedKey(server, progressionId, milestoneKey);
+        ArfforniaMetrics.increment(ArfforniaMetrics.MILESTONES_COMPLETED);
         send(server, progressionId);
         return MilestoneResult.COMPLETED;
     }

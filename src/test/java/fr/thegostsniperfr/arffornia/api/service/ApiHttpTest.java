@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.api.service;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import fr.thegostsniperfr.arffornia.metrics.ArfforniaMetrics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiHttpTest {
 
@@ -68,6 +71,35 @@ class ApiHttpTest {
 
     private static HttpResponse<String> post(ApiHttp http) throws Exception {
         return http.sendAuthenticated(http.jsonPost("/action", "{}")).get(20, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void countsAServerErrorAsAnApiError() throws Exception {
+        ArfforniaMetrics.reset();
+        actionStatus = 503;
+
+        post(http());
+
+        assertTrue(ArfforniaMetrics.render().contains("arffornia_api_errors_total{kind=\"5xx\"} 1"));
+    }
+
+    @Test
+    void doesNotCountASuccessOrATokenRefreshAsAnApiError() throws Exception {
+        ArfforniaMetrics.reset();
+
+        post(http());
+
+        assertFalse(ArfforniaMetrics.render().contains("arffornia_api_errors_total"));
+    }
+
+    @Test
+    void countsAnUnreachableApiAsANetworkError() throws Exception {
+        ArfforniaMetrics.reset();
+        ApiHttp unreachable = new ApiHttp(NOPLogger.NOP_LOGGER, () -> "http://127.0.0.1:1/api", () -> "id", () -> "secret");
+
+        unreachable.getJson("/public", String.class, "test").get(20, TimeUnit.SECONDS);
+
+        assertTrue(ArfforniaMetrics.render().contains("arffornia_api_errors_total{kind=\"network\"} 1"));
     }
 
     @Test

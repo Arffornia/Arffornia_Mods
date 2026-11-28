@@ -3,6 +3,7 @@ package fr.thegostsniperfr.arffornia.api.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import fr.thegostsniperfr.arffornia.metrics.ArfforniaMetrics;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -62,7 +63,19 @@ public final class ApiHttp {
     }
 
     public CompletableFuture<HttpResponse<String>> send(HttpRequest request) {
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .whenComplete((response, error) -> countError(response, error));
+    }
+
+    // A 401 is the normal token refresh, not an error.
+    static void countError(@Nullable HttpResponse<?> response, @Nullable Throwable error) {
+        if (error != null) {
+            ArfforniaMetrics.increment(ArfforniaMetrics.API_ERRORS, "kind", "network");
+        } else if (response.statusCode() >= 500) {
+            ArfforniaMetrics.increment(ArfforniaMetrics.API_ERRORS, "kind", "5xx");
+        } else if (response.statusCode() >= 400 && response.statusCode() != 401) {
+            ArfforniaMetrics.increment(ArfforniaMetrics.API_ERRORS, "kind", "4xx");
+        }
     }
 
     public static boolean isSuccess(int status) {

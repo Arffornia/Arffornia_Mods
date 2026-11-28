@@ -101,6 +101,8 @@ public record CuboidShape(List<Block> frame, Interior interior, Size min, Size m
         }
     }
 
+    private static final int MAX_SIDE = 32;
+
     public static final MapCodec<CuboidShape> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             BuiltInRegistries.BLOCK.byNameCodec().listOf(1, 16).fieldOf("frame").forGetter(CuboidShape::frame),
             Interior.CODEC.optionalFieldOf("interior", Interior.HOLLOW).forGetter(CuboidShape::interior),
@@ -121,8 +123,9 @@ public record CuboidShape(List<Block> frame, Interior interior, Size min, Size m
         frame = List.copyOf(frame);
         ports = Map.copyOf(ports);
         // The trigger must sit in a face away from its edges, which needs three blocks across that face.
-        if (min.width < 3 || min.height < 3 || min.depth < 2 || !min.fits(max)) {
-            throw new IllegalArgumentException("sizes need 3 <= min width and height, 2 <= min depth, min <= max; got " + min + " to " + max);
+        // Every Wrench use and hologram refresh walks the box, so it stays small.
+        if (min.width < 3 || min.height < 3 || min.depth < 2 || !min.fits(max) || !max.fits(new Size(MAX_SIDE, MAX_SIDE, MAX_SIDE))) {
+            throw new IllegalArgumentException("sizes need 3 <= min width and height, 2 <= min depth, min <= max <= " + MAX_SIDE + "; got " + min + " to " + max);
         }
         ports.forEach((kind, range) -> {
             if (range.min < 0 || range.min > range.max) {
@@ -190,7 +193,7 @@ public record CuboidShape(List<Block> frame, Interior interior, Size min, Size m
             Range range = ports.getOrDefault(kind, new Range(0, 0));
             int count = counts.getOrDefault(kind, 0);
             if (!range.contains(count)) {
-                return Evaluation.failed(Problem.Kind.PORT_COUNT, PortBlock.of(kind).getName(), range.min, range.max, count);
+                return Evaluation.failed(Problem.Kind.PORT_COUNT, range.min, range.max, PortBlock.of(kind).getName(), count);
             }
         }
         return new Evaluation(Optional.of(new Formation(trigger, front.get(), false, positions)), Optional.empty());

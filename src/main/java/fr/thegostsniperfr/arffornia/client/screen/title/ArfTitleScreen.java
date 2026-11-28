@@ -40,6 +40,7 @@ public class ArfTitleScreen extends Screen {
     static final ResourceLocation LOGO = rl("textures/gui/title/logo.png");
     static final ResourceLocation ELEVATOR = rl("textures/gui/title/space_elevator.png");
     static final String DISPLAY_FONT = "display", UI_FONT = "ui", LABEL_FONT = "label", BODY_FONT = "body", STRONG_FONT = "strong";
+    static final String TEST_CLOCK = "arffornia.screens.testClock";
     private static final int DESIGN_W = 1920, DESIGN_H = 1080;
     private static final float HEX_W = 250, HEX_H = 216.5f, CX = 1440, CY = 560;
     private static final int INK = 0xffffff, MUTED = 0xb3a7c2, TEAL = 0x4fd1c5, GREEN = 0x42d392, HOT = 0xff7300, T1 = 0xffb36b, T2 = 0xe0703c;
@@ -74,6 +75,12 @@ public class ArfTitleScreen extends Screen {
                 if (p[0] >= 980) ghosts.add(p);
             }
         }
+    }
+
+    /** Milliseconds for animations; frozen at open + {@value #TEST_CLOCK} ms for screen tests. */
+    private long clock() {
+        String frozen = System.getProperty(TEST_CLOCK);
+        return frozen == null ? Util.getMillis() : openedAt + Long.parseLong(frozen);
     }
 
     private static ResourceLocation rl(String path) {
@@ -148,7 +155,7 @@ public class ArfTitleScreen extends Screen {
         if (!id.equals(current)) {
             previous = current;
             current = id;
-            movedAt = Util.getMillis();
+            movedAt = clock();
         }
     }
 
@@ -217,7 +224,7 @@ public class ArfTitleScreen extends Screen {
     }
 
     private void activate(String id) {
-        pressedAt = Util.getMillis();
+        pressedAt = clock();
         switch (id) {
             case "play" -> {
                 ServerData server = status.server();
@@ -253,7 +260,7 @@ public class ArfTitleScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        long now = Util.getMillis();
+        long now = clock();
         float t = (now - openedAt) / 1000f;
         Tile target = tile(current), from = tile(previous);
         float slide = easeOutBack(clamp((now - movedAt) / 240f));
@@ -443,7 +450,7 @@ public class ArfTitleScreen extends Screen {
 
     private void drawSplash(GuiGraphics g, float wordRight, float wordBottom, float t) {
         String motd = motdStore.read().orElseGet(() -> tr("gui.arffornia.title.tagline"));
-        var layout = SplashLayout.layout(motd, font::width, Util.getMillis());
+        var layout = SplashLayout.layout(motd, font::width, clock());
         float scale = layout.scale();
         int widest = layout.lines().stream().mapToInt(font::width).max().orElse(0);
         float half = widest * scale / 2f;

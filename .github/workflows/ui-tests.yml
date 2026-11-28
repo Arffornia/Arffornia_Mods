@@ -1,0 +1,62 @@
+# Spec 007 screen tests (decision D8 a): label `ui` on a PR, nightly, or by hand.
+# Layer 1: the early-window provider without Minecraft (frozen clock, scripted progress).
+# Layer 2: a dev client screenshots the title screen in EN/FR at GUI scale 2 and 4, then quits.
+# Both run on software GL (llvmpipe) under Xvfb and are compared with src/test/screens/baselines.
+name: UI tests
+
+on:
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screens:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ui')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install Xvfb, Mesa and the diff tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri python3-numpy python3-pil
+
+      - name: Screens
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" make screens
+
+      - name: Software GL only
+        if: always()
+        run: |
+          cat build/screens/gl.txt
+          grep -q llvmpipe build/screens/gl.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screens-${{ github.sha }}
+          path: |
+            earlywindow/build/screens/
+            build/screens/
+            build/screens-report/
+          retention-days: 14

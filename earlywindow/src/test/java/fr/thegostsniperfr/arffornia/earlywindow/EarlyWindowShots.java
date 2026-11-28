@@ -14,7 +14,7 @@ import net.neoforged.fml.loading.progress.StartupNotificationManager;
  * usage: EarlyWindowShots <outDir> <locale>
  */
 public final class EarlyWindowShots {
-    private static final float[] TIMES = { 0.5f, 3f, 6f, 9f, 12f, 13.5f };
+    private static final float[] TIMES = { 0.5f, 6f, 13.5f };
 
     public static void main(String[] args) throws Exception {
         Path out = Files.createDirectories(Path.of(args[0]));
@@ -29,24 +29,19 @@ public final class EarlyWindowShots {
         Runnable tick = new ArfforniaEarlyWindow().initialize(new String[] {
                 "--fml.mcVersion", "1.21.1", "--fml.neoForgeVersion", "21.1.172", "--width", "854", "--height", "480" });
         ProgressMeter early = StartupNotificationManager.addProgressBar("EARLY", 0);
-        ProgressMeter construction = null, setup = null, minecraft = null;
+        ProgressMeter construction = null, minecraft = null;
         int failures = 0;
         for (float t : TIMES) {
-            if (t >= 3 && construction == null) construction = StartupNotificationManager.addProgressBar("Mod Construction", 331);
-            if (t == 3) construction.setAbsolute(40);
-            if (t == 6) construction.setAbsolute(200);
-            if (t == 9) {
-                StartupNotificationManager.popBar(construction);
-                setup = StartupNotificationManager.addProgressBar("Common setup", 331);
-                setup.setAbsolute(150);
+            if (t == 6f) {
+                construction = StartupNotificationManager.addProgressBar("Mod Construction", 331);
+                construction.setAbsolute(200);
             }
-            if (t == 12) {
-                StartupNotificationManager.popBar(setup);
+            if (t == 13.5f) {
+                StartupNotificationManager.popBar(construction);
                 StartupNotificationManager.popBar(early);
                 minecraft = StartupNotificationManager.prependProgressBar("Minecraft Progress", 1000);
-                minecraft.setAbsolute(500);
+                minecraft.setAbsolute(1000);
             }
-            if (t == 13.5f) minecraft.setAbsolute(1000);
             System.setProperty(EarlyClock.TEST_CLOCK, Float.toString(t));
             Path file = out.resolve("loading.%s.%s.png".formatted(locale, Float.toString(t)));
             var done = EarlyScene.requestShot(file);

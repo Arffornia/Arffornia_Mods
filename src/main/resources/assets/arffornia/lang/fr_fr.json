@@ -231,5 +231,6 @@
   "gui.arffornia.title.keys.move": "Déplacer",
   "gui.arffornia.title.keys.select": "Choisir",
   "gui.arffornia.title.version": "Arffornia %s, NeoForge %s",
-  "gui.arffornia.title.narration": "Écran titre d’Arffornia"
+  "gui.arffornia.title.narration": "Écran titre d’Arffornia",
+  "guide.arffornia.name": "Guide d'Arffornia"
 }

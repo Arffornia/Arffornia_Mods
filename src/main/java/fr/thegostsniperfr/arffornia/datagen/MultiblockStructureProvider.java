@@ -20,12 +20,16 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -84,8 +88,35 @@ public final class MultiblockStructureProvider implements DataProvider {
             writes.add(CompletableFuture.runAsync(() -> writeNbt(cache, data.resolve("structure/multiblock/" + multiblock.id() + ".nbt"), template(multiblock))));
             writes.add(DataProvider.saveStable(cache, definition(multiblock), data.resolve("multiblock/" + multiblock.id() + ".json")));
             writes.add(DataProvider.saveStable(cache, formedModel(multiblock), assets.resolve("models/block/" + multiblock.id() + "_formed.json")));
+            for (GuideMarkdown.Language language : GuideMarkdown.Language.values()) {
+                writes.add(CompletableFuture.runAsync(() -> writeGuidePage(cache, assets, multiblock, language)));
+            }
         }
         return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new));
+    }
+
+    private static void writeGuidePage(CachedOutput cache, Path assets, Multiblock multiblock, GuideMarkdown.Language language) {
+        String langCode = language.name().toLowerCase() + (language == GuideMarkdown.Language.EN ? "_us" : "_fr");
+        Map<Character, String> blockIds = new LinkedHashMap<>();
+        multiblock.keys().forEach((key, value) -> blockIds.put(key, BuiltInRegistries.BLOCK.getKey(value.state().getBlock()).toString()));
+        String title = langValue(langCode, "block." + Arffornia.MODID + "." + multiblock.id());
+        String page = GuideMarkdown.multiblockPage(language, title, multiblock.trigger(), List.of(multiblock.layers()), blockIds);
+        String folder = language == GuideMarkdown.Language.EN ? "" : "_" + langCode + "/";
+        byte[] content = page.getBytes(StandardCharsets.UTF_8);
+        try {
+            cache.writeIfNeeded(assets.resolve("guides/" + Arffornia.MODID + "/guide/" + folder + "multiblocks/" + multiblock.id() + ".md"), content,
+                    Hashing.sha1().hashBytes(content));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String langValue(String langCode, String key) {
+        try (InputStream stream = MultiblockStructureProvider.class.getResourceAsStream("/assets/" + Arffornia.MODID + "/lang/" + langCode + ".json")) {
+            return com.google.gson.JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject().get(key).getAsString();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static void writeNbt(CachedOutput cache, Path path, CompoundTag tag) {

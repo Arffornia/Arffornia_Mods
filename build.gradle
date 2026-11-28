@@ -183,6 +183,11 @@ dependencies {
 
     compileOnly 'net.luckperms:api:5.4'
 
+    // Animated machine models (formed multiblocks); the pack ships this exact file (Provisioning modList, fileId 6304958).
+    implementation "curse.maven:geckolib-388172:6304958"
+    // In-game guide engine (pack mod); the guide is data-driven, so dev runs only.
+    localRuntime "curse.maven:guideme-1173950:6488254"
+
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

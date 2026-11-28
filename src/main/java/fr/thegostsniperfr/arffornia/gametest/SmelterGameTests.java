@@ -564,6 +564,38 @@ public final class SmelterGameTests {
         });
     }
 
+    @GameTest(template = PLATFORM, timeoutTicks = 300)
+    public static void smelterTellsClientsItIsWorkingOnlyWhileItSmelts(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        registerRecipe(helper, id, ironRecipe(id, Items.DEEPSLATE_IRON_ORE));
+        MultiblockMachineBlockEntity machine = formed(helper, id, id);
+        var registries = helper.getLevel().registryAccess();
+        helper.assertFalse(machine.getUpdateTag(registries).getBoolean("working"), "A new Smelter should look idle");
+        machine.energy().receiveEnergy(10_000, false);
+        machine.items().setStackInSlot(0, new ItemStack(Items.DEEPSLATE_IRON_ORE, 2));
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(machine.getUpdateTag(registries).getBoolean("working"), "Clients should see the Smelter working while it smelts"))
+                .thenWaitUntil(() -> helper.assertTrue(machine.items().getStackInSlot(MachineTypes.SMELTER.layout().outputSlot(0)).is(Items.IRON_INGOT), "The craft should finish"))
+                .thenWaitUntil(() -> helper.assertFalse(machine.getUpdateTag(registries).getBoolean("working"), "Clients should see the Smelter idle once its input is used up"))
+                .thenSucceed();
+    }
+
+    @GameTest(template = PLATFORM)
+    public static void clientCopyOfTheSmelterReadsItsWorkingState(GameTestHelper helper) {
+        int id = IDS.getAndIncrement();
+        MultiblockMachineBlockEntity machine = formed(helper, id);
+        var registries = helper.getLevel().registryAccess();
+        var tag = machine.getUpdateTag(registries);
+        tag.putBoolean("working", true);
+
+        MultiblockMachineBlockEntity client = new MultiblockMachineBlockEntity(machine.getType(), MachineTypes.SMELTER, machine.getBlockPos(), machine.getBlockState());
+        client.loadWithComponents(tag, registries);
+
+        helper.assertTrue(client.working() && client.bounds().equals(machine.bounds()), "The client copy should know it is working and where its parts are");
+        helper.succeed();
+    }
+
     @GameTest(template = PLATFORM)
     public static void smelterKeepsItsStateAcrossSaveAndLoad(GameTestHelper helper) {
         int id = IDS.getAndIncrement();

@@ -94,6 +94,14 @@ description='''${mod_description}'''
     ordering="NONE"
     side="SERVER"
 
+# Animated models of formed machines (block entity renderers); its animation controllers also live on the server.
+[[dependencies.${mod_id}]]
+    modId="geckolib"
+    type="required"
+    versionRange="[4.7,)"
+    ordering="NONE"
+    side="BOTH"
+
 # Embedded browser (its own Chromium) for the progression screen. Client only: servers start without it.
 [[dependencies.${mod_id}]]
     modId="webgui"

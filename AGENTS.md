@@ -83,6 +83,10 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.
+- Formed multiblocks are drawn by GeckoLib (`MultiblockMachineRenderer`, required dependency, shipped by the pack): the
+  master block's id names `geo/block/<id>.geo.json`, `animations/block/<id>.animation.json` and `textures/block/<id>.png`
+  (+ `_glowmask`). They are exported by Arffornia_Assets `node tools/pix/geckolib.mjs <model> --name <id>` and copied in;
+  never edit them by hand. The master plays `working` while its status is RUNNING (synced in the update tag) and `idle` otherwise.
 - Mod-owned recipes, block loot tables and block tags are generated (`make data`, `datagen/`) into `src/generated/resources`; `space_elevator` is conditional on SophisticatedStorage. Crate loot tables and crate definitions stay hand-written. `make data` needs the WebGUI jar in `run/mods/`. FTB Teams/SophisticatedStorage are not declared in `mods.toml`.
 - The early window extends FML 4.0.x `DisplayWindow` and replaces private fields by reflection (no theming API on 1.21.1).
   `ArfforniaEarlyWindowTest` fails when those fields move; after any NeoForge bump run

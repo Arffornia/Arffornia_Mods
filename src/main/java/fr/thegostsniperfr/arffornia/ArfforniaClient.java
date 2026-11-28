@@ -17,7 +17,6 @@ import fr.thegostsniperfr.arffornia.client.screen.SpaceElevatorScreen;
 import fr.thegostsniperfr.arffornia.screen.ModMenuTypes;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
@@ -34,9 +33,6 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 @EventBusSubscriber(modid = Arffornia.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class ArfforniaClient {
-    private static final ModelResourceLocation SMELTER_FORMED_MODEL =
-            ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "block/smelter_formed"));
-
     @SubscribeEvent
     public static void onClientSetup(final FMLClientSetupEvent event) {
         final ModContainer modContainer = ModLoadingContext.get().getActiveContainer();
@@ -64,7 +60,6 @@ public class ArfforniaClient {
 
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
-        event.register(SMELTER_FORMED_MODEL);
         CrateKeyModels.registerAdditional(event);
         event.register(CrateRenderer.BASE);
         event.register(CrateRenderer.LID);
@@ -78,7 +73,7 @@ public class ArfforniaClient {
 
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(ModBlockEntities.SMELTER_BE.get(), context -> new MultiblockMachineRenderer(context, SMELTER_FORMED_MODEL));
+        event.registerBlockEntityRenderer(ModBlockEntities.SMELTER_BE.get(), context -> new MultiblockMachineRenderer(ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "smelter")));
         event.registerBlockEntityRenderer(ModBlockEntities.CRATE_BE.get(), CrateRenderer::new);
     }
 

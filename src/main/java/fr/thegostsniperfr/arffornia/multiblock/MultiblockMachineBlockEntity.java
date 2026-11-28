@@ -1,9 +1,11 @@
 package fr.thegostsniperfr.arffornia.multiblock;
 
 import fr.thegostsniperfr.arffornia.machine.MachineBlockEntity;
+import fr.thegostsniperfr.arffornia.machine.MachineStatus;
 import fr.thegostsniperfr.arffornia.machine.MachineType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -12,10 +14,18 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,13 +33,19 @@ import java.util.List;
 /**
  * The machine of a formed structure, at the trigger's position. It owns inventory, energy and recipe processing; the
  * other blocks are {@link MultiblockPartBlock}s pointing here. It remembers the trigger block it replaced and where its
- * parts are, so any shape can be taken apart.
+ * parts are, so any shape can be taken apart. Once formed it is drawn with the GeckoLib model named after its block
+ * ({@code geo/block/<block>.geo.json}), playing {@code working} while a recipe runs and {@code idle} otherwise.
  */
-public class MultiblockMachineBlockEntity extends MachineBlockEntity {
+public class MultiblockMachineBlockEntity extends MachineBlockEntity implements GeoBlockEntity {
+    private static final int IDLE_AFTER_TICKS = 20;
+
     private BlockState original = Blocks.AIR.defaultBlockState();
     private List<BlockPos> parts = List.of();
     private boolean mirrored;
     private boolean disassembling;
+    private boolean working;
+    private int ticksSinceRunning = IDLE_AFTER_TICKS;
+    private final AnimatableInstanceCache animations = GeckoLibUtil.createInstanceCache(this);
 
     public MultiblockMachineBlockEntity(BlockEntityType<?> blockEntityType, MachineType type, BlockPos pos, BlockState state) {
         super(blockEntityType, type, pos, state);
@@ -59,6 +75,36 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity {
         if (!worldPosition.equals(removed)) {
             level.setBlock(worldPosition, original, 3);
         }
+    }
+
+    @Override
+    public void serverTick(ServerLevel level) {
+        super.serverTick(level);
+        ticksSinceRunning = status() == MachineStatus.RUNNING ? 0 : Math.min(ticksSinceRunning + 1, IDLE_AFTER_TICKS);
+        // An underpowered machine alternates RUNNING and NO_ENERGY every few ticks; it should look like it keeps working.
+        boolean looksWorking = ticksSinceRunning < IDLE_AFTER_TICKS;
+        if (looksWorking != working) {
+            working = looksWorking;
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /** Whether a recipe is running; on the client, as last sent by the server. */
+    public boolean working() {
+        return working;
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        String model = BuiltInRegistries.BLOCK.getKey(getBlockState().getBlock()).getPath();
+        RawAnimation workingLoop = RawAnimation.begin().thenLoop("animation." + model + ".working");
+        RawAnimation idleLoop = RawAnimation.begin().thenLoop("animation." + model + ".idle");
+        controllers.add(new AnimationController<>(this, "state", 5, state -> state.setAndContinue(working ? workingLoop : idleLoop)));
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return animations;
     }
 
     @Override
@@ -106,6 +152,7 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity {
         }
         parts = List.copyOf(loaded);
         mirrored = tag.getBoolean("mirrored");
+        working = tag.getBoolean("working");
     }
 
     private static CompoundTag wrap(Tag entry) {
@@ -122,6 +169,7 @@ public class MultiblockMachineBlockEntity extends MachineBlockEntity {
         parts.forEach(pos -> list.add(NbtUtils.writeBlockPos(pos)));
         tag.put("parts", list);
         tag.putBoolean("mirrored", mirrored);
+        tag.putBoolean("working", working);
         return tag;
     }
 

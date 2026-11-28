@@ -66,6 +66,7 @@
   "message.arffornia.milestone.retired": "Cette progression est retirée.",
   "message.arffornia.milestone.not_ready": "La progression est encore en cours de chargement. Réessayez dans quelques secondes.",
   "message.arffornia.milestone.refused": "Le site a refusé le jalon %s pour cette progression.",
+  "chat.arffornia.shop.purchase": "%s a acheté %s dans la boutique !",
   "chat.arffornia.rewards.pending": "Vous avez des récompenses en attente !",
   "chat.arffornia.rewards.claim_hint": "Tapez %s pour les recevoir.",
   "chat.arffornia.rewards.not_linked": "Votre compte Minecraft n'est lié à aucun compte du site Arffornia.",

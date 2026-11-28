@@ -66,6 +66,7 @@
   "message.arffornia.milestone.retired": "This progression is retired.",
   "message.arffornia.milestone.not_ready": "The progression is still loading. Try again in a few seconds.",
   "message.arffornia.milestone.refused": "The website refused milestone %s for this progression.",
+  "chat.arffornia.shop.purchase": "%s bought %s in the shop!",
   "chat.arffornia.rewards.pending": "You have pending rewards!",
   "chat.arffornia.rewards.claim_hint": "Type %s to receive them.",
   "chat.arffornia.rewards.not_linked": "Your Minecraft account is not linked to an Arffornia website account.",

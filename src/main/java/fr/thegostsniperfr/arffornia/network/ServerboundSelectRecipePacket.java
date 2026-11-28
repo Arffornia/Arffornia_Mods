@@ -54,7 +54,7 @@ public record ServerboundSelectRecipePacket(BlockPos blockPos, Optional<Resource
 
         CrafterBlockEntity be = menu.blockEntity;
         if (packet.recipeId().isEmpty()) {
-            be.setSelectedRecipe(null);
+            be.selectRecipe(null);
             return true;
         }
 
@@ -64,12 +64,12 @@ public record ServerboundSelectRecipePacket(BlockPos blockPos, Optional<Resource
             Arffornia.LOGGER.warn("Rejected recipe selection {} from {}: not a Crafter recipe.", recipeId, player.getName().getString());
             return false;
         }
-        if (!CrafterRecipes.isUnlocked(player.server, be.getLinkedProgressionId(), recipe.get().value())) {
+        if (!CrafterRecipes.isUnlocked(player.server, be.linkedProgressionId(), recipe.get().value())) {
             Arffornia.LOGGER.warn("Rejected recipe selection {} from {}: stage {} not unlocked in progression {}, or it is retired.",
-                    recipeId, player.getName().getString(), recipe.get().value().stage().orElse(""), be.getLinkedProgressionId());
+                    recipeId, player.getName().getString(), recipe.get().value().stage().orElse(""), be.linkedProgressionId());
             return false;
         }
-        be.setSelectedRecipe(recipeId);
+        be.selectRecipe(recipeId);
         return true;
     }
 

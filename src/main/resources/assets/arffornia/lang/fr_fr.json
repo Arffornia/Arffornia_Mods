@@ -140,6 +140,7 @@
   "chat.arffornia.multiblock.incomplete": "%s incomplète : %s blocs manquants ou incorrects. Regardez le contrôleur avec la clé pour les voir.",
   "chat.arffornia.multiblock.locked": "Votre progression n'a pas encore débloqué : %s.",
   "chat.arffornia.multiblock.port_side": "Port, face %s : %s",
+  "chat.arffornia.machine.side": "Face %s : %s",
   "gui.arffornia.machine.face.down": "dessous",
   "gui.arffornia.machine.face.up": "dessus",
   "gui.arffornia.machine.face.north": "nord",

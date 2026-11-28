@@ -41,25 +41,10 @@ public class CapabilityRegistration {
                 ModBlocks.SPACE_ELEVATOR_PART_BLOCK.get()
         );
 
-        // --- CRAFTER CAPABILITIES ---
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.CRAFTER_BE.get(),
-                (be, side) -> {
-                    if (side == null) return be.itemHandler;
-                    return switch (side) {
-                        case DOWN -> be.automationOutputDownHandler;
-                        case EAST -> be.automationOutputEastHandler;
-                        default -> be.automationInputHandler;
-                    };
-                }
-        );
-
-        event.registerBlockEntity(
-                Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.CRAFTER_BE.get(),
-                (be, side) -> be.energyStorage
-        );
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.CRAFTER_BE.get(),
+                (be, side) -> be.itemCapability(side));
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.CRAFTER_BE.get(),
+                (be, side) -> be.energy());
 
         event.registerBlock(Capabilities.ItemHandler.BLOCK,
                 (level, pos, state, be, side) -> be instanceof MultiblockPartBlockEntity part ? part.items(side) : null,

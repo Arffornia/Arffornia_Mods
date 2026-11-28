@@ -1,32 +1,26 @@
 package fr.thegostsniperfr.arffornia.block.crafterblock;
 
-import com.google.gson.Gson;
 import com.mojang.serialization.MapCodec;
-import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
-import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
-import fr.thegostsniperfr.arffornia.progression.Progressions;
 import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.CrafterBlockEntity;
-import fr.thegostsniperfr.arffornia.recipe.CrafterRecipes;
-import fr.thegostsniperfr.arffornia.screen.CrafterMenu;
-import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
+import fr.thegostsniperfr.arffornia.machine.MachineBlock;
+import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
+import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Containers;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -34,19 +28,17 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.MapColor;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Set;
 import java.util.stream.Stream;
 
-public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
+/** The Crafter: a 2-tall machine (this block plus a {@link CrafterPartBlock} above) running the selected Crafter recipe. */
+public class CrafterBlock extends MachineBlock implements SimpleWaterloggedBlock {
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     public static final MapCodec<CrafterBlock> CODEC = simpleCodec(CrafterBlock::new);
-    private static final Gson GSON = new Gson();
     private static final VoxelShape SHAPE = Stream.of(
             Block.box(0, 1, 0, 16, 16, 16),
             Block.box(0, 0, 0, 2, 1, 2),
@@ -105,81 +97,44 @@ public class CrafterBlock extends BaseEntityBlock implements SimpleWaterloggedBl
     }
 
     @Override
-    public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
-        BlockPos partPos = pPos.above();
-        BlockState stateAbove = pLevel.getBlockState(partPos);
-        return pLevel.isEmptyBlock(partPos) || stateAbove.canBeReplaced();
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        BlockPos partPos = pos.above();
+        return level.isEmptyBlock(partPos) || level.getBlockState(partPos).canBeReplaced();
     }
 
     @Override
-    public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState pState) {
-        return RenderShape.MODEL;
-    }
-
-    @Override
-    public InteractionResult useWithoutItem(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, BlockHitResult pHit) {
-        if (!pLevel.isClientSide()) {
-            if (pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer) {
-                long progressionId = be.getLinkedProgressionId();
-                if (!MachineProgressions.checkServing(serverPlayer, progressionId)) {
-                    return InteractionResult.FAIL;
-                }
-
-                Set<String> unlockedStages = CrafterRecipes.unlockedStages(serverPlayer.server, progressionId);
-                serverPlayer.openMenu(be, buf -> CrafterMenu.writeOpenData(buf, pPos, unlockedStages));
-            }
-        }
-        return InteractionResult.sidedSuccess(pLevel.isClientSide());
-    }
-
-    @Override
-    public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, @Nullable LivingEntity pPlacer, ItemStack pStack) {
-        super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
-        if (!pLevel.isClientSide) {
-            pLevel.setBlock(pPos.above(), ModBlocks.CRAFTER_PART_BLOCK.get().defaultBlockState(), 3);
-            if (pPlacer instanceof ServerPlayer player && pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be) {
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide) {
+            level.setBlock(pos.above(), ModBlocks.CRAFTER_PART_BLOCK.get().defaultBlockState(), 3);
+            if (placer instanceof ServerPlayer player && level.getBlockEntity(pos) instanceof CrafterBlockEntity be) {
                 be.linkToProgression(Progressions.activeProgressionOf(player));
             }
         }
     }
 
     @Override
-    public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
-        if (!pState.is(pNewState.getBlock())) {
-            if (pLevel.getBlockEntity(pPos) instanceof CrafterBlockEntity be) {
-                Containers.dropContents(pLevel, pPos, be.getInventoryForDrop());
-                pLevel.updateNeighbourForOutputSignal(pPos, this);
-            }
-
-            BlockPos partPos = pPos.above();
-            if (pLevel.getBlockState(partPos).is(ModBlocks.CRAFTER_PART_BLOCK.get())) {
-                pLevel.setBlock(partPos, pNewState.getFluidState().createLegacyBlock(), 35, 0);
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            BlockPos partPos = pos.above();
+            if (level.getBlockState(partPos).is(ModBlocks.CRAFTER_PART_BLOCK.get())) {
+                level.setBlock(partPos, newState.getFluidState().createLegacyBlock(), 35, 0);
             }
         }
-
-        super.onRemove(pState, pLevel, pPos, pNewState, pIsMoving);
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
-    @Nullable
     @Override
-    public BlockEntity newBlockEntity(BlockPos pPos, BlockState pState) {
-        return new CrafterBlockEntity(pPos, pState);
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new CrafterBlockEntity(pos, state);
     }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level pLevel, BlockState pState, BlockEntityType<T> pBlockEntityType) {
-        if (pLevel.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(pBlockEntityType, ModBlockEntities.CRAFTER_BE.get(), CrafterBlockEntity::tick);
-    }
-
+    // No FACING: the Crafter's automation faces are absolute (bottom and east give outputs), as in saved worlds.
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(WATERLOGGED);

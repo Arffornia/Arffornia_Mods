@@ -1,5 +1,6 @@
 package fr.thegostsniperfr.arffornia.item;
 
+import fr.thegostsniperfr.arffornia.machine.MachineBlockEntity;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockDefinitions;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockPartBlockEntity;
 import fr.thegostsniperfr.arffornia.multiblock.Multiblocks;
@@ -14,7 +15,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
 /**
- * Forms a structure when used on its trigger block, and switches a formed port's face on or off. Runs before the
+ * Forms a structure when used on its trigger block, and switches a formed port's or a single-block machine's face. Runs before the
  * block's own interaction, so wrenching a formed part does not open the machine.
  */
 public class WrenchItem extends Item {
@@ -30,6 +31,15 @@ public class WrenchItem extends Item {
             if (context.getPlayer() instanceof ServerPlayer player && Multiblocks.mayConfigure(player, part)) {
                 part.cycleSide(context.getClickedFace()).ifPresent(mode -> player.displayClientMessage(Component.translatable(
                         "chat.arffornia.multiblock.port_side",
+                        Component.translatable("gui.arffornia.machine.face." + context.getClickedFace().getSerializedName()),
+                        Component.translatable(mode.translationKey())), true));
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide());
+        }
+        if (level.getBlockEntity(pos) instanceof MachineBlockEntity machine && machine.hasSides()) {
+            if (context.getPlayer() instanceof ServerPlayer player && Multiblocks.mayConfigure(player, machine)) {
+                machine.cycleSide(context.getClickedFace()).ifPresent(mode -> player.displayClientMessage(Component.translatable(
+                        "chat.arffornia.machine.side",
                         Component.translatable("gui.arffornia.machine.face." + context.getClickedFace().getSerializedName()),
                         Component.translatable(mode.translationKey())), true));
             }

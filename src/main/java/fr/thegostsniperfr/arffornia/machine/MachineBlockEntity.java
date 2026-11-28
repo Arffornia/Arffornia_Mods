@@ -4,10 +4,13 @@ import fr.thegostsniperfr.arffornia.progression.MachineProgressions;
 import fr.thegostsniperfr.arffornia.progression.ModAttachments;
 import fr.thegostsniperfr.arffornia.progression.Progressions;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
@@ -16,6 +19,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,9 +28,13 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
+
 /**
  * A machine that runs {@code arffornia:machine} recipes for the progression it belongs to (#18): slots from its
  * {@link SlotLayout}, a clamped FE buffer, a {@link RecipeProcessor} and the numbers its {@link MachineMenu} shows.
+ * A single-block machine also has a {@link SideConfig} for the faces automation reaches; a multiblock master has none,
+ * its ports carry their own.
  */
 public abstract class MachineBlockEntity extends BlockEntity implements MenuProvider {
     private static final double MAX_MENU_DISTANCE_SQR = 64.0;
@@ -35,6 +43,8 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
     private final ItemStackHandler items;
     private final MachineEnergyStorage energy;
     private final RecipeProcessor processor;
+    @Nullable
+    private final SideConfig sides;
     private final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
@@ -61,9 +71,15 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
     private long linkedProgressionId = ModAttachments.NO_PROGRESSION;
 
     protected MachineBlockEntity(BlockEntityType<?> blockEntityType, MachineType type, BlockPos pos, BlockState state) {
+        this(blockEntityType, type, pos, state, null);
+    }
+
+    protected MachineBlockEntity(BlockEntityType<?> blockEntityType, MachineType type, BlockPos pos, BlockState state,
+                                 @Nullable SideConfig sides) {
         super(blockEntityType, pos, state);
         this.type = type;
-        this.processor = new RecipeProcessor(type.id(), type.layout());
+        this.sides = sides;
+        this.processor = new RecipeProcessor(type);
         this.energy = new MachineEnergyStorage(type.energyCapacity(), type.maxReceive(), this::setChanged);
         this.items = new ItemStackHandler(type.layout().size()) {
             @Override
@@ -88,8 +104,13 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
 
     public void openMenu(ServerPlayer player) {
         if (MachineProgressions.checkServing(player, linkedProgressionId)) {
-            player.openMenu(this, buf -> MachineMenu.writeOpenData(buf, worldPosition, type.layout()));
+            player.openMenu(this, this::writeMenuData);
         }
+    }
+
+    /** What the client menu needs to build itself; read back by the menu type's factory. */
+    protected void writeMenuData(RegistryFriendlyByteBuf buf) {
+        MachineMenu.writeOpenData(buf, worldPosition, type.layout());
     }
 
     @Override
@@ -116,6 +137,47 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
     @Nullable
     public IEnergyStorage energyView(SideMode mode) {
         return mode.allowsInsert() ? energy : null;
+    }
+
+    /** The item handler automation gets through {@code side}; a null side (no face, e.g. a probe) sees every slot. */
+    @Nullable
+    public IItemHandler itemCapability(@Nullable Direction side) {
+        if (sides == null) {
+            return null;
+        }
+        return itemView(side == null ? SideMode.BOTH : sides.get(side));
+    }
+
+    public boolean hasSides() {
+        return sides != null;
+    }
+
+    /** Switches {@code face} to its next mode; empty when this machine has no configurable faces. */
+    public Optional<SideMode> cycleSide(Direction face) {
+        if (sides == null) {
+            return Optional.empty();
+        }
+        SideMode mode = sides.cycle(face);
+        setChanged();
+        if (level != null) {
+            level.invalidateCapabilities(worldPosition);
+        }
+        return Optional.of(mode);
+    }
+
+    @Nullable
+    public ResourceLocation selectedRecipeId() {
+        return processor.selected();
+    }
+
+    /** Selects the recipe to run, or none; the caller has checked the recipe belongs to this machine and is unlocked. */
+    public void selectRecipe(@Nullable ResourceLocation recipeId) {
+        if (processor.select(recipeId)) {
+            setChanged();
+            if (level != null) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+            }
+        }
     }
 
     public MachineType type() {
@@ -174,6 +236,9 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
         tag.putInt("energy", energy.getEnergyStored());
         tag.put("processor", processor.save());
         tag.putLong("linkedProgressionId", linkedProgressionId);
+        if (sides != null) {
+            tag.put("sides", sides.save());
+        }
     }
 
     @Override
@@ -187,5 +252,8 @@ public abstract class MachineBlockEntity extends BlockEntity implements MenuProv
         energy.setEnergy(tag.getInt("energy"));
         processor.load(tag.getCompound("processor"));
         linkedProgressionId = tag.contains("linkedProgressionId") ? tag.getLong("linkedProgressionId") : ModAttachments.NO_PROGRESSION;
+        if (sides != null) {
+            sides.load(tag.getCompound("sides"));
+        }
     }
 }

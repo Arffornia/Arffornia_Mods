@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -24,6 +25,7 @@ import java.util.Optional;
  * only taken at commit, so stopping or breaking the machine mid-craft never loses items.
  * <p>
  * The search runs again after the inventory changed, and every second while idle; the last recipe is tried first.
+ * A machine with {@link MachineType.RecipeSelection#SELECTED} only ever considers the recipe the player selected.
  */
 public final class RecipeProcessor {
     /** An idle machine looks again this often, so a milestone completed meanwhile starts it without an inventory change. */
@@ -31,6 +33,9 @@ public final class RecipeProcessor {
 
     private final ResourceLocation machine;
     private final SlotLayout layout;
+    private final boolean selectionRequired;
+    @Nullable
+    private ResourceLocation selected;
     @Nullable
     private RecipeHolder<MachineRecipe> current;
     @Nullable
@@ -40,9 +45,28 @@ public final class RecipeProcessor {
     private int maxProgress;
     private MachineStatus status = MachineStatus.IDLE;
 
-    public RecipeProcessor(ResourceLocation machine, SlotLayout layout) {
-        this.machine = machine;
-        this.layout = layout;
+    public RecipeProcessor(MachineType type) {
+        this.machine = type.id();
+        this.layout = type.layout();
+        this.selectionRequired = type.selection() == MachineType.RecipeSelection.SELECTED;
+    }
+
+    /** Returns true when the selection changed; the craft in progress, if any, starts over. */
+    public boolean select(@Nullable ResourceLocation recipeId) {
+        if (Objects.equals(selected, recipeId)) {
+            return false;
+        }
+        selected = recipeId;
+        current = null;
+        savedRecipeId = null;
+        progress = 0;
+        inventoryChanged = true;
+        return true;
+    }
+
+    @Nullable
+    public ResourceLocation selected() {
+        return selected;
     }
 
     public void onInventoryChanged() {
@@ -100,12 +124,13 @@ public final class RecipeProcessor {
     @Nullable
     private RecipeHolder<MachineRecipe> find(ServerLevel level, IItemHandlerModifiable items, long progressionId) {
         List<ItemStack> inputs = inputs(items);
-        if (inputs.stream().allMatch(ItemStack::isEmpty)) {
+        if ((selectionRequired && selected == null) || inputs.stream().allMatch(ItemStack::isEmpty)) {
             status = MachineStatus.IDLE;
             return null;
         }
         List<RecipeHolder<MachineRecipe>> candidates = level.getRecipeManager().getAllRecipesFor(ModRecipes.MACHINE_TYPE.get()).stream()
                 .filter(holder -> holder.value().machine().equals(machine))
+                .filter(holder -> !selectionRequired || holder.id().equals(selected))
                 .sorted(Comparator.comparing((RecipeHolder<MachineRecipe> holder) -> !isPreferred(holder)).thenComparing(holder -> holder.id().toString()))
                 .toList();
         MachineStatus best = MachineStatus.IDLE;
@@ -192,6 +217,9 @@ public final class RecipeProcessor {
         if (recipeId != null) {
             tag.putString("recipe", recipeId.toString());
         }
+        if (selected != null) {
+            tag.putString("selected", selected.toString());
+        }
         return tag;
     }
 
@@ -199,6 +227,7 @@ public final class RecipeProcessor {
         progress = Math.max(0, tag.getInt("progress"));
         maxProgress = Math.max(0, tag.getInt("maxProgress"));
         savedRecipeId = tag.contains("recipe") ? ResourceLocation.tryParse(tag.getString("recipe")) : null;
+        selected = tag.contains("selected") ? ResourceLocation.tryParse(tag.getString("selected")) : null;
         current = null;
         inventoryChanged = true;
     }

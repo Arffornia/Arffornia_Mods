@@ -1,11 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "building",
-  "pattern": [
-    "BBB",
-    "BFB",
-    "BRB"
-  ],
   "key": {
     "B": {
       "item": "minecraft:bricks"
@@ -17,8 +12,13 @@
       "item": "minecraft:redstone"
     }
   },
+  "pattern": [
+    "BBB",
+    "BFB",
+    "BRB"
+  ],
   "result": {
-    "id": "arffornia:smelter_controller",
-    "count": 1
+    "count": 1,
+    "id": "arffornia:smelter_controller"
   }
 }

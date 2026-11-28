@@ -1,11 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "building",
-  "pattern": [
-    "ISI",
-    "S S",
-    "ISI"
-  ],
   "key": {
     "I": {
       "item": "minecraft:iron_ingot"
@@ -14,8 +9,13 @@
       "item": "minecraft:stone"
     }
   },
+  "pattern": [
+    "ISI",
+    "S S",
+    "ISI"
+  ],
   "result": {
-    "id": "arffornia:machine_casing",
-    "count": 4
+    "count": 4,
+    "id": "arffornia:machine_casing"
   }
 }

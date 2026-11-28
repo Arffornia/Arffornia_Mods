@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "minecraft:iron_block"
+    },
+    "C": {
+      "item": "minecraft:crafting_table"
+    },
+    "F": {
+      "item": "minecraft:blast_furnace"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    },
+    "L": {
+      "item": "minecraft:lava_bucket"
+    }
+  },
+  "pattern": [
+    "CIC",
+    "ILI",
+    "BFB"
+  ],
+  "result": {
+    "count": 1,
+    "id": "arffornia:crafter_block"
+  }
+}

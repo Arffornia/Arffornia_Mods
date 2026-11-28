@@ -652,7 +652,9 @@ public final class ArfforniaGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = PLATFORM, timeoutTicks = 200)
+    // The in-memory website answers after 50 ms of wall time and the test server ticks as fast as it can, so 200 ticks
+    // were sometimes shorter than the two round trips this test needs.
+    @GameTest(template = PLATFORM, timeoutTicks = 2000)
     public static void elevatorDeliveryDuringAnOutageWaitsInTheOutbox(GameTestHelper helper) {
         int id = nextId();
         MinecraftServer server = helper.getLevel().getServer();

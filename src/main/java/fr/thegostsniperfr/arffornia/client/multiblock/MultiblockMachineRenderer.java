@@ -2,54 +2,55 @@ package fr.thegostsniperfr.arffornia.client.multiblock;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import fr.thegostsniperfr.arffornia.machine.MachineBlock;
 import fr.thegostsniperfr.arffornia.multiblock.MultiblockMachineBlockEntity;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.model.data.ModelData;
+import software.bernie.geckolib.model.DefaultedBlockGeoModel;
+import software.bernie.geckolib.renderer.GeoBlockRenderer;
+import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 
 /**
- * Draws a formed structure as one model. The model is authored facing north around the structure's centre block, so it
- * spans at most 3x3x3 blocks (block models are limited to -16..32); larger machines need an animated model renderer.
+ * Draws a formed structure as its GeckoLib model, exported by Arffornia_Assets {@code tools/pix/geckolib.mjs}. The model
+ * stands on the structure's floor at its horizontal centre with its front towards +z (Blockbench south), so it turns
+ * with the master's facing and is mirrored when the structure was built mirrored.
  */
-public class MultiblockMachineRenderer implements BlockEntityRenderer<MultiblockMachineBlockEntity> {
-    private final ModelResourceLocation model;
-
-    public MultiblockMachineRenderer(BlockEntityRendererProvider.Context context, ModelResourceLocation model) {
-        this.model = model;
+public class MultiblockMachineRenderer extends GeoBlockRenderer<MultiblockMachineBlockEntity> {
+    public MultiblockMachineRenderer(ResourceLocation model) {
+        super(new DefaultedBlockGeoModel<>(model));
+        addRenderLayer(new AutoGlowingGeoLayer<>(this));
     }
 
     @Override
     public void render(MultiblockMachineBlockEntity machine, float partialTick, PoseStack poseStack, MultiBufferSource buffers,
                        int packedLight, int packedOverlay) {
-        if (machine.parts().isEmpty()) {
-            return;
+        if (!machine.parts().isEmpty()) {
+            super.render(machine, partialTick, poseStack, buffers, packedLight, packedOverlay);
         }
-        BakedModel baked = Minecraft.getInstance().getModelManager().getModel(model);
-        Vec3 centre = machine.bounds().getCenter();
+    }
+
+    /** Called with the pose at the master block's bottom centre. */
+    @Override
+    protected void rotateBlock(Direction facing, PoseStack poseStack) {
+        MultiblockMachineBlockEntity machine = getAnimatable();
+        AABB bounds = machine.bounds();
+        Vec3 centre = bounds.getCenter();
         BlockPos origin = machine.getBlockPos();
-        Direction facing = machine.getBlockState().getValue(MachineBlock.FACING);
-        poseStack.pushPose();
-        poseStack.translate(centre.x - origin.getX(), centre.y - origin.getY(), centre.z - origin.getZ());
-        poseStack.mulPose(Axis.YP.rotationDegrees(-(facing.toYRot() + 180.0F)));
+        poseStack.translate(centre.x - origin.getX() - 0.5, bounds.minY - origin.getY(), centre.z - origin.getZ() - 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
         if (machine.mirrored()) {
             poseStack.scale(-1.0F, 1.0F, 1.0F);
         }
-        poseStack.translate(-0.5, -0.5, -0.5);
-        Minecraft.getInstance().getBlockRenderer().getModelRenderer().renderModel(poseStack.last(),
-                buffers.getBuffer(RenderType.entityCutoutNoCull(TextureAtlas.LOCATION_BLOCKS)), machine.getBlockState(), baked,
-                1.0F, 1.0F, 1.0F, packedLight, packedOverlay, ModelData.EMPTY, null);
-        poseStack.popPose();
+    }
+
+    /** No culling: a mirrored structure turns every face inside out. */
+    @Override
+    public RenderType getRenderType(MultiblockMachineBlockEntity machine, ResourceLocation texture, MultiBufferSource buffers, float partialTick) {
+        return RenderType.entityCutoutNoCull(texture);
     }
 
     @Override

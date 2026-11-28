@@ -2,6 +2,7 @@ package fr.thegostsniperfr.arffornia.client;
 
 import net.minecraft.network.chat.Component;
 import fr.thegostsniperfr.arffornia.Arffornia;
+import fr.thegostsniperfr.arffornia.config.ClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.neoforged.api.distmarker.Dist;
@@ -18,13 +19,11 @@ public class HudRenderHandler {
             GuiGraphics guiGraphics = event.getGuiGraphics();
             Component textToDisplay = Component.translatable("hud.arffornia.target", ClientProgressionData.currentMilestoneTarget);
 
-            int screenWidth = guiGraphics.guiWidth();
-            int textWidth = mc.font.width(textToDisplay);
+            int[] position = HudPlacement.position(
+                    ClientConfig.TARGET_HUD_CORNER.get(), ClientConfig.TARGET_HUD_OFFSET_X.get(), ClientConfig.TARGET_HUD_OFFSET_Y.get(),
+                    mc.font.width(textToDisplay), mc.font.lineHeight, guiGraphics.guiWidth(), guiGraphics.guiHeight());
 
-            int x = screenWidth - textWidth - 5;
-            int y = 5;
-
-            guiGraphics.drawString(mc.font, textToDisplay, x, y, 0xFFFFFF, true);
+            guiGraphics.drawString(mc.font, textToDisplay, position[0], position[1], 0xFFFFFF, true);
         }
     }
 }

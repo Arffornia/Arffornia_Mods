@@ -34,12 +34,15 @@ public class CrafterRecipeCategory implements IRecipeCategory<RecipeHolder<Machi
     private static final ResourceLocation GUI_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Arffornia.MODID, "textures/gui/crafter_gui_jei.png");
 
+    private static final int WIDTH = 170;
+    private static final int HEIGHT = 80;
+
     private final IDrawable background;
     private final IDrawable icon;
 
     public CrafterRecipeCategory(IGuiHelper helper) {
-        this.background = helper.drawableBuilder(GUI_TEXTURE, 0, 0, 170, 80)
-                .setTextureSize(170, 80)
+        this.background = helper.drawableBuilder(GUI_TEXTURE, 0, 0, WIDTH, HEIGHT)
+                .setTextureSize(WIDTH, HEIGHT)
                 .build();
 
         this.icon = helper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(ModBlocks.CRAFTER_BLOCK.get()));
@@ -61,8 +64,13 @@ public class CrafterRecipeCategory implements IRecipeCategory<RecipeHolder<Machi
     }
 
     @Override
-    public IDrawable getBackground() {
-        return this.background;
+    public int getWidth() {
+        return WIDTH;
+    }
+
+    @Override
+    public int getHeight() {
+        return HEIGHT;
     }
 
     @Override
@@ -87,6 +95,7 @@ public class CrafterRecipeCategory implements IRecipeCategory<RecipeHolder<Machi
 
     @Override
     public void draw(RecipeHolder<MachineRecipe> holder, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+        this.background.draw(guiGraphics);
         MachineRecipe recipe = holder.value();
         List<Component> infoLines = new ArrayList<>();
         infoLines.add(Component.translatable("gui.arffornia.crafter.time", String.format(Locale.ROOT, "%.1f", recipe.time() / 20.0f)));
@@ -97,7 +106,7 @@ public class CrafterRecipeCategory implements IRecipeCategory<RecipeHolder<Machi
         Font font = Minecraft.getInstance().font;
         int currentY = 55;
         for (Component line : infoLines) {
-            int textX = (getBackground().getWidth() - font.width(line)) / 2;
+            int textX = (WIDTH - font.width(line)) / 2;
             guiGraphics.drawString(font, line, textX, currentY, 0x404040, false);
             currentY += font.lineHeight;
         }

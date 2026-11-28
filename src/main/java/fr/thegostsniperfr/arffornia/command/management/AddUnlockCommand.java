@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.thegostsniperfr.arffornia.api.service.ArfforniaApiService;
+import fr.thegostsniperfr.arffornia.recipe.RecipeCapture;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.NonNullList;
@@ -59,6 +60,12 @@ public class AddUnlockCommand {
                                 return 0;
                             }
 
+                            Optional<RecipeCapture.Captured> captured = RecipeCapture.capture(recipeHolder.value(), level.registryAccess());
+                            if (captured.isEmpty()) {
+                                context.getSource().sendFailure(Component.translatable("commands.arffornia.addunlock.unsupported", recipeHolder.value().getClass().getSimpleName()));
+                                return 0;
+                            }
+
                             String itemId = BuiltInRegistries.ITEM.getKey(heldItemStack.getItem()).toString();
                             String displayName = generateDisplayName(itemId);
                             String imagePath = generateImagePath(itemId);
@@ -74,7 +81,9 @@ public class AddUnlockCommand {
                                     imagePath,
                                     recipesToBan,
                                     (List<Map<String, Object>>) payload.get("ingredients"),
-                                    (List<Map<String, Object>>) payload.get("result")
+                                    (List<Map<String, Object>>) payload.get("result"),
+                                    captured.get().recipeJson(),
+                                    captured.get().machineRecipeJson()
                             );
 
                             future.thenAcceptAsync(success -> {

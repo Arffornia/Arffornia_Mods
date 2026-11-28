@@ -35,15 +35,21 @@ The jar is written to `build/libs/arffornia.jar`.
 All targets cap Gradle at 2 GB and disable the daemon; override with `GRADLE_ARGS=...`.
 
 ## Configuration
-One COMMON config file, `config/arffornia-common.toml`:
+Two config files. `config/arffornia-common.toml` (shipped to clients too, no secrets):
 
 | Section / key | Meaning |
 |---|---|
 | `api.baseUrl` | Website API base URL (prod `https://arffornia.com/api`) |
-| `api.clientId`, `api.clientSecret` | Website service-account credentials (server only; leave empty on clients) |
-| `api.migrateOnStartup` | Reverse-engineer and upload recipes for unlocked items at server start |
 | `rewards.allowedPermissionPrefixes` | LuckPerms nodes a reward may grant (default `cosmetic.`, `arffornia.reward.`) |
 | `rewards.allowedRankGroups` | LuckPerms groups a reward may add (default empty: rank rewards stay pending) |
+
+`config/arffornia-server.toml` (created and read **only on a dedicated server**; clients never have it):
+
+| Section / key | Meaning |
+|---|---|
+| `api.clientId`, `api.clientSecret` | Website service-account credentials |
+
+With empty credentials the authenticated API calls stay disabled (logged at start). In production the server file is templated by [Arffornia_Provisioning](https://github.com/Arffornia/Arffornia_Provisioning) (`config/server/...`). Never commit real values.
 
 ## Rewards
 Shop, vote and daily-streak rewards come from the website API (`/api/rewards/*`, service account with the

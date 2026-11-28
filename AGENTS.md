@@ -88,11 +88,12 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
   `ArfforniaEarlyWindowTest` fails when those fields move; after any NeoForge bump run
   `xvfb-run -a ./gradlew :earlywindow:visualTest` and look at `earlywindow/build/screens/`.
 - `build.gradle` dev client run hardcodes a username/UUID.
-- The COMMON config is shipped to clients too: never add secrets to SERVER-type configs (they sync to clients).
+- Secrets go in `config/ServerSecretsConfig.java` (`arffornia-server.toml`, registered on `Dist.DEDICATED_SERVER` only). The COMMON
+  config is shipped to clients, and SERVER-type configs sync to clients: never put secrets in either.
 
 ## Related repos
 - `Arffornia_Website` — Laravel API and DB (`routes/api.php`), source of milestones/recipes/rewards.
-- `Arffornia_Provisioning` — server/launcher config templates (`arffornia-common.toml`) and mod list.
+- `Arffornia_Provisioning` — server/launcher config templates (`arffornia-common.toml`, `arffornia-server.toml`) and mod list.
 - `Arffornia_Proxy` — Velocity plugin forwarding votes. `Nexus_Mods` — owner's mod tooling library.
 
 ## AI harness (agent-kit v2)

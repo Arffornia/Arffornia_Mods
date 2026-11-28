@@ -186,7 +186,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'com.tngtech.archunit:archunit:1.5.1'
+    // NeoForge pins slf4j strictly to 2.0.9 on the test classpath; archunit's newer slf4j would conflict.
+    testImplementation('com.tngtech.archunit:archunit:1.5.1') { exclude group: 'org.slf4j' }
 
     // Embedded browser for the progression screen (spec 018 D2 a); required on the client, provided by the pack.
     compileOnly "maven.modrinth:webgui:2.0.0+mc1.21.1-neoforge"
@@ -216,6 +217,9 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
+
+// Plain JUnit tests (no game launch) that need Minecraft/NeoForge classes on the classpath.
+neoForge.addModdingDependenciesTo(sourceSets.test)
 
 tasks.named('test', Test).configure {
     useJUnitPlatform()

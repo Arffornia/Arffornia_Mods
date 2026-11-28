@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
 import fr.thegostsniperfr.arffornia.api.ApiText;
 import fr.thegostsniperfr.arffornia.api.dto.ArfforniaApiDtos;
+import fr.thegostsniperfr.arffornia.config.ServerSecretsConfig;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.http.HttpRequest;
@@ -22,7 +23,7 @@ import static fr.thegostsniperfr.arffornia.config.ApiConfig.*;
 public class ArfforniaApiService {
     private static final ArfforniaApiService INSTANCE = new ArfforniaApiService();
 
-    private final ApiHttp http = new ApiHttp(Arffornia.LOGGER, API_BASE_URL::get, API_CLIENT_ID::get, API_CLIENT_SECRET::get);
+    private final ApiHttp http = new ApiHttp(Arffornia.LOGGER, API_BASE_URL::get, ServerSecretsConfig::apiClientId, ServerSecretsConfig::apiClientSecret);
     private final Gson gson = http.gson();
 
     private ArfforniaApiService() {

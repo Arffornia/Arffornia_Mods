@@ -9,6 +9,7 @@ import fr.thegostsniperfr.arffornia.block.ModBlocks;
 import fr.thegostsniperfr.arffornia.block.entity.ModBlockEntities;
 import fr.thegostsniperfr.arffornia.command.ArfforniaCommand;
 import fr.thegostsniperfr.arffornia.compat.ftbteams.FTBTeamsEventHandler;
+import fr.thegostsniperfr.arffornia.config.ServerSecretsConfig;
 import fr.thegostsniperfr.arffornia.graph.RecipeGraphDump;
 import fr.thegostsniperfr.arffornia.creative.ModCreativeTabs;
 import fr.thegostsniperfr.arffornia.item.ModDataComponents;
@@ -32,6 +33,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -81,6 +83,10 @@ public class Arffornia {
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "arffornia-common.toml");
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC, "arffornia-client.toml");
+        // Secrets are only registered (and the file only created) on a dedicated server.
+        if (ServerSecretsConfig.shouldRegister(FMLEnvironment.dist)) {
+            modContainer.registerConfig(ModConfig.Type.COMMON, ServerSecretsConfig.SPEC, ServerSecretsConfig.FILE_NAME);
+        }
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

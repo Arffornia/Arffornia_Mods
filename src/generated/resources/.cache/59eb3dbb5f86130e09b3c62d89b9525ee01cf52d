@@ -1,0 +1,8 @@
+// 1.21.1	2026-11-28T15:01:45.677653146	Loot Tables
+cdd5129a46ea6dde8f04dc14dc938a77fd8ed973 data/arffornia/loot_table/blocks/crafter_block.json
+89872a10b596fc48371454c6628956c7d4e262b3 data/arffornia/loot_table/blocks/energy_input_port.json
+5c97f30712674061dec80d6d75595b5fa6843358 data/arffornia/loot_table/blocks/item_input_port.json
+0694cabfa8e32fb27ef3bfbd8b5e6f0d2d76722c data/arffornia/loot_table/blocks/item_output_port.json
+618d73a956557b89aef73a817c4f9712ce020231 data/arffornia/loot_table/blocks/machine_casing.json
+72f83ca2e88b55939fa4b2fe4b0d0e564e98306c data/arffornia/loot_table/blocks/smelter_controller.json
+eb26a8360fdffe991ba2ec4998699a11e5131e76 data/arffornia/loot_table/blocks/space_elevator.json

@@ -1,20 +1,20 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "building",
-  "pattern": [
-    "H",
-    "C"
-  ],
   "key": {
-    "H": {
-      "item": "minecraft:hopper"
-    },
     "C": {
       "item": "arffornia:machine_casing"
+    },
+    "T": {
+      "item": "minecraft:dropper"
     }
   },
+  "pattern": [
+    "T",
+    "C"
+  ],
   "result": {
-    "id": "arffornia:item_input_port",
-    "count": 1
+    "count": 1,
+    "id": "arffornia:item_output_port"
   }
 }

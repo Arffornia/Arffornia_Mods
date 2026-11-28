@@ -1,6 +1,7 @@
 package fr.thegostsniperfr.arffornia.api.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import fr.thegostsniperfr.arffornia.Arffornia;
@@ -317,9 +318,11 @@ public class ArfforniaApiService {
      * @param displayName    The generated display name (e.g., "Iron Ingot").
      * @param imagePath      The generated image path (e.g., "minecraft_iron_ingot").
      * @param recipesToBan   A list of recipe IDs to be banned when this item is unlocked.
+     * @param recipeJson     The original recipe encoded with {@code Recipe.CODEC}.
+     * @param machineRecipeJson The proposed {@code arffornia:machine} recipe built from it.
      * @return A CompletableFuture that resolves to true on success.
      */
-    public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan, List<Map<String, Object>> ingredients, List<Map<String, Object>> result) {
+    public CompletableFuture<Boolean> addUnlockToMilestone(int milestoneId, String itemId, String displayName, String imagePath, List<String> recipesToBan, List<Map<String, Object>> ingredients, List<Map<String, Object>> result, JsonElement recipeJson, JsonElement machineRecipeJson) {
         JsonObject body = new JsonObject();
         body.addProperty("item_id", itemId);
         body.addProperty("display_name", displayName);
@@ -327,6 +330,8 @@ public class ArfforniaApiService {
         body.add("recipes_to_ban", gson.toJsonTree(recipesToBan));
         body.add("ingredients", gson.toJsonTree(ingredients));
         body.add("result", gson.toJsonTree(result));
+        body.add("recipe_json", recipeJson);
+        body.add("machine_recipe", machineRecipeJson);
         return postAndCheckSuccess("/milestones/" + milestoneId + "/add-unlock-from-game", body, "addUnlockToMilestone", null);
     }
 

@@ -44,7 +44,7 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
 ## Hard rules
 - No secrets in the repo (config defaults are placeholders; real values come from provisioning).
 - Do not replace the owner's libraries (Nexus_*) with third-party ones.
-- Never merge, tag, release or push to `main`; open PRs. Do not touch the release workflow's secret usage.
+- Agents may merge their own PRs (squash) after CI is green and an agent review found no blocking issue. Agents never tag, release, push to main directly, or change production. Do not touch the release workflow's secret usage.
 - Design decisions belong to the maintainer: issues labelled `needs-decision` are not to be implemented
   (recipe redesign #14, rewards #15, gating #16, machines/multiblocks #17).
 - Unfixed security weaknesses: neutral issue/PR wording, no exploit details.

@@ -83,6 +83,11 @@ recipe banning, shop/vote rewards, FTB Teams sync, in-game progression viewer (w
 - Item icons for the website come from the client itself: `-Darffornia.exportItemIcons=<dir>` renders every item at
   the title screen by registry id (`client/icon/ItemIconExport`), writes `manifest.json` and quits. Run it through
   Arffornia_Website `scripts/icons/export.sh`; renders that need a level or player are listed as `failed`.
+- Multiblock definitions declare either `structure` (a fixed NBT template) or a rule-based `shape` dispatched by `type`
+  (`MultiblockShapes`; today `arffornia:cuboid`: a box of frame blocks between min and max width x height x depth, hollow
+  or solid, with port counts per `PortKind`; see `CuboidShape`). Rule failures reach the player through
+  `MultiblockShape.problem`; the hologram shows the smallest valid box and the ports still needed. GameTests:
+  `CuboidMultiblockGameTests`.
 - Formed multiblocks are drawn by GeckoLib (`MultiblockMachineRenderer`, required dependency, shipped by the pack): the
   master block's id names `geo/block/<id>.geo.json`, `animations/block/<id>.animation.json` and `textures/block/<id>.png`
   (+ `_glowmask`). They are exported by Arffornia_Assets `node tools/pix/geckolib.mjs <model> --name <id>` and copied in;
